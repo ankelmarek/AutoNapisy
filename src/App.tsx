@@ -224,7 +224,7 @@ export default function App() {
         <div className="brand">
           <span className="logo">A</span>
           <div>
-            AutoNapisy <small>0.4 · lokalne studio napisów</small>
+            AutoNapisy <small>0.5 · lokalne studio napisów</small>
           </div>
         </div>
         <div className="actions">

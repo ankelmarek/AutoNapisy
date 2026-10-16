@@ -15,7 +15,8 @@ $cli = Get-ChildItem "$work/whisper-build" -Recurse -Filter whisper-cli.exe | Se
 if (-not $cli) { throw 'Brak whisper-cli.exe' }
 Copy-Item $cli.FullName "$out/vendor/whisper-cli.exe"
 Copy-Item "$work/whisper/LICENSE" "$out/licenses/whisper.cpp-MIT.txt"
-Copy-Item "$work/whisper/ggml/LICENSE" "$out/licenses/ggml-MIT.txt"
+# In whisper.cpp 1.7.6, ggml is vendored under the repository-wide MIT license.
+Copy-Item "$work/whisper/LICENSE" "$out/licenses/ggml-MIT.txt"
 # Preserve every additional upstream license notice, including examples used by CLI.
 $notices = Get-ChildItem "$work/whisper" -Recurse -File | Where-Object { $_.Name -match '^(LICENSE|COPYING|NOTICE)' }
 foreach ($file in $notices) {
