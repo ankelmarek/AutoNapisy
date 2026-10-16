@@ -232,6 +232,7 @@ pub fn component_licenses(app: tauri::AppHandle) -> Result<Vec<LicenseNotice>, S
     for file in [
         "FFmpeg-GPL-2.0.txt",
         "x264-COPYING.txt",
+        "zlib.txt",
         "whisper.cpp-MIT.txt",
         "ggml-MIT.txt",
         "FFmpeg-build.txt",

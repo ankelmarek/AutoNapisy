@@ -1,5 +1,6 @@
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import type { Project } from "./model";
+import { compositionSegments } from "./editing";
 export type Media = { path: string; name: string };
 export interface PreviewAdapter {
   import(): Promise<Media | null>;
@@ -15,7 +16,7 @@ export interface SynchronizationAdapter {
   activeSegments(project: Project, time: number): Project["segments"];
 }
 export const synchronization: SynchronizationAdapter = {
-  activeSegments: (p, t) => p.segments.filter((s) => s.start <= t && t < s.end),
+  activeSegments: (p, t) => (p.clips === null ? p.segments : compositionSegments(p)).filter((s) => s.start <= t && t < s.end),
 };
 export { rendering, type RenderingAdapter } from "./rendering";
 export type Diagnostics = {

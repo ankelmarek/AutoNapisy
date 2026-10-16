@@ -31,6 +31,7 @@ Copy-Item "$root/src/assets/BebasNeue-OFL.txt" "$out/licenses/"
 # Full source, build scripts, revisions and hashes ship alongside the binaries.
 @{
   ffmpeg = 'FFmpeg/FFmpeg@894da5ca7d742e4429ffb2af534fcda0103ef593 (8.0.1, GPL-2.0-or-later + x264)'
+  zlib = 'madler/zlib@da607da739fa6047df13e66a2af6b8bec7c2a498 (1.3.2, Zlib)'
   x264 = 'mirror/x264@31e19f92f00c7003fa115047ce50978bc98c3a0d (GPL-2.0-or-later)'
   whisper = "ggml-org/whisper.cpp@$revision (1.7.6, MIT)"
   model = 'Not included. User-selected local multilingual GGML model.'

@@ -13,6 +13,10 @@ Możesz kopiować, modyfikować i rozpowszechniać te komponenty na warunkach GP
 https://ffmpeg.org/legal.html
 https://www.videolan.org/developers/x264.html
 
+zlib 1.3.2: licencja Zlib. Tekst licencji i informacje o autorach znajdują się
+w licenses/zlib.txt, źródła w sources/zlib.tar.gz. Zlib umożliwia obsługę PNG
+w kompilacji FFmpeg. https://zlib.net/
+
 whisper.cpp 1.7.6 oraz ggml: MIT. Pełne informacje o prawach autorskich i teksty
 licencji dołączono do folderu licenses. Źródła CLI są w sources/whisper.cpp.tar.gz.
 https://github.com/ggml-org/whisper.cpp

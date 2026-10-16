@@ -1,0 +1,35 @@
+import {chromium} from '../.tools/browser/node_modules/playwright/index.mjs';
+import {execFileSync} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
+import path from 'node:path';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const project={schemaVersion:2,name:'Montaż · próba działania',media:{path:'/test.mp4',name:'Próba montażu',duration:12},segments:[{id:'s',text:'Raz dwa trzy cztery',start:0,end:12,words:[{text:'Raz',start:0,end:2},{text:'dwa',start:3,end:5},{text:'trzy',start:6,end:8},{text:'cztery',start:9,end:12}],styleId:'default'}],styles:{default:{fontFamily:'Bebas Neue',fontSize:56,color:'#080808',background:'#ffe600',position:'bottom',uppercase:true}},createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+const root=fileURLToPath(new URL('../',import.meta.url));process.chdir(root);
+fs.mkdirSync('.tools',{recursive:true});fs.mkdirSync('docs',{recursive:true});
+execFileSync(process.env.AUTONAPISY_FFMPEG??'ffmpeg',['-hide_banner','-loglevel','error','-y','-f','lavfi','-i','testsrc2=s=320x180:r=30:d=12','-f','lavfi','-i','sine=frequency=440:duration=12','-c:v','libvpx','-b:v','300k','-c:a','libopus','.tools/edit-demo.webm']);
+const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
+for(const [width,height]of[[1366,768],[1920,1080]]){
+ const page=await browser.newPage({viewport:{width,height}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.addInitScript(({json})=>{window.__saved=null;window.__TAURI_INTERNALS__={convertFileSrc:()=>'/edit.webm',invoke:async(cmd,args)=>{if(cmd==='open_project')return {json,path:'/test.json'};if(cmd==='prepare_preview')return '/test.mp4';if(cmd==='save_project'){window.__saved=JSON.parse(args.json);return '/test.json';}throw Error(cmd);}};},{json:JSON.stringify(project)});
+ const buffer=fs.readFileSync(path.join(root,'.tools/edit-demo.webm'));
+ await page.route('**/edit.webm',r=>{const match=/bytes=(\d+)-(\d*)/.exec(r.request().headers().range??'');if(match){const start=Number(match[1]),end=match[2]?Math.min(Number(match[2]),buffer.length-1):buffer.length-1;return r.fulfill({status:206,contentType:'video/webm',headers:{'accept-ranges':'bytes','content-range':`bytes ${start}-${end}/${buffer.length}`,'content-length':String(end-start+1)},body:buffer.subarray(start,end+1)});}return r.fulfill({status:200,contentType:'video/webm',headers:{'accept-ranges':'bytes','content-length':String(buffer.length)},body:buffer});});
+ await page.goto(process.env.AUTONAPISY_VITE_URL??'http://127.0.0.1:1420');await page.getByRole('button',{name:'Otwórz',exact:true}).click();await page.waitForTimeout(500);
+ const canvas=page.locator('.edit-canvas'),box=await canvas.boundingBox();assert(box);
+ await page.mouse.click(box.x+180,box.y+10);await page.getByRole('button',{name:'Przetnij tutaj',exact:true}).click();assert.equal(await page.locator('.edit-clip').count(),2);
+ let second=await page.locator('.edit-clip').nth(1).boundingBox();
+ await page.mouse.move(second.x+4,second.y+25);await page.mouse.down();await page.mouse.move(second.x+34,second.y+25,{steps:10});await page.mouse.up();
+ await page.getByRole('button',{name:/Zapisz/}).click();let saved=await page.evaluate(()=>window.__saved);assert.equal(saved.schemaVersion,3);assert(Math.abs(saved.clips[1].sourceIn-7)<.03,JSON.stringify(saved.clips));
+ await page.getByRole('button',{name:'↶ Cofnij',exact:true}).click();await page.getByRole('button',{name:/Zapisz/}).click();saved=await page.evaluate(()=>window.__saved);assert.equal(saved.clips[1].sourceIn,6);
+ await page.getByRole('button',{name:/Ponów/}).click();
+ second=await page.locator('.edit-clip').nth(1).boundingBox();await page.mouse.move(second.x+40,second.y+20);await page.mouse.down();await page.mouse.move(second.x+11,second.y+20,{steps:8});await page.mouse.up();
+ await page.getByRole('button',{name:/Zapisz/}).click();saved=await page.evaluate(()=>window.__saved);assert(Math.abs(saved.clips[1].start-6)<.01,'snap failed '+JSON.stringify(saved.clips));
+ await page.getByRole('button',{name:'Usuń ujęcie'}).click();assert.equal(await page.locator('.edit-clip').count(),1);await page.getByRole('button',{name:'↶ Cofnij',exact:true}).click();assert.equal(await page.locator('.edit-clip').count(),2);
+ await page.mouse.click(box.x+165,box.y+10);await page.getByRole('button',{name:'▶',exact:true}).click();await page.waitForTimeout(1400);assert.equal(await page.getByRole('button',{name:'Ⅱ',exact:true}).count(),1);assert(await page.locator('video').evaluate(v=>v.currentTime)>7,'playback did not jump across cut');await page.getByRole('button',{name:'Ⅱ',exact:true}).click();
+ await page.locator('.edit-clip').nth(1).click({position:{x:40,y:20}});await page.getByRole('spinbutton',{name:'Pozycja ujęcia',exact:true}).fill('8');
+ await page.mouse.click(box.x+195,box.y+10);assert(await page.locator('video').evaluate(v=>v.classList.contains('gap')&&v.paused),'gap should be black and paused');
+ await page.getByRole('button',{name:'▶',exact:true}).click();await page.waitForTimeout(2200);assert(await page.locator('video').evaluate(v=>!v.classList.contains('gap')&&v.currentTime>7),'playback did not leave gap');await page.getByRole('button',{name:'Ⅱ',exact:true}).click();
+ await page.screenshot({path:`docs/montage-${width}.png`});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);assert.equal(await page.evaluate(()=>document.documentElement.scrollHeight>innerHeight),false,'vertical overflow');assert.deepEqual(errors,[]);
+ console.log(JSON.stringify({viewport:[width,height],clips:saved.clips,playback:'crossed cut',errors}));await page.close();
+}
+await browser.close();

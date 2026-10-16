@@ -8,8 +8,9 @@ export default function Timeline(p:Props){
  const [tool,setTool]=useState<'select'|'razor'>('select'),[snap,setSnap]=useState(true),[zoom,setZoom]=useState(30),[selected,setSelected]=useState(''),[draft,setDraft]=useState<Clip[]|null>(null);
  const shown=draft??clips,chosen=shown.find(c=>c.id===selected);
  const canvas=useRef<HTMLDivElement>(null);
- const [scroll,setScroll]=useState(0);
- const visibleCaptions=useMemo(()=>compositionSegments({...p.project,clips:shown}).filter(s=>s.end*zoom>=scroll && s.start*zoom<=scroll+window.innerWidth),[p.project,shown,zoom,scroll]);
+ const [scroll,setScroll]=useState(0),[viewport,setViewport]=useState(window.innerWidth);
+ useEffect(()=>{const resize=()=>setViewport(window.innerWidth);window.addEventListener('resize',resize);return()=>window.removeEventListener('resize',resize);},[]);
+ const visibleCaptions=useMemo(()=>compositionSegments({...p.project,clips:shown}).filter(s=>s.end*zoom>=scroll && s.start*zoom<=scroll+viewport),[p.project,shown,zoom,scroll,viewport]);
  const drag=useRef<{id:string;kind:'move'|'left'|'right';x:number;base:Clip[];value:Clip[];moved:boolean}|null>(null);
  const point=(e:PointerEvent)=>Math.max(0,(e.clientX-(canvas.current?.getBoundingClientRect().left??0))/zoom);
  const scrubbing=useRef(false);
@@ -39,7 +40,7 @@ export default function Timeline(p:Props){
   if(p.locked||e.ctrlKey||e.metaKey||e.altKey||(e.target instanceof HTMLElement&&(e.target.isContentEditable||['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))))return;
   if(e.key.toLowerCase()==='c')setTool('razor');if(e.key.toLowerCase()==='v')setTool('select');
  };window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key);},[p.locked]);
- const width=Math.max(900,(Math.max(duration,...shown.map(clipEnd))+5)*zoom);
+ const width=Math.max(900,viewport-40,(Math.max(duration,...shown.map(clipEnd))+5)*zoom);
  const tick=[1,2,5,10,30,60,120,300,600,1800,3600].find(x=>x*zoom>=90)??3600;
  return <section className="edit-timeline" aria-label="Montaż filmu">
   <div className="timeline-toolbar">
@@ -56,7 +57,7 @@ export default function Timeline(p:Props){
   </div>
   <div className="timeline-scroll" onScroll={e=>setScroll(e.currentTarget.scrollLeft)}>
    <div ref={canvas} className={`edit-canvas ${tool}`} style={{width}} onPointerDown={e=>{if(!p.locked){scrubbing.current=true;e.currentTarget.setPointerCapture(e.pointerId);p.onSeek(point(e));}}} onPointerMove={e=>{if(scrubbing.current&&!p.locked)p.onSeek(point(e));}} onPointerUp={()=>{scrubbing.current=false;}} onPointerCancel={()=>{scrubbing.current=false;}}>
-    <div className="edit-ruler">{Array.from({length:Math.ceil(window.innerWidth/zoom/tick)+3},(_,n)=>Math.max(0,Math.floor(scroll/zoom/tick)-1)+n).map(i=><span key={i} style={{left:i*tick*zoom}}>{stamp(i*tick)}</span>)}</div>
+    <div className="edit-ruler">{Array.from({length:Math.ceil(viewport/zoom/tick)+3},(_,n)=>Math.max(0,Math.floor(scroll/zoom/tick)-1)+n).filter(i=>i*tick*zoom<=width).map(i=><span key={i} style={{left:i*tick*zoom}}>{stamp(i*tick)}</span>)}</div>
     <div className="edit-lane-label">WIDEO + AUDIO</div>
     {shown.map((c,i)=><div key={c.id} role="button" tabIndex={p.locked?-1:0} aria-label={`Ujęcie ${i+1}`} aria-pressed={c.id===selected} className={`edit-clip ${c.id===selected?'selected':''}`} style={{left:c.start*zoom,width:(c.sourceOut-c.sourceIn)*zoom}} onFocus={()=>setSelected(c.id)} onKeyDown={e=>{if(p.locked)return;if(e.key==='Delete'){e.preventDefault();commit(clips.filter(x=>x.id!==c.id));}if(e.key==='Enter')p.onSeek(c.start);}} onPointerDown={e=>start(e,c.id,'move')} onPointerMove={move} onPointerUp={end} onPointerCancel={()=>{drag.current=null;setDraft(null);}} title={`${p.project.media?.name}\nŹródło ${stamp(c.sourceIn)} – ${stamp(c.sourceOut)}\nOś ${stamp(c.start)} – ${stamp(clipEnd(c))}`}>
      <div className="trim-handle left" role="separator" aria-label={`Lewy brzeg ujęcia ${i+1}`} onPointerDown={e=>start(e,c.id,'left')}/>

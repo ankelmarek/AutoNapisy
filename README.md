@@ -185,3 +185,7 @@ Rzeczywisty test eksportu: `AUTONAPISY_FFMPEG` wskazuje FFmpeg, następnie
 Test sam generuje kolorowe nagranie, sprawdza kolejność i cięcia, czarne/ciche
 przerwy, źródło bez audio, czas wyniku, ścieżki Unicode i niezmieniony oryginał.
 Workflow Windows uruchamia go z dołączonym FFmpeg przed budową instalatora.
+
+Opcjonalny test interfejsu: zainstaluj Playwright przez `npm install --prefix .tools/browser playwright@1.56.1`, następnie `.tools/browser/node_modules/.bin/playwright install chromium`. Uruchom `npm run dev` w osobnym terminalu, ustaw `AUTONAPISY_FFMPEG` na FFmpeg z enkoderami libvpx/libopus i wykonaj `node scripts/test-editor.mjs`. Test generuje własny WebM oraz kontrolowany projekt demonstracyjny; sprawdza cięcie, uchwyty, magnes, undo/redo, usuwanie, odtwarzanie przez cięcie i przerwę oraz układ 1366×768 / 1920×1080. Nie zastępuje ręcznego testu WebView2 na docelowym komputerze.
+
+Wersja 0.6 poprawia też kompilację dołączonego FFmpeg: zawiera statycznie linkowaną zlib 1.3.2 potrzebną do odczytu i zapisu PNG. Licencja i źródła zlib są w instalatorze. Testy sprawdzają PNG → H.264, faktyczne nakładanie plansz i działanie po instalacji.

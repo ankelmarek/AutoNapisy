@@ -26,8 +26,8 @@ export function usePlayback(video:RefObject<HTMLVideoElement|null>,project:Proje
    const c=clipAt(projectClips(p),cursor.current);
    if(v && c){
     const expected=c.sourceIn+cursor.current-c.start;
-    if(Math.abs(v.currentTime-expected)>.15 && !v.seeking)v.currentTime=expected;
-    if(v.paused&&!pending.current){pending.current=true;void v.play().catch(e=>{if(alive){setError(`Nie można odtworzyć filmu: ${String(e)}`);setPlaying(false);}}).finally(()=>{pending.current=false;});}
+    if((v.ended || Math.abs(v.currentTime-expected)>.15) && !v.seeking)v.currentTime=Math.min(expected,Math.max(0,v.duration-.001));
+    if(v.paused&&!pending.current){pending.current=true;void v.play().catch(e=>{if(e instanceof DOMException && e.name==='AbortError')return;if(alive){setError(`Nie można odtworzyć filmu: ${String(e)}`);setPlaying(false);}}).finally(()=>{pending.current=false;});}
    }else v?.pause();
    setTime(cursor.current);frame=requestAnimationFrame(tick);
   };
