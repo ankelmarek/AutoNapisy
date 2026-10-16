@@ -250,6 +250,6 @@
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:autonapisy:project:2",
-  "title": "AutoNapisy project v2",
+  "title": "AutoNapisy project v3",
   "$comment": "Czasy w sekundach. Walidatory aplikacji dodatkowo sprawdzają relacje czasów, unikalność ID i referencje stylów."
 }

@@ -51,7 +51,7 @@ Czasy segmentów pochodzą z JSON Whisper. Słowa składamy z tokenów tylko prz
 - Prywatny folder tymczasowy jest usuwany po zakończeniu/błędzie/anulowaniu. Po awarii systemu może pozostać `autonapisy-*` w TEMP; usuń go po zamknięciu aplikacji. WAV wymaga około 115 MB miejsca na godzinę nagrania.
 - JSON projektu i wynik Whisper mają limit 16 MB; nieznane wersje schematu są odrzucane.
 - `src/transcription.ts`: adapter IPC i anulowanie; `src/adapters.ts`: kontrakty podglądu/synchronizacji/renderowania; `src/model.ts`: walidacja; `src-tauri/src/transcription.rs`: procesy i parser; `commands.rs`: dialogi, konfiguracja i zadania; `subtitles.rs`: SRT; `project.rs`: walidacja backendowa.
-- `schemas/project-v1.schema.json` i `schemas/project-v2.schema.json`: stare i aktualne dane; migracja v1 → v2 zachowuje dotychczasowy font, kolory i tekst. Czasy są w sekundach.
+- `schemas/project-v1.schema.json`, `schemas/project-v2.schema.json` i `schemas/project-v3.schema.json`: archiwalne i aktualny format danych; migracja v1/v2 → v3 zachowuje font, kolory, tekst i tworzy pełne ujęcie źródła. Czasy są w sekundach.
 
 ## Testy i instalator
 
