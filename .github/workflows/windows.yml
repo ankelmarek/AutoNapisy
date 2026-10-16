@@ -26,15 +26,27 @@ jobs:
         uses: actions/cache@v4
         with:
           path: src-tauri/.bundled
+          restore-keys: vendor-x64-v1-
           key: vendor-x64-v1-${{ hashFiles('scripts/build-bundled-*', 'scripts/license-report.ps1', 'licenses/**', 'src-tauri/about.toml', 'package-lock.json', 'src-tauri/Cargo.lock') }}
+      - name: Inspect restored FFmpeg resources
+        id: ffmpeg-ready
+        run: |
+          $ready = $true
+          foreach ($p in @('vendor/ffmpeg.exe', 'vendor/ffprobe.exe', 'sources/ffmpeg.tar.gz', 'sources/x264.tar.gz', 'sources/build-bundled-ffmpeg.sh', 'licenses/FFmpeg-GPL-2.0.txt', 'licenses/x264-COPYING.txt')) {
+            if (-not (Test-Path "src-tauri/.bundled/$p")) { $ready = $false }
+          }
+          if ($ready) {
+            $ready = (Get-FileHash scripts/build-bundled-ffmpeg.sh).Hash -eq (Get-FileHash src-tauri/.bundled/sources/build-bundled-ffmpeg.sh).Hash
+          }
+          "ready=$($ready.ToString().ToLower())" >> $env:GITHUB_OUTPUT
       - uses: msys2/setup-msys2@v2
-        if: steps.vendor-cache.outputs.cache-hit != 'true'
+        if: steps.ffmpeg-ready.outputs.ready != 'true' 
         with:
           msystem: MINGW64
           update: true
           install: make diffutils curl mingw-w64-x86_64-gcc mingw-w64-x86_64-pkgconf mingw-w64-x86_64-nasm
       - name: Build FFmpeg and x264 from pinned sources
-        if: steps.vendor-cache.outputs.cache-hit != 'true'
+        if: steps.ffmpeg-ready.outputs.ready != 'true'
         shell: msys2 {0}
         run: ./scripts/build-bundled-ffmpeg.sh
       - name: Build whisper.cpp and collect source licenses
@@ -46,6 +58,8 @@ jobs:
         if: steps.vendor-cache.outputs.cache-hit != 'true'
         run: ./scripts/license-report.ps1
       - run: npm run tauri -- build --target x86_64-pc-windows-msvc --config src-tauri/tauri.bundled.conf.json
+      - name: Test actual installation and bundled tools
+        run: ./scripts/test-installer.ps1
       - uses: actions/upload-artifact@v4
         with:
           name: AutoNapisy-Windows-x64

@@ -142,3 +142,5 @@ budowania. Tak samo robi `.github/workflows/windows.yml`; sprawdza uruchomienie
 FFmpeg/FFprobe/Whisper i rzeczywiste kodowanie H.264 przed utworzeniem instalatora.
 Zwykłe `npm run tauri -- dev` i `npm run tauri -- build` pozostają wariantami
 deweloperskimi bez wbudowanych narzędzi. Pierwsza pełna kompilacja trwa dłużej.
+
+Workflow dodatkowo instaluje gotowy pakiet w katalogu ze spacją i polskimi znakami, sprawdza obecność źródeł i licencji oraz uruchamia narzędzia z zainstalowanego katalogu. whisper.cpp jest budowany ze statycznym runtime C++, aby nie wymagać osobnego instalowania Visual C++ Redistributable.

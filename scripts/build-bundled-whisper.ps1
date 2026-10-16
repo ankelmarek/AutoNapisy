@@ -7,7 +7,7 @@ $revision = 'a8d002cfd879315632a579e73f0148d06959de36'
 Invoke-WebRequest "https://codeload.github.com/ggml-org/whisper.cpp/tar.gz/$revision" -OutFile "$out/sources/whisper.cpp.tar.gz"
 & tar -xzf "$out/sources/whisper.cpp.tar.gz" --strip-components=1 -C "$work/whisper"
 if ($LASTEXITCODE) { throw 'Rozpakowanie whisper.cpp nie powiodło się' }
-& cmake -S "$work/whisper" -B "$work/whisper-build" -A x64 -DBUILD_SHARED_LIBS=OFF -DGGML_NATIVE=OFF -DGGML_AVX=OFF -DGGML_AVX2=OFF -DGGML_FMA=OFF -DGGML_F16C=OFF -DGGML_OPENMP=OFF -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_SERVER=OFF '-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded$<$<CONFIG:Debug>:Debug>'
+& cmake -S "$work/whisper" -B "$work/whisper-build" -A x64 -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DBUILD_SHARED_LIBS=OFF -DGGML_NATIVE=OFF -DGGML_AVX=OFF -DGGML_AVX2=OFF -DGGML_FMA=OFF -DGGML_F16C=OFF -DGGML_OPENMP=OFF -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_SERVER=OFF '-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded$<$<CONFIG:Debug>:Debug>'
 if ($LASTEXITCODE) { throw 'Konfiguracja whisper.cpp nie powiodła się' }
 & cmake --build "$work/whisper-build" --config Release --target whisper-cli -j 2
 if ($LASTEXITCODE) { throw 'Kompilacja whisper.cpp nie powiodła się' }
@@ -20,7 +20,7 @@ Copy-Item "$work/whisper/LICENSE" "$out/licenses/ggml-MIT.txt"
 # Preserve every additional upstream license notice, including examples used by CLI.
 $notices = Get-ChildItem "$work/whisper" -Recurse -File | Where-Object { $_.Name -match '^(LICENSE|COPYING|NOTICE)' }
 foreach ($file in $notices) {
-  $relative = [IO.Path]::GetRelativePath("$work/whisper", $file.FullName)
+  $relative = $file.FullName.Substring((Resolve-Path "$work/whisper").Path.Length + 1)
   $destination = Join-Path "$out/licenses/whisper-notices" $relative
   New-Item -ItemType Directory -Force (Split-Path $destination -Parent) | Out-Null
   Copy-Item $file.FullName $destination

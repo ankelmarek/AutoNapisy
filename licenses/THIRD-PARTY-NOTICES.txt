@@ -1,5 +1,8 @@
 AutoNapisy — komponenty zewnętrzne
 
+Informacje dotyczą wersji dołączonych do pełnego instalatora. Jeśli wskażesz
+własne narzędzia, sprawdź licencje ich dostawcy i konkretnej konfiguracji.
+
 FFmpeg 8.0.1 + libx264: GPL-2.0-or-later. Oddzielne programy ffmpeg.exe i
 ffprobe.exe są uruchamiane jako procesy. AutoNapisy nie linkuje bibliotek FFmpeg.
 Konfiguracja nie zawiera komponentów nonfree i nie korzysta z sieci.
@@ -28,3 +31,10 @@ Licencje zależności nie określają automatycznie licencji samej aplikacji.
 Materiały użytkownika pozostają własnością ich uprawnionych właścicieli.
 
 Komponenty zewnętrzne są udostępniane bez gwarancji, zgodnie z ich licencjami.
+
+Instalator korzysta z NSIS — informacje i licencje projektu:
+https://nsis.sourceforge.io/License
+Microsoft Edge WebView2 jest składnikiem systemowym na warunkach Microsoft;
+jego licencja nie jest licencją MIT/GPL aplikacji ani pozostałych narzędzi.
+Instalator może doinstalować WebView2, jeśli brakuje go w systemie.
+https://developer.microsoft.com/microsoft-edge/webview2/
