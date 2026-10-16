@@ -1,18 +1,18 @@
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all="camelCase", deny_unknown_fields)]
 pub struct Project {pub schema_version:u32,pub name:String,pub media:Option<Media>,pub segments:Vec<Segment>,pub styles:HashMap<String,Style>,pub created_at:String,pub updated_at:String}
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Media {pub path:String,pub name:String,pub duration:Option<f64>}
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all="camelCase", deny_unknown_fields)]
 pub struct Segment {pub id:String,pub text:String,pub start:f64,pub end:f64,pub words:Vec<Word>,pub style_id:String}
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Word {pub text:String,pub start:f64,pub end:f64}
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all="camelCase", deny_unknown_fields)]
 pub struct Style {pub font_family:String,pub font_size:f64,pub color:String,pub background:String,pub position:String}
 fn valid_time(t:f64)->bool{t.is_finite()&&t>=0.0}

@@ -9,3 +9,13 @@ export const newProject = ():Project=>({schemaVersion:1,name:'Nowy projekt',medi
 export function parseProject(json:string):Project{return projectSchema.parse(JSON.parse(json));}
 export function serializeProject(project:Project):string{return JSON.stringify(projectSchema.parse({...project,updatedAt:new Date().toISOString()}),null,2);}
 export function formatTime(seconds:number){const s=Math.max(0,Math.floor(Number.isFinite(seconds)?seconds:0));return `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`;}
+
+/** Whisper may round the final segment beyond the video metadata by milliseconds. */
+export function applyTranscript(project:Project,segments:Project['segments']):Project{
+ const duration=project.media?.duration;
+ const bounded=duration==null?segments:segments.filter(s=>s.start<duration).map(s=>{
+  const end=Math.min(s.end,duration);
+  return {...s,end,words:s.words.filter(w=>w.start<end).map(w=>({...w,end:Math.min(w.end,end)}))};
+ }).filter(s=>s.end>s.start);
+ return projectSchema.parse({...project,segments:bounded,updatedAt:new Date().toISOString()});
+}

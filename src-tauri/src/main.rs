@@ -1,5 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod project;
+mod transcription;
+mod commands;
+mod subtitles;
 use serde::Serialize;
 use std::{collections::HashSet,fs,path::{Path,PathBuf},sync::Mutex,io::{Read,Write}};
 use tauri::{Manager,State};
@@ -36,7 +39,16 @@ async fn save_project(json:String)->Result<Option<String>,String>{
 #[derive(Serialize)]struct Component{name:String,status:String}
 #[derive(Serialize)]#[serde(rename_all="camelCase")]struct Diagnostics{os:String,arch:String,cpu:String,logical_cpus:usize,memory_bytes:u64,components:Vec<Component>}
 #[tauri::command]
-fn diagnostics()->Diagnostics{
- let mut system=sysinfo::System::new_all();system.refresh_all();Diagnostics{os:sysinfo::System::long_os_version().unwrap_or_else(||std::env::consts::OS.into()),arch:std::env::consts::ARCH.into(),cpu:system.cpus().first().map(|c|c.brand().to_owned()).unwrap_or("Brak danych".into()),logical_cpus:system.cpus().len(),memory_bytes:system.total_memory(),components:vec![Component{name:"Podgląd".into(),status:"Odtwarzacz systemowy; obsługa kodeka sprawdzana przy imporcie".into()},Component{name:"whisper.cpp".into(),status:"Nie zintegrowano · etap 2".into()},Component{name:"FFmpeg / proxy".into(),status:"Nie zintegrowano · etap 2".into()},Component{name:"GPU / akceleracja".into(),status:"Wykrywanie niezaimplementowane".into()}]}
+fn diagnostics(tools:State<'_,commands::ToolState>)->Diagnostics{
+ let tools=tools.0.lock().unwrap().clone();
+ let component_status=|kind:&str,path:Option<&Path>| match path {None=>"Nie wybrano pliku — ustaw w sekcji Transkrypcja".to_owned(),Some(p)=>match transcription::validate_tool(kind,p){Ok(_)=>format!("Wybrano: {} (sprawdzenie uruchomienia przy transkrypcji)",p.display()),Err(e)=>format!("Niedostępny: {e}")}};
+ let mut system=sysinfo::System::new_all();system.refresh_all();Diagnostics{os:sysinfo::System::long_os_version().unwrap_or_else(||std::env::consts::OS.into()),arch:std::env::consts::ARCH.into(),cpu:system.cpus().first().map(|c|c.brand().to_owned()).unwrap_or("Brak danych".into()),logical_cpus:system.cpus().len(),memory_bytes:system.total_memory(),components:vec![Component{name:"Podgląd".into(),status:"Odtwarzacz systemowy; obsługa kodeka sprawdzana przy imporcie".into()},Component{name:"whisper.cpp".into(),status:component_status("whisper",tools.whisper.as_deref())},Component{name:"FFmpeg / dźwięk".into(),status:component_status("ffmpeg",tools.ffmpeg.as_deref())},Component{name:"Model Whisper".into(),status:component_status("model",tools.model.as_deref())},Component{name:"GPU / akceleracja".into(),status:"Transkrypcja CPU; GPU wyłączone".into()}]}
 }
-fn main(){tauri::Builder::default().manage(Access::default()).invoke_handler(tauri::generate_handler![import_video,prepare_preview,open_project,save_project,diagnostics]).run(tauri::generate_context!()).expect("Nie można uruchomić AutoNapisy");}
+fn main(){
+ let app=tauri::Builder::default()
+ .manage(Access::default()).manage(commands::ToolState::default()).manage(commands::Tasks::default())
+ .setup(|app|{*app.state::<commands::ToolState>().0.lock().unwrap()=commands::load_tools(app.handle());Ok(())})
+ .invoke_handler(tauri::generate_handler![import_video,prepare_preview,open_project,save_project,diagnostics,commands::tool_settings,commands::choose_component,commands::start_transcription,commands::transcription_status,commands::cancel_transcription,commands::export_srt])
+ .build(tauri::generate_context!()).expect("Nie można uruchomić AutoNapisy");
+ app.run(|handle,event|{if let tauri::RunEvent::ExitRequested{..}=event{handle.state::<commands::Tasks>().shutdown();}});
+}

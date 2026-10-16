@@ -1,79 +1,73 @@
-# AutoNapisy 0.1 — etap 1
+# AutoNapisy 0.2 — polska mowa → polskie napisy
 
-Fundament lokalnej aplikacji Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Interfejs po polsku. Nagrania nie są wysyłane do internetu. Program nie zawiera klienta API, telemetrii ani mechanizmu pobierania modeli.
+Lokalna aplikacja Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Rozpoznaje polską mowę przez whisper.cpp, bez tłumaczenia. Nie wysyła nagrań, nie zawiera klienta HTTP ani telemetrii.
 
-## Stan weryfikacji
+## Aktualizacja z 0.1
 
-Kod został przygotowany w środowisku Linux z Node 24 i npm 11. Środowisko nie ma Rust/Cargo, bibliotek GTK/WebKit ani Windows/WebView2. Pobranie zależności npm nie powiodło się (niedostępny proxy), więc testy Vitest, kompilacja TypeScript, testy Rust, uruchomienie desktopu oraz instalator **nie zostały zweryfikowane**. Nie powstał instalator. Workflow Windows jest przygotowany, ale nie został uruchomiony. Nie traktuj tego wydania jako gotowej, przetestowanej dystrybucji.
+Zachowaj projekty i nagrania. Pobierz ZIP z GitHuba i rozpakuj do nowego folderu, np. `C:\AutoNapisy-0.2`. Nie kopiuj starych `node_modules`, `dist` i `src-tauri/target`. Projekty JSON zachowują schemat v1 i pozostają zgodne z 0.1.
 
-## Uruchomienie na Windows x64
-
-1. Zainstaluj Node.js 22 LTS, aktualny Rust stable z targetem `x86_64-pc-windows-msvc`, Visual Studio Build Tools 2022 z komponentem „Desktop development with C++” i Windows SDK oraz Microsoft Edge WebView2 Runtime.
-2. Otwórz PowerShell w katalogu projektu.
-3. Wykonaj:
+Wymagania: Node.js 22 lub 24, aktualny Rust stable x64 MSVC, Visual Studio Build Tools z „Desktop development with C++” i Windows SDK oraz WebView2 Runtime.
 
 ```powershell
-npm install
-npm run tauri -- dev
+npm.cmd ci
+npm.cmd test
+npm.cmd run build
+cargo test --manifest-path src-tauri/Cargo.toml
+npm.cmd run tauri -- dev
 ```
 
-Sam frontend: `npm run dev` (http://localhost:1420). Dialogi i diagnostyka wymagają Tauri; w przeglądarce operacje backendu zwrócą błąd.
+Pobieranie zależności wymaga internetu. Obsługa filmów i transkrypcja nie korzystają z sieci. Sam `npm run dev` uruchamia frontend bez usług Tauri.
 
-Pierwsza instalacja zależności i narzędzi wymaga internetu; aplikacja nie korzysta z niego do obsługi projektów ani nagrań. Po udanym `npm install` zachowaj wygenerowany `package-lock.json` i zmień instalację CI na `npm ci`. Cargo wygeneruje analogicznie `Cargo.lock`; oba lockfile należy utrwalić przed wydaniem.
+## Przygotowanie komponentów — jednorazowo
+
+Whisper, FFmpeg i model nie są dołączone do instalatora. Pobierz je osobno z zaufanych źródeł i trzymaj w stałym katalogu, np. `C:\AutoNapisy-Komponenty`.
+
+1. **FFmpeg Windows x64**: wybierz dystrybucję Windows wskazaną na https://ffmpeg.org/download.html. Rozpakuj całą paczkę i odszukaj `bin\ffmpeg.exe`.
+2. **whisper.cpp Windows x64**: https://github.com/ggml-org/whisper.cpp/releases — wybierz paczkę z `whisper-cli.exe`, nie „Source code”. Rozpakuj całość razem z bibliotekami DLL. Jeżeli wydanie nie ma binariów, wybierz wydanie, które zawiera paczkę x64. Adapter używa CLI zgodnego z v1.7.6.
+3. **Wielojęzyczny model GGML**: https://huggingface.co/ggerganov/whisper.cpp/tree/main — `ggml-base.bin` (około 142 MiB), ewentualnie dokładniejszy i wolniejszy `ggml-small.bin` (około 466 MiB). Do szybkich prób `ggml-tiny.bin` (około 74 MiB). Nie wybieraj wariantu `.en.bin`, GGUF ani modeli innych implementacji.
+4. W AutoNapisy kliknij **Ustawienia** i wskaż trzy pliki przyciskami **Wybierz**: FFmpeg, whisper-cli i model.
+
+Aplikacja zapisuje ścieżki w `components.json` w katalogu konfiguracji użytkownika Tauri. Nie wyszukuje programów w PATH, nie pobiera nic automatycznie i nie uruchamia programów wskazanych w projekcie JSON. Sprawdza nazwę/pliki i nagłówek GGML; faktyczne uruchomienie sprawdzane jest przy transkrypcji. Korzystaj wyłącznie z zaufanych binariów.
+
+## Obsługa
+
+1. Zaimportuj film lub otwórz projekt.
+2. Kliknij **Transkrybuj po polsku**. FFmpeg wyodrębnia pierwszą ścieżkę audio do mono PCM WAV 16 kHz. Whisper rozpoznaje język polski na CPU, maksymalnie 8 wątków.
+3. Przygotowanie i ładowanie modelu mają nieokreślony pasek. Procent pochodzi z Whisper i dotyczy tylko fazy rozpoznawania; nie jest szacowanym postępem całego zadania. Niektóre CLI nie podają procentu.
+4. **Anuluj** zatrzymuje proces. Zamknięcie aplikacji też zatrzymuje zadanie, czeka na jego koniec i sprząta pliki tymczasowe.
+5. Po sukcesie segmenty pojawiają się w lewym panelu i na podglądzie. Kliknij czas, aby przewinąć film. Tekst można poprawić w polu segmentu. Korekta usuwa czasy słów tego segmentu, ponieważ przestały odpowiadać tekstowi.
+6. **Zapisz** zapisuje projekt JSON z segmentami, słowami, czasami i stylami. **Eksport SRT** tworzy UTF-8 z tekstem i czasami; SRT nie zachowuje stylów ani nie zmienia filmu.
+
+Nowe napisy zastępują stare dopiero po sukcesie i walidacji. Błąd lub anulowanie zachowuje poprzednie segmenty. Poprawny pusty wynik zastępuje je pustą listą i pokazuje komunikat „Nie rozpoznano mowy”. Whisper może halucynować na ciszy/muzyce — zawsze sprawdzaj wynik. Aplikacja nie generuje fikcyjnych transkrypcji.
+
+Czasy segmentów pochodzą z JSON Whisper. Słowa składamy z tokenów tylko przy wiarygodnych czasach i zgodności tekstu; w przeciwnym razie `words` pozostaje puste. Nie wyznaczamy czasów proporcjonalnie. Koniec segmentu może zostać przycięty do długości nagrania, gdy Whisper wychodzi poza audio/film.
+
+## Architektura i bezpieczeństwo
+
+- Frontend nie ma shell, dowolnego dostępu do plików ani HTTP. Rust używa `Command` bez powłoki, ze stałymi argumentami i ścieżkami jako osobnymi argumentami Unicode.
+- Film musi wcześniej zostać wybrany przez natywny import lub projekt. Zakres asset obejmuje konkretne pliki, nie katalogi. Projekt zawiera absolutną ścieżkę, a nie film; nie przenoś nagrania po zapisaniu projektu.
+- FFmpeg ma whitelistę protokołów `file,pipe`. Whisper otrzymuje lokalny WAV, lokalny model, `-l pl`, bez tłumaczenia, z wyłączonym GPU.
+- Prywatny folder tymczasowy jest usuwany po zakończeniu/błędzie/anulowaniu. Po awarii systemu może pozostać `autonapisy-*` w TEMP; usuń go po zamknięciu aplikacji. WAV wymaga około 115 MB miejsca na godzinę nagrania.
+- JSON projektu i wynik Whisper mają limit 16 MB; nieznane wersje schematu są odrzucane.
+- `src/transcription.ts`: adapter IPC i anulowanie; `src/adapters.ts`: kontrakty podglądu/synchronizacji/renderowania; `src/model.ts`: walidacja; `src-tauri/src/transcription.rs`: procesy i parser; `commands.rs`: dialogi, konfiguracja i zadania; `subtitles.rs`: SRT; `project.rs`: walidacja backendowa.
+- `schemas/project-v1.schema.json`: schemat v1, czasy w sekundach. Nie dodano migracji ani nowej wersji formatu.
 
 ## Testy i instalator
 
 ```powershell
-npm test
-npm run build
+npm.cmd test
+npm.cmd run build
+npm.cmd audit
 cargo test --manifest-path src-tauri/Cargo.toml
 powershell -ExecutionPolicy Bypass -File scripts/build-windows.ps1
 ```
 
-Skrypt zatrzymuje się przy błędzie testów lub kompilacji. Instalator NSIS powinien powstać w `src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/`. Workflow `.github/workflows/windows.yml` wykonuje te same testy i publikuje artefakt instalatora, bez automatycznego wydawania aplikacji. Instalator nie jest podpisany cyfrowo.
+Workflow `.github/workflows/windows.yml` buduje Windows x64 i publikuje instalator jako artefakt. Instalator nie jest podpisany cyfrowo. Wynik lokalny: `src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/`. Komponenty i model trzeba skonfigurować także po instalacji.
 
-## Funkcje
+Testy rdzenia bez bibliotek graficznych Linux: `cargo test --manifest-path .test-core/Cargo.toml`. Uruchamiają te same moduły Rust co aplikacja. Przykładowy JSON w testach jest wyłącznie fixture, nigdy wynikiem użytkownika. Opcjonalny test prawdziwych komponentów: ustaw zmienne `AUTONAPISY_FFMPEG`, `AUTONAPISY_WHISPER`, `AUTONAPISY_MODEL`, `AUTONAPISY_SAMPLE` (lokalny plik z mową) i uruchom `cargo test --manifest-path .test-core/Cargo.toml --test local_tools -- --ignored --nocapture`.
 
-- Trzy panele: transkrypcja, podgląd filmu, stylizacja; dolna oś czasu. Układ przewidziany dla 1366×768 i Full HD, wymaga sprawdzenia na prawdziwym Windows i przy skalowaniu DPI.
-- Natywny import MP4, MOV, MKV, WEBM, AVI i M4V, odtwarzanie/pauza, przewijanie suwakiem i o 5 sekund.
-- Tworzenie, otwieranie i zapisywanie projektów JSON przez natywne dialogi. Ostrzeżenie przed zastąpieniem niezapisanego projektu. Zapis przez plik tymczasowy w tym samym katalogu i zastąpienie docelowego pliku.
-- Walidacja wersji, stylów, ID, zakresów segmentów i słów. Limit projektu 16 MB. Unicode w nazwach i ścieżkach.
-- Styl domyślny: krój, rozmiar, kolory i pozycja; demonstracja wyglądu w panelu. Zaimportowane segmenty mogą być wyświetlane i synchronizowane, ale nie ma edytora segmentów.
-- Diagnostyka systemu, CPU, liczby procesorów logicznych i RAM. Statusy Whisper, FFmpeg oraz GPU opisują faktyczny brak integracji.
-- Osobne interfejsy transkrypcji, synchronizacji, podglądu i renderowania. Transkrypcja i rendering zwracają jawny błąd niedostępności; żadnych fikcyjnych wyników.
+Etap 1 został sprawdzony na Windows przez użytkownika. Testy i smoke test rdzenia 0.2 nie zastępują testu interfejsu oraz polskiego nagrania na docelowym Windows. Przed wydaniem sprawdź: mowę, ciszę, brak audio, brak modelu/DLL, Unicode, anulowanie w obu fazach, zamknięcie podczas zadania, zapis/otwarcie JSON, eksport SRT oraz 1366×768 i Full HD.
 
-## Architektura i bezpieczeństwo
+## Ograniczenia
 
-`src/model.ts` jest walidatorem frontendowym. `schemas/project-v1.schema.json` dokumentuje format v1; czasy są w sekundach, ścieżka filmu jest absolutna, plik projektu nie zawiera nagrania. Przeniesienie filmu wymaga ponownego importu (który usuwa segmenty poprzedniego filmu). Przyszłe wersje schematu są odrzucane, bez cichego nadpisywania danych.
-
-`src/adapters.ts` definiuje kontrakty usług. `src-tauri/src/project.rs` ponownie waliduje projekt na granicy backendu. `main.rs` udostępnia wyłącznie `import_video`, `prepare_preview`, `open_project`, `save_project` i `diagnostics`. Frontend nie ma shell, dowolnego odczytu/zapisu plików ani klienta HTTP.
-
-Protokół asset ma początkowo pusty zakres. Rust kanonizuje ścieżkę i dopuszcza tylko konkretny plik wybrany w natywnym dialogu albo wskazany w poprawnym projekcie wybranym przez użytkownika. Nie udostępnia całego katalogu. Uprawnienia wybranych plików obowiązują do końca sesji. Otwieraj projekty wyłącznie z zaufanych źródeł: projekt może wskazać lokalny film. JSON nie jest interpretowany jako kod, a tekst segmentów renderuje React bez HTML.
-
-Podgląd korzysta z HTML video i kodeków WebView2. Rozszerzenie pliku **nie gwarantuje** obsługi kodeka. Błąd odtwarzania pokazuje komunikat o kodeku/proxy. `PreviewAdapter.prepare` jest punktem rozszerzenia dla przyszłego FFmpeg; w etapie 1 nie konwertuje filmu. Brak obrazu lub dźwięku przy częściowym wsparciu kodeka wymaga ręcznej oceny. GPU, FFmpeg i Whisper nie są wykrywane ani uruchamiane.
-
-## Pliki
-
-- `package.json`, `tsconfig.json`, `vite.config.ts`, `index.html`, `.gitignore` — konfiguracja frontendowa.
-- `src/main.tsx`, `src/App.tsx`, `src/style.css` — interfejs.
-- `src/model.ts`, `src/adapters.ts` — model i kontrakty usług.
-- `schemas/project-v1.schema.json` — dokumentowany schemat JSON.
-- `tests/model.test.ts` — testy projektów, Unicode, czasów, synchronizacji i niedostępnych usług.
-- `src-tauri/Cargo.toml`, `src-tauri/build.rs`, `src-tauri/tauri.conf.json`, `src-tauri/capabilities/default.json`, `src-tauri/icons/icon.ico` — konfiguracja desktopu i instalatora.
-- `src-tauri/src/main.rs`, `src-tauri/src/project.rs` — backend i testy Rust.
-- `.github/workflows/windows.yml`, `scripts/build-windows.ps1` — budowanie Windows.
-- `README.md` — instrukcja i stan weryfikacji.
-
-## Lista ręcznej weryfikacji na Windows
-
-1. Uruchom wszystkie testy, zbuduj NSIS i zainstaluj program na czystym Windows x64.
-2. Sprawdź Full HD, 1366×768 oraz DPI 100/125/150%.
-3. Importuj film H.264/AAC MP4 z nazwą Unicode; sprawdź dźwięk, play/pause, seek i koniec filmu.
-4. Sprawdź nieobsługiwany kodek, usunięty film, brak dostępu, anulowanie każdego dialogu, błędny JSON i przyszłą wersję.
-5. Zapisz projekt, zamknij i otwórz; sprawdź nazwę, styl, ścieżkę i podgląd. Sprawdź nadpisanie istniejącego projektu.
-6. Spróbuj wywołać `prepare_preview` dla niewybranego pliku — backend musi odmówić.
-7. Uruchom bez sieci i sprawdź diagnostykę. Zweryfikuj brak ruchu sieciowego aplikacji.
-
-## Etap 2 — rekomendacje, bez implementacji
-
-Po potwierdzeniu builda Windows: integracja lokalnego whisper.cpp, anulowanie i postęp zadań, zarządzanie modelami i akceleracją, adapter FFmpeg do proxy z mapowaniem czasu, testy kodeków, edycja segmentów/słów i eksport SRT/ASS. Następnie ujednolicenie rendererów stylów, migracje schematu, odzyskiwanie/autozapis oraz podpisywanie instalatora.
+Brak tłumaczenia, GPU, proxy wideo, diarizacji, edycji czasów, renderowania filmu i automatycznego pobierania modeli. Podgląd zależy od kodeków WebView2; transkrypcja FFmpeg może działać nawet bez podglądu danego kodeka. Długie nagrania potrzebują miejsca i czasu; nie ma wznawiania po zamknięciu. SRT nie zawiera stylizacji. Model i komponenty nie są dołączone do źródeł ani instalatora.
