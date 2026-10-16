@@ -20,7 +20,7 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
-      - run: cargo test --manifest-path src-tauri/Cargo.toml
+      - run: cargo test --locked --manifest-path src-tauri/Cargo.toml
       - name: Cache bundled tools and license reports
         id: vendor-cache
         uses: actions/cache@v4
@@ -74,7 +74,7 @@ jobs:
       - name: Test real montage export with bundled FFmpeg
         env:
           AUTONAPISY_FFMPEG: ${{ github.workspace }}/src-tauri/.bundled/vendor/ffmpeg.exe
-        run: cargo test --manifest-path .test-core/Cargo.toml --test montage_export -- --ignored --nocapture
+        run: cargo test --locked --manifest-path .test-core/Cargo.toml --test montage_export -- --ignored --nocapture
       - run: npm run tauri -- build --target x86_64-pc-windows-msvc --config src-tauri/tauri.bundled.conf.json
       - name: Test actual installation and bundled tools
         run: ./scripts/test-installer.ps1
