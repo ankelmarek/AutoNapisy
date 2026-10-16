@@ -2,9 +2,9 @@
 
 Lokalna aplikacja Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Rozpoznaje polską mowę przez whisper.cpp, bez tłumaczenia. Nie wysyła nagrań, nie zawiera klienta HTTP ani telemetrii.
 
-## Aktualizacja z 0.1 / 0.2
+## Aktualizacja i uruchomienie ze źródeł
 
-Zachowaj projekty i nagrania. Pobierz ZIP z GitHuba i rozpakuj do nowego folderu, np. `C:\AutoNapisy-0.4`. Nie kopiuj starych `node_modules`, `dist` i `src-tauri/target`. Aplikacja otwiera projekty v1 z wersji 0.1/0.2 i migruje je w pamięci, także z v2 i v3. Wersja 0.7 zapisuje format v4 z montażem oraz ustawieniami wyglądu; starsze AutoNapisy go nie odczyta. Zachowaj kopię poprzedniego JSON, jeśli potrzebujesz wracać do 0.2.
+Zachowaj projekty i nagrania. Pobierz ZIP z GitHuba i rozpakuj do nowego folderu, np. `C:\AutoNapisy-0.7`. Nie kopiuj starych `node_modules`, `dist` i `src-tauri/target`. Aplikacja otwiera projekty v1 z wersji 0.1/0.2 i migruje je w pamięci, także z v2 i v3. Wersja 0.7 zapisuje format v4 z montażem oraz ustawieniami wyglądu; starsze AutoNapisy go nie odczyta. Zachowaj kopię poprzedniego JSON, jeśli potrzebujesz wracać do 0.2.
 
 Wymagania: Node.js 22 lub 24, aktualny Rust stable x64 MSVC, Visual Studio Build Tools z „Desktop development with C++” i Windows SDK oraz WebView2 Runtime.
 
@@ -20,7 +20,7 @@ Pobieranie zależności wymaga internetu. Obsługa filmów i transkrypcja nie ko
 
 ## Przygotowanie komponentów — jednorazowo
 
-Whisper, FFmpeg i model nie są dołączone do instalatora. Pobierz je osobno z zaufanych źródeł i trzymaj w stałym katalogu, np. `C:\AutoNapisy-Komponenty`.
+Pełny instalator z GitHub Actions zawiera FFmpeg, FFprobe i whisper.cpp wraz z licencjami i źródłami. Osobno wybierz tylko model GGML. Przy uruchamianiu ze źródeł lub własnym zestawie narzędzi możesz wskazać je ręcznie, np. z `C:\AutoNapisy-Komponenty`.
 
 1. **FFmpeg Windows x64**: wybierz dystrybucję Windows wskazaną na https://ffmpeg.org/download.html. Rozpakuj całą paczkę i odszukaj `bin\ffmpeg.exe`.
 2. **whisper.cpp Windows x64**: [whisper-bin-x64.zip v1.7.6](https://github.com/ggml-org/whisper.cpp/releases/download/v1.7.6/whisper-bin-x64.zip) — sprawdzony format CLI; wybierz paczkę z `whisper-cli.exe`, nie „Source code”. Rozpakuj całość razem z bibliotekami DLL. Jeżeli wydanie nie ma binariów, wybierz wydanie, które zawiera paczkę x64. Adapter używa CLI zgodnego z v1.7.6.
@@ -51,7 +51,7 @@ Czasy segmentów pochodzą z JSON Whisper. Słowa składamy z tokenów tylko prz
 - Prywatny folder tymczasowy jest usuwany po zakończeniu/błędzie/anulowaniu. Po awarii systemu może pozostać `autonapisy-*` w TEMP; usuń go po zamknięciu aplikacji. WAV wymaga około 115 MB miejsca na godzinę nagrania.
 - JSON projektu i wynik Whisper mają limit 16 MB; nieznane wersje schematu są odrzucane.
 - `src/transcription.ts`: adapter IPC i anulowanie; `src/adapters.ts`: kontrakty podglądu/synchronizacji/renderowania; `src/model.ts`: walidacja; `src-tauri/src/transcription.rs`: procesy i parser; `commands.rs`: dialogi, konfiguracja i zadania; `subtitles.rs`: SRT; `project.rs`: walidacja backendowa.
-- `schemas/project-v1.schema.json`, `schemas/project-v2.schema.json` i `schemas/project-v3.schema.json`: archiwalne i aktualny format danych; migracja v1/v2 → v3 zachowuje font, kolory, tekst i tworzy pełne ujęcie źródła. Czasy są w sekundach.
+- `schemas/project-v1.schema.json`, `schemas/project-v2.schema.json` `schemas/project-v3.schema.json` i aktualny `schemas/project-v4.schema.json`: migracja v1/v2/v3 → v4 zachowuje font, kolory, tekst i tworzy pełne ujęcie źródła. Czasy są w sekundach.
 
 ## Testy i instalator
 
@@ -63,7 +63,7 @@ cargo test --manifest-path src-tauri/Cargo.toml
 powershell -ExecutionPolicy Bypass -File scripts/build-windows.ps1
 ```
 
-Workflow `.github/workflows/windows.yml` buduje Windows x64 i publikuje instalator jako artefakt. Instalator nie jest podpisany cyfrowo. Wynik lokalny: `src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/`. Komponenty i model trzeba skonfigurować także po instalacji.
+Workflow `.github/workflows/windows.yml` buduje Windows x64 i publikuje instalator jako artefakt. Instalator nie jest podpisany cyfrowo. Wynik lokalny: `src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/`. Dołączone komponenty są wykrywane automatycznie; lokalny model wybierz w Ustawieniach.
 
 Testy rdzenia bez bibliotek graficznych Linux: `cargo test --manifest-path .test-core/Cargo.toml`. Uruchamiają te same moduły Rust co aplikacja. Przykładowy JSON w testach jest wyłącznie fixture, nigdy wynikiem użytkownika. Opcjonalny test prawdziwych komponentów: ustaw zmienne `AUTONAPISY_FFMPEG`, `AUTONAPISY_WHISPER`, `AUTONAPISY_MODEL`, `AUTONAPISY_SAMPLE` (lokalny plik z mową) i uruchom `cargo test --manifest-path .test-core/Cargo.toml --test local_tools -- --ignored --nocapture`.
 
@@ -148,9 +148,9 @@ Workflow dodatkowo instaluje gotowy pakiet w katalogu ze spacją i polskimi znak
 
 ## Montaż — podstawowe narzędzia (od 0.6)
 
-Importuj jeden film i wycinaj z niego ujęcia. Oryginał pozostaje bez zmian.
+Importuj filmy i wycinaj z nich ujęcia. Oryginał pozostaje bez zmian.
 - **Żyletka** (C): kliknij klip lub ustaw głowicę i wybierz **Przetnij tutaj**.
-- **Zaznacz** (V): przeciągnij środek klipu, aby go przesunąć. Klipy nie nakładają się. Przeniesienie fragmentu za inny zmienia kolejność.
+- **Zaznacz** (V): przeciągnij środek klipu, aby go przesunąć. Klipy wideo na tym samym pasie nie nakładają się. Przeniesienie fragmentu za inny zmienia kolejność.
 - Przeciągnij boczny uchwyt, aby skrócić lub przywrócić fragment w granicach źródła i wolnego miejsca.
 - **Magnes** przyciąga krawędzie do sąsiada (10 pikseli), uchwyty także do głowicy.
 - **Usuń ujęcie** / Delete usuwa zaznaczony fragment i pozostawia przerwę. **Dosuń wszystkie** zamyka wszystkie przerwy w aktualnej kolejności. Gdy oś jest pusta, **Przywróć cały film** dodaje pełne źródło, zachowując oryginalną transkrypcję.
@@ -158,7 +158,7 @@ Importuj jeden film i wycinaj z niego ujęcia. Oryginał pozostaje bez zmian.
 - Kliknij lub przeciągnij linijkę, aby przewinąć. Zoom i poziomy pasek przewijania pomagają przy dłuższych nagraniach. Pola pod osią umożliwiają dokładne ustawienie czasów w sekundach.
 
 Podgląd przeskakuje między punktami wejścia i wyjścia ujęć. Przerwy są czarne
-i bez dźwięku. Napisy z oryginalnymi czasami słów są przycinane i przesuwane
+; dźwięk trwa, jeśli w tym miejscu leży osobne audio. Napisy z oryginalnymi czasami słów są przycinane i przesuwane
 razem z materiałem; ponownie użyty fragment korzysta z tego samego źródłowego
 tekstu. Edycja tekstu w panelu dotyczy źródłowego segmentu we wszystkich jego
 użyciach. Po ręcznej zmianie tekstu czasy słów są usuwane — program nie zgaduje

@@ -9,7 +9,7 @@ const root=fileURLToPath(new URL('../',import.meta.url));process.chdir(root);
 fs.mkdirSync('.tools',{recursive:true});fs.mkdirSync('docs',{recursive:true});
 execFileSync(process.env.AUTONAPISY_FFMPEG??'ffmpeg',['-hide_banner','-loglevel','error','-y','-f','lavfi','-i','testsrc2=s=320x180:r=30:d=12','-f','lavfi','-i','sine=frequency=440:duration=12','-c:v','libvpx','-b:v','300k','-c:a','libopus','.tools/edit-demo.webm']);
 const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
-for(const [width,height]of[[1366,768],[1920,1080]]){
+for(const [width,height]of[[1366,768],[1920,1080],[1366,700]]){
  const page=await browser.newPage({viewport:{width,height}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.addInitScript(({json})=>{window.__saved=null;window.__TAURI_INTERNALS__={convertFileSrc:()=>'/edit.webm',invoke:async(cmd,args)=>{if(cmd==='open_project')return {json:localStorage.getItem('e2eSaved')??json,path:'/test.json'};if(cmd==='prepare_preview')return '/test.mp4';if(cmd==='import_video')return {path:args.kind==='audio'?'/music.webm':'/second.webm',name:args.kind==='audio'?'Muzyka':'Drugi film'};if(cmd==='save_project'){window.__saved=JSON.parse(args.json);return '/test.json';}throw Error(cmd);}};},{json:JSON.stringify(project)});
  const buffer=fs.readFileSync(path.join(root,'.tools/edit-demo.webm'));
