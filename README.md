@@ -1,10 +1,10 @@
-# AutoNapisy 0.6 — polska mowa → polskie napisy
+# AutoNapisy 0.7 — polska mowa → polskie napisy
 
 Lokalna aplikacja Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Rozpoznaje polską mowę przez whisper.cpp, bez tłumaczenia. Nie wysyła nagrań, nie zawiera klienta HTTP ani telemetrii.
 
 ## Aktualizacja z 0.1 / 0.2
 
-Zachowaj projekty i nagrania. Pobierz ZIP z GitHuba i rozpakuj do nowego folderu, np. `C:\AutoNapisy-0.4`. Nie kopiuj starych `node_modules`, `dist` i `src-tauri/target`. Aplikacja otwiera projekty v1 z wersji 0.1/0.2 i migruje je w pamięci. Wersja 0.6 zapisuje format v3 z montażem oraz ustawieniami wyglądu; starsze AutoNapisy go nie odczyta. Zachowaj kopię poprzedniego JSON, jeśli potrzebujesz wracać do 0.2.
+Zachowaj projekty i nagrania. Pobierz ZIP z GitHuba i rozpakuj do nowego folderu, np. `C:\AutoNapisy-0.4`. Nie kopiuj starych `node_modules`, `dist` i `src-tauri/target`. Aplikacja otwiera projekty v1 z wersji 0.1/0.2 i migruje je w pamięci, także z v2 i v3. Wersja 0.7 zapisuje format v4 z montażem oraz ustawieniami wyglądu; starsze AutoNapisy go nie odczyta. Zachowaj kopię poprzedniego JSON, jeśli potrzebujesz wracać do 0.2.
 
 Wymagania: Node.js 22 lub 24, aktualny Rust stable x64 MSVC, Visual Studio Build Tools z „Desktop development with C++” i Windows SDK oraz WebView2 Runtime.
 
@@ -110,7 +110,7 @@ Napisy są na stałe zapisane w obrazie: Bebas Neue, kolory, zaokrąglone tło i
 
 Źródło nie może być plikiem docelowym. Kodowanie odbywa się w katalogu tymczasowym obok wybranego pliku; potrzebne jest wolne miejsce na plansze i cały MP4. Anulowanie lub błąd zachowuje istniejący plik docelowy; udane kodowanie zastępuje go po sprawdzeniu, czy nie został zmieniony podczas pracy.
 
-Limity tej wersji: 3000 plansz, 8 MB na planszę, 512 MB plansz łącznie, maksymalnie 16 megapikseli i 8192 pikseli na bok, film do 24 godzin. Eksport działa na CPU i może potrwać. Nie zawiera montażu, wyboru ścieżek audio ani eksportu HDR. Rozmiar uwzględnia obrót o wielokrotność 90° oraz proporcje pikseli, wynik ma parzyste wymiary i kwadratowe piksele.
+Limity tej wersji: 3000 plansz, 8 MB na planszę, 512 MB plansz łącznie, maksymalnie 16 megapikseli i 8192 pikseli na bok, film do 24 godzin. Eksport działa na CPU i może potrwać. Nie zawiera wyboru wewnętrznych ścieżek wielokanałowego pliku ani eksportu HDR. Rozmiar uwzględnia obrót o wielokrotność 90° oraz proporcje pikseli, wynik ma parzyste wymiary i kwadratowe piksele.
 
 Testy eksportu: testy adaptera IPC, walidacji PNG, osi czasu i ochrony źródła oraz test integracyjny z prawdziwym FFmpeg. Test integracyjny jest opcjonalny: `.test-core/tests/video_export.rs` opisuje zmienne środowiskowe z lokalnymi plikami testowymi; uruchom `cargo test --manifest-path .test-core/Cargo.toml --test video_export -- --ignored`. Kompilację natywnego Tauri i instalatora sprawdza workflow Windows.
 
@@ -146,7 +146,7 @@ deweloperskimi bez wbudowanych narzędzi. Pierwsza pełna kompilacja trwa dłuż
 Workflow dodatkowo instaluje gotowy pakiet w katalogu ze spacją i polskimi znakami, sprawdza obecność źródeł i licencji oraz uruchamia narzędzia z zainstalowanego katalogu. whisper.cpp jest budowany ze statycznym runtime C++, aby nie wymagać osobnego instalowania Visual C++ Redistributable.
 
 
-## Montaż na jednej ścieżce — 0.6
+## Montaż — podstawowe narzędzia (od 0.6)
 
 Importuj jeden film i wycinaj z niego ujęcia. Oryginał pozostaje bez zmian.
 - **Żyletka** (C): kliknij klip lub ustaw głowicę i wybierz **Przetnij tutaj**.
@@ -176,7 +176,7 @@ Format projektu v3 zapisuje `clips: [{id, sourceIn, sourceOut, start}]`. Napisy
 w projekcie nadal mają czasy źródłowe. `clips: []` oznacza pusty montaż,
 `null` oczekiwanie na metadane pierwszego filmu. Projekty v1/v2 są migrowane
 do jednego ujęcia obejmującego źródło. Starsze wersje aplikacji nie otworzą v3;
-zachowaj kopię starszego JSON. Maksymalnie 100 ujęć, jedna ścieżka i jedno
+zachowaj kopię starszego JSON. W wersji 0.6: maksymalnie 100 ujęć, jedna ścieżka i jedno
 nagranie źródłowe; brak przejść i nakładania. Nie dodano automatycznego proxy
 HEVC — podgląd nadal wymaga kodeka obsługiwanego przez WebView2.
 
@@ -189,3 +189,20 @@ Workflow Windows uruchamia go z dołączonym FFmpeg przed budową instalatora.
 Opcjonalny test interfejsu: zainstaluj Playwright przez `npm install --prefix .tools/browser playwright@1.56.1`, następnie `.tools/browser/node_modules/.bin/playwright install chromium`. Uruchom `npm run dev` w osobnym terminalu, ustaw `AUTONAPISY_FFMPEG` na FFmpeg z enkoderami libvpx/libopus i wykonaj `node scripts/test-editor.mjs`. Test generuje własny WebM oraz kontrolowany projekt demonstracyjny; sprawdza cięcie, uchwyty, magnes, undo/redo, usuwanie, odtwarzanie przez cięcie i przerwę oraz układ 1366×768 / 1920×1080. Nie zastępuje ręcznego testu WebView2 na docelowym komputerze.
 
 Wersja 0.6 poprawia też kompilację dołączonego FFmpeg: zawiera statycznie linkowaną zlib 1.3.2 potrzebną do odczytu i zapisu PNG. Licencja i źródła zlib są w instalatorze. Testy sprawdzają PNG → H.264, faktyczne nakładanie plansz i działanie po instalacji.
+
+
+## Dwie ścieżki obrazu i dźwięku — 0.7
+
+- **Importuj film** dodaje kolejne źródło, zachowując dotychczasowy montaż i napisy. Nowy klip trafia w pozycję głowicy na wolne V1 lub V2; gdy oba pasy są zajęte, na koniec V1.
+- **V2 przykrywa V1** podczas nałożenia. Obraz jest dopasowany z zachowaniem proporcji i czarnymi pasami do rozmiaru pierwszego filmu. Bez przejść, przezroczystości i picture-in-picture.
+- Filmy mają **połączony dźwięk** pokazany jako 🔗 na A1/A2. Żyletka, przesunięcie, przycięcie, usunięcie i cofnięcie dotyczą obu części. Nie dublujemy próbek: połączony pasek audio jest widokiem tego samego klipu.
+- **Importuj audio** dodaje niezależne WAV, MP3, AAC/M4A, FLAC, OGG lub OPUS (podgląd zależy od kodeków WebView2). Można je przesuwać, ciąć i przycinać. Nie zmienia filmu.
+- A1/A2 są dwoma pasami miksu: mogą zawierać jednocześnie połączony dźwięk filmu i osobne audio. Na każdym pasie połączony dźwięk jest w górnym wierszu, niezależny w dolnym. Wszystkie aktywne dźwięki sumują się; wybór górnego obrazu nie wycisza dolnego filmu.
+- Zaznacz klip, ustaw **Głośność** 0–100% (0% wycisza). Przy głośnych nałożeniach zmniejsz poziomy. Eksport dodatkowo ogranicza szczyty limiterem, bez automatycznego wyrównywania głośności.
+- Przeciągnij pionowo lub wybierz **Ścieżka** we właściwościach. Wideo nie może nakładać się na inne wideo na tym samym pasie; pomiędzy V1/V2 może. Niezależne audio może się nakładać i sumować.
+- W panelu transkrypcji wybierz film źródłowy. Każdy film ma własne oryginalne segmenty. Napisy podążają za ujęciami, a podczas nałożenia dotyczą widocznego filmu; bez napisów w V2 napisy V1 są schowane.
+- Zapis **v4** dodaje `assets` z lokalnymi ścieżkami i napisami oraz opcjonalne `assetId`, `track` (0/1), `kind` (video/audio), `volume` w klipach. Brak assetId oznacza główny film. Stare projekty v1–v3 są migrowane; starsza aplikacja nie otworzy v4, zachowaj kopię JSON.
+- Nadal maksymalnie 100 klipów, 100 dodatkowych źródeł, 24 godziny i eksport 30 kl./s. Audio korzysta z pierwszego strumienia źródła; brak odłączania audio, crossfade i automatyki poziomu. Nie ma generatora proxy dla nieobsługiwanych kodeków.
+- Projekty przechowują odwołania do nagrań. Przenosząc projekt na drugi komputer, zachowaj lokalizacje źródeł. Niedostępne źródła są raportowane. Eksport MP4 wymaga co najmniej jednego zaimportowanego filmu.
+
+Testy 0.7: jednostkowe TypeScript i Rust; rzeczywisty FFmpeg sprawdza warstwy czerwony/niebieski, jednoczesne tony 440/880/1320 Hz, muzykę nad czarną przerwą, głośność, Unicode i niezmienność źródeł. Opcjonalny `scripts/test-editor.mjs` sprawdza import, cztery pasy, połączony montaż, niezależne audio, odtwarzanie i układ w 1366×768 oraz 1920×1080 (Playwright instalowany osobno do `.tools/browser`). Windows CI uruchamia test realnego miksu także z FFmpeg dołączonym do instalatora.

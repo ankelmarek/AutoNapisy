@@ -39,8 +39,9 @@ const segment = z
   });
 const currentProjectSchema = z
   .object({
-    schemaVersion: z.literal(3),
-    clips: z.array(z.object({id:z.string().min(1),sourceIn:time,sourceOut:time,start:time}).strict()).max(100).nullable(),
+    schemaVersion: z.literal(4),
+    assets: z.array(z.object({id:z.string().min(1),path:z.string().min(1),name:z.string(),duration:time,kind:z.enum(["video","audio"]),segments:z.array(segment)}).strict()).max(100).default([]),
+    clips: z.array(z.object({id:z.string().min(1),sourceIn:time,sourceOut:time,start:time,assetId:z.string().optional(),track:z.union([z.literal(0),z.literal(1)]).optional(),kind:z.enum(["video","audio"]).optional(),volume:z.number().min(0).max(1).optional()}).strict()).max(100).nullable(),
     name: z.string().min(1).max(200),
     media: z
       .object({
@@ -58,11 +59,14 @@ const currentProjectSchema = z
   .strict()
   .superRefine((p, c) => {
     const clips = [...(p.clips ?? [])].sort((a,b)=>a.start-b.start);
-    if (new Set(clips.map(c=>c.id)).size !== clips.length || clips.some((clip,i)=>
-      !p.media || p.media.duration == null || clip.sourceOut-clip.sourceIn < 0.049999 ||
-      clip.sourceOut > p.media.duration+1e-6 || clip.start+clip.sourceOut-clip.sourceIn>86400 ||
-      (i>0 && clip.start < clips[i-1].start+clips[i-1].sourceOut-clips[i-1].sourceIn-1e-6)))
-      c.addIssue({code:'custom',message:'Nieprawidłowe lub nakładające się ujęcia'});
+    const asset = (clip:typeof clips[number]) => clip.assetId ? p.assets.find(a=>a.id===clip.assetId) : p.media;
+    if(new Set(p.assets.map(a=>a.id)).size!==p.assets.length || p.assets.some(a=>a.id==='primary' || a.duration<.05 || a.segments.some(s=>s.end>a.duration || !p.styles[s.styleId])))c.addIssue({code:'custom',message:'Nieprawidłowe źródła'});
+    if (new Set(clips.map(c=>c.id)).size !== clips.length || clips.some((clip,i)=> {
+      const m=asset(clip);
+      return !m || m.duration==null || clip.sourceOut-clip.sourceIn < .049999 || clip.sourceOut>m.duration+1e-6 || clip.start+clip.sourceOut-clip.sourceIn>86400 ||
+        (clip.kind!=='audio' && 'kind' in m && m.kind==='audio') ||
+        (clip.kind!=='audio' && clips.slice(0,i).some(o=>o.kind!=='audio' && (o.track??0)===(clip.track??0) && clip.start<o.start+o.sourceOut-o.sourceIn-1e-6));
+    })) c.addIssue({code:'custom',message:'Nieprawidłowe lub nakładające się ujęcia na tej samej ścieżce wideo'});
     if (!p.styles.default)
       c.addIssue({ code: "custom", message: "Brak stylu domyślnego" });
     if (
@@ -79,15 +83,16 @@ const currentProjectSchema = z
       });
   });
 export const projectSchema = z.preprocess((value) => {
-  if (value && typeof value==='object' && 'schemaVersion' in value && [1,2].includes(Number(value.schemaVersion))) {
-    const p=value as {media?:{duration?:number};schemaVersion:number};
-    return {...value,schemaVersion:3,clips:p.media?.duration ? [{id:'original',sourceIn:0,sourceOut:p.media.duration,start:0}] : null};
+  if (value && typeof value==='object' && 'schemaVersion' in value && [1,2,3].includes(Number(value.schemaVersion))) {
+    const p=value as {media?:{duration?:number};schemaVersion:number;clips?:unknown};
+    return {...value,schemaVersion:4,assets:[],clips:p.schemaVersion===3 ? p.clips : p.media?.duration ? [{id:'original',sourceIn:0,sourceOut:p.media.duration,start:0}] : null};
   }
   return value;
 }, currentProjectSchema);
 export type Project = z.infer<typeof projectSchema>;
 export const newProject = (): Project => ({
-  schemaVersion: 3,
+  schemaVersion: 4,
+  assets: [],
   clips: null,
   name: "Nowy projekt",
   media: null,

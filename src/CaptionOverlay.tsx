@@ -74,10 +74,12 @@ export default function CaptionOverlay({
   video,
   project,
   time,
+  compositionCanvas=false,
 }: {
   video: RefObject<HTMLVideoElement | null>;
   project: Project;
   time: number;
+  compositionCanvas?:boolean;
 }) {
   const [rect, setRect] = useState<Rect>({
     left: 0,
@@ -93,8 +95,8 @@ export default function CaptionOverlay({
         fitVideoRect(
           element.clientWidth,
           element.clientHeight,
-          element.videoWidth,
-          element.videoHeight,
+          compositionCanvas?element.clientWidth:element.videoWidth,
+          compositionCanvas?element.clientHeight:element.videoHeight,
         ),
       );
     const observer = new ResizeObserver(update);
@@ -107,7 +109,7 @@ export default function CaptionOverlay({
       element.removeEventListener("loadedmetadata", update);
       element.removeEventListener("resize", update);
     };
-  }, [video, project.media?.path]);
+  }, [video, project.media?.path, project.clips]);
   const cards = useMemo(
     () =>
       project.segments.flatMap((segment) =>

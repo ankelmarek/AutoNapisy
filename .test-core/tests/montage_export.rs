@@ -174,3 +174,114 @@ fn real_montage_video_audio_gaps_and_no_audio() {
     assert_eq!(fs::read(&source).unwrap(), original);
     println!("Reorder, trims, black gaps, audio/silence, no-audio input and Unicode paths: OK");
 }
+
+#[test]
+#[ignore = "requires AUTONAPISY_FFMPEG"]
+fn real_two_video_two_audio_mix() {
+    let ffmpeg = std::path::PathBuf::from(std::env::var("AUTONAPISY_FFMPEG").unwrap());
+    let dir = tempfile::tempdir().unwrap();
+    let red = dir.path().join("Dolny Łódź.mp4");
+    let blue = dir.path().join("Górny żółć.mp4");
+    let music = dir.path().join("Muzyka.wav");
+    for (file, color, freq) in [(&red, "red", "440"), (&blue, "blue", "880")] {
+        run(
+            &ffmpeg,
+            &[
+                "-v",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                &format!("color=c={color}:s=160x90:r=30:d=4"),
+                "-f",
+                "lavfi",
+                "-i",
+                &format!("sine=frequency={freq}:duration=4"),
+                "-c:v",
+                "libx264",
+                "-pix_fmt",
+                "yuv420p",
+                "-c:a",
+                "aac",
+                file.to_str().unwrap(),
+            ],
+        );
+    }
+    run(
+        &ffmpeg,
+        &[
+            "-v",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=1320:duration=5",
+            "-c:a",
+            "pcm_s16le",
+            music.to_str().unwrap(),
+        ],
+    );
+    let originals: Vec<_> = [&red, &blue, &music]
+        .iter()
+        .map(|p| fs::read(p).unwrap())
+        .collect();
+    let mut p=project::parse(&serde_json::json!({"schemaVersion":4,"name":"Dwie ścieżki","media":{"path":red,"name":"red","duration":4},"assets":[{"id":"upper","path":blue,"name":"blue","duration":4,"kind":"video","segments":[]},{"id":"music","path":music,"name":"muzyka","duration":5,"kind":"audio","segments":[]}],"clips":[{"id":"bottom","sourceIn":0,"sourceOut":4,"start":0,"track":0,"volume":0.5},{"id":"top","sourceIn":0,"sourceOut":2,"start":1,"track":1,"assetId":"upper","volume":0.5},{"id":"music","sourceIn":0,"sourceOut":5,"start":0,"track":1,"kind":"audio","assetId":"music","volume":0.5}],"segments":[],"styles":{"default":{"fontFamily":"Arial","fontSize":42,"color":"#ffffff","background":"#111111","position":"bottom"}},"createdAt":"2026-10-16T00:00:00Z","updatedAt":"2026-10-16T00:00:00Z"}).to_string()).unwrap();
+    // Two audio buses can contain linked video sound plus independent music.
+    let job = Arc::new(Job::new(100));
+    job.status.lock().unwrap().state = "rendering".into();
+    let mut meta = rendering::inspect(&job, &ffmpeg, &red, dir.path()).unwrap();
+    meta.duration = project::composition_duration(&p);
+    let target = dir.path().join("Miks.mp4");
+    rendering::render(&job, &ffmpeg, &red, &target, &None, dir.path(), &p, &meta).unwrap();
+    for t in ["0.4", "3.4"] {
+        let c = pixel(&ffmpeg, &target, t);
+        assert!(c[0] > 180 && c[2] < 35, "bottom {t}: {c:?}");
+    }
+    let c = pixel(&ffmpeg, &target, "1.4");
+    assert!(c[2] > 180 && c[0] < 35, "upper: {c:?}");
+    assert!(pixel(&ffmpeg, &target, "4.4").iter().all(|n| *n < 15));
+    let sound = Command::new(&ffmpeg)
+        .args(["-v", "error", "-ss", "1.4", "-i"])
+        .arg(&target)
+        .args([
+            "-t", "0.5", "-vn", "-ac", "1", "-ar", "48000", "-f", "f32le", "pipe:1",
+        ])
+        .output()
+        .unwrap();
+    assert!(sound.status.success());
+    let samples: Vec<_> = sound
+        .stdout
+        .chunks_exact(4)
+        .map(|b| f32::from_le_bytes(b.try_into().unwrap()) as f64)
+        .collect();
+    let energy = |freq: f64| {
+        let (mut re, mut im) = (0.0, 0.0);
+        for (i, x) in samples.iter().enumerate() {
+            let phase = std::f64::consts::TAU * freq * i as f64 / 48000.0;
+            re += x * phase.cos();
+            im += x * phase.sin();
+        }
+        (re * re + im * im).sqrt() / samples.len() as f64
+    };
+    for freq in [440.0, 880.0, 1320.0] {
+        assert!(
+            energy(freq) > 0.01,
+            "missing mixed frequency {freq}: {}",
+            energy(freq)
+        );
+    }
+    assert!(energy(2000.0) < 0.002);
+    assert!(
+        rms(&ffmpeg, &target, "4.2") > 500.0,
+        "music must continue over black picture"
+    );
+    for (i, file) in [&red, &blue, &music].iter().enumerate() {
+        assert_eq!(fs::read(file).unwrap(), originals[i]);
+    }
+    // Native validation mirrors frontend: cross-track overlap accepted, same-track rejected.
+    p.clips.as_mut().unwrap()[1].track = 0;
+    assert!(project::parse(&serde_json::to_string(&p).unwrap()).is_err());
+    println!("Two video layers, linked sound, three mixed frequencies, independent music and Unicode: OK");
+}

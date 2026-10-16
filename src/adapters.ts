@@ -3,11 +3,11 @@ import type { Project } from "./model";
 import { compositionSegments } from "./editing";
 export type Media = { path: string; name: string };
 export interface PreviewAdapter {
-  import(): Promise<Media | null>;
+  import(kind?:"video"|"audio"): Promise<Media | null>;
   prepare(path: string): Promise<string>;
 }
 export const preview: PreviewAdapter = {
-  import: () => invoke("import_video"),
+  import: (kind="video") => invoke("import_video",{kind}),
   prepare: async (path) =>
     convertFileSrc(await invoke<string>("prepare_preview", { path })),
 };

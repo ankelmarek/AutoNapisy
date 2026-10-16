@@ -91,6 +91,21 @@ pub async fn begin_video_export(
     {
         return Err("Najpierw zaimportuj film lub otwórz jego projekt".into());
     }
+    for asset in &mut project.assets {
+        let path = media_path(std::path::Path::new(&asset.path))?;
+        if !access
+            .0
+            .lock()
+            .map_err(|_| "Błąd uprawnień")?
+            .contains(&path)
+        {
+            return Err("Brak uprawnień do źródła".into());
+        }
+        asset.path = path_string(&path)?;
+    }
+    if let Some(m) = &mut project.media {
+        m.path = path_string(&media)?;
+    }
     let ffmpeg = {
         let settings = tools.0.lock().unwrap();
         transcription::validate_tool(
@@ -116,6 +131,9 @@ pub async fn begin_video_export(
         target.set_extension("mp4");
     }
     rendering::validate_destination(&media, &target)?;
+    for a in &project.assets {
+        rendering::validate_destination(std::path::Path::new(&a.path), &target)?;
+    }
     path_string(&target)?;
     let original = rendering::fingerprint(&target)?;
     let parent = target.parent().ok_or("Niepoprawna ścieżka eksportu")?;
@@ -161,7 +179,9 @@ pub async fn begin_video_export(
                 Ok(mut meta) if !running.cancel.load(Ordering::SeqCst) => {
                     if let Some(session) = slot.as_mut().filter(|s| s.id == id) {
                         if session.project.clips.as_ref().is_some_and(|clips| {
-                            clips.iter().any(|c| c.source_out > meta.duration + 0.05)
+                            clips.iter().any(|c| {
+                                c.asset_id.is_none() && c.source_out > meta.duration + 0.05
+                            })
                         }) {
                             slot.take();
                             failed(&running, "Ujęcie wychodzi poza rzeczywisty film".into());

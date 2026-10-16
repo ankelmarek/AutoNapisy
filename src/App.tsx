@@ -18,7 +18,7 @@ import {
 import Timeline from "./Timeline";
 import { useProjectHistory } from "./useHistory";
 import { usePlayback } from "./usePlayback";
-import { clipAt, editDuration, projectClips, compositionSegments, compositionProject } from "./editing";
+import { clipAt, editDuration, projectClips, compositionSegments, compositionProject, clipMedia, appendMedia } from "./editing";
 import { rendering, type ExportStatus } from "./rendering";
 import bebasLicense from "./assets/BebasNeue-OFL.txt?raw";
 import CaptionOverlay, { CaptionBox } from "./CaptionOverlay";
@@ -53,7 +53,14 @@ export default function App() {
   );
   const locked = busy || transcribing || exporting;
   const video = useRef<HTMLVideoElement>(null);
-  const playback = usePlayback(video,project,source);
+  const stage=useRef<HTMLDivElement>(null);
+  const [stageSize,setStageSize]=useState({width:0,height:0}),[aspect,setAspect]=useState(16/9);
+  useEffect(()=>{const el=stage.current;if(!el)return;const observer=new ResizeObserver(()=>setStageSize({width:el.clientWidth,height:el.clientHeight}));observer.observe(el);return()=>observer.disconnect();},[]);
+  const surfaceWidth=Math.min(stageSize.width,stageSize.height*aspect);
+  const elements=useRef(new Map<string,HTMLMediaElement>());
+  const [sources,setSources]=useState<Record<string,string>>({});
+  const [transcriptSource,setTranscriptSource]=useState("primary");
+  const playback = usePlayback(elements,project,source);
   const {time,playing,seek,toggle} = playback;
   const duration = editDuration(project);
   const displayed = useMemo(()=>compositionProject(project),[project]);
@@ -82,39 +89,37 @@ export default function App() {
   const resetPlayback = playback.reset;
   const replace = () =>
     !dirty || window.confirm("Projekt ma niezapisane zmiany. Kontynuować?");
-  const importVideo = () =>
-    run(async () => {
-      if (!replace()) return;
-      const media = await preview.import();
-      if (!media) return;
-      const url = await preview.prepare(media.path);
-      resetPlayback();
-      history.reset({...project,media:{...media,duration:null},segments:[],clips:null});
-      setSource(url);
-      setDirty(true);
-      setMessage("Wczytano film. Sprawdzanie obsługi przez odtwarzacz…");
+  const importMedia = (kind:'video'|'audio') => run(async()=>{
+    const media=await preview.import(kind);if(!media)return;
+    const url=await preview.prepare(media.path);
+    const metadata=await new Promise<number>((resolve,reject)=>{
+      const el=document.createElement(kind==='video'?'video':'audio');
+      const timeout=window.setTimeout(()=>{el.removeAttribute('src');el.load();reject(new Error('Nie można odczytać czasu pliku w WebView2. Sprawdź kodek lub użyj MP4 H.264 / AAC.'));},15000);
+      el.preload='metadata';el.onloadedmetadata=()=>{clearTimeout(timeout);const d=el.duration;el.removeAttribute('src');el.load();Number.isFinite(d)&&d>=.05?resolve(d):reject(new Error('Nieprawidłowy czas nagrania'));};
+      el.onerror=()=>{clearTimeout(timeout);reject(new Error('WebView2 nie obsługuje tego pliku. Dla wideo użyj H.264 / AAC, dla audio WAV, MP3 lub AAC.'));};el.src=url;
     });
+    playback.pause();
+    const next=appendMedia(latestProject.current,{...media,duration:metadata},kind,time);
+    setProject(next);setSources(prev=>({...prev,[media.path]:url}));setSource(url);setDirty(true);
+    setMessage(kind==='video'?'Dodano film. Jego dźwięk jest połączony z obrazem.':'Dodano niezależne audio. Możesz je przesuwać i miksować.');
+  });
+  const importVideo=()=>importMedia('video');
   const open = () =>
     run(async () => {
       if (!replace()) return;
       const result = await backend.open();
       if (!result) return;
       const p = parseProject(result.json);
-      let url = "";
-      if (p.media) {
-        try {
-          url = await preview.prepare(p.media.path);
-        } catch (e) {
-          setMessage(
-            `Projekt otwarty, ale film jest niedostępny: ${String(e)}. Importuj go ponownie.`,
-          );
-        }
+      let url = "";const prepared:Record<string,string>={};const missing:string[]=[];
+      for(const m of [...(p.media?[p.media]:[]),...p.assets]){
+        try{prepared[m.path]=await preview.prepare(m.path);url ||= prepared[m.path];}catch{missing.push(m.name);}
       }
+      setSources(prepared);setTranscriptSource('primary');
       resetPlayback();
       history.reset(p);
       setSource(url);
       setDirty(false);
-      if (url || !p.media) setMessage("Projekt otwarty.");
+      setMessage(missing.length?`Projekt otwarty. Niedostępne pliki: ${missing.join(", ")}`:"Projekt otwarty.");
     });
   const save = () =>
     run(async () => {
@@ -140,7 +145,8 @@ export default function App() {
       setDiagnostics(await backend.diagnostics());
     });
   const transcribe = async () => {
-    if (!project.media || controller.current) return;
+    const selectedMedia=transcriptSource==='primary'?project.media:project.assets.find(a=>a.id===transcriptSource);
+    if (!selectedMedia || controller.current) return;
     if (
       project.segments.length &&
       !window.confirm(
@@ -154,11 +160,13 @@ export default function App() {
     setTask(null);
     try {
       const segments = await transcription.transcribe(
-        project.media,
+        selectedMedia,
         abort.signal,
         setTask,
       );
-      const updated = applyTranscript(latestProject.current, segments);
+      const current=latestProject.current;
+      const bounded=applyTranscript({...current,media:selectedMedia,clips:null},segments).segments;
+      const updated=transcriptSource==='primary'?{...current,segments:bounded}:{...current,assets:current.assets.map(a=>a.id===transcriptSource?{...a,segments:bounded}:a)};
       setProject(updated);
       setDirty(true);
       setMessage(
@@ -224,7 +232,7 @@ export default function App() {
         <div className="brand">
           <span className="logo">A</span>
           <div>
-            AutoNapisy <small>0.6 · lokalne studio napisów</small>
+            AutoNapisy <small>0.7 · lokalne studio napisów</small>
           </div>
         </div>
         <div className="actions">
@@ -234,7 +242,7 @@ export default function App() {
               if (replace()) {
                 resetPlayback();
                 history.reset(newProject());
-                setSource("");
+                setSource("");setSources({});setTranscriptSource("primary");
                 setDirty(false);
               }
             }}
@@ -273,6 +281,7 @@ export default function App() {
         <button className="primary" disabled={locked} onClick={importVideo}>
           ＋ Importuj film
         </button>
+        <button disabled={locked} onClick={()=>importMedia("audio")}>＋ Importuj audio</button>
         <button
           className="export-button"
           disabled={
@@ -316,6 +325,10 @@ export default function App() {
             <span>{displayedSegments.length} segmentów w montażu</span>
           </div>
           <div className="transcription-controls">
+            <select aria-label="Źródło transkrypcji" disabled={locked} value={transcriptSource} onChange={e=>setTranscriptSource(e.target.value)}>
+              {project.media&&<option value="primary">{project.media.name}</option>}
+              {project.assets.filter(a=>a.kind==='video').map(a=><option key={a.id} value={a.id}>{a.name}</option>)}
+            </select>
             <button
               className="primary"
               disabled={locked || !project.media}
@@ -367,13 +380,14 @@ export default function App() {
                   <textarea
                     aria-label={`Treść segmentu ${s.id}`}
                     disabled={transcribing || exporting}
-                    value={project.segments.find(original=>original.id===s.sourceId)?.text??s.text}
+                    value={(s.assetId?project.assets.find(a=>a.id===s.assetId)?.segments:project.segments)?.find(original=>original.id===s.sourceId)?.text??s.text}
                     onChange={(e) => {
                       const text = e.target.value;
                       setProject((p) => ({
                         ...p,
+                        assets:p.assets.map(a=>a.id===s.assetId?{...a,segments:a.segments.map(segment=>segment.id===s.sourceId?{...segment,text,words:[]}:segment)}:a),
                         segments: p.segments.map((segment) =>
-                          segment.id === s.sourceId
+                          !s.assetId && segment.id === s.sourceId
                             ? { ...segment, text, words: [] }
                             : segment,
                         ),
@@ -400,36 +414,20 @@ export default function App() {
             <h2>Podgląd wideo</h2>
             <span>{project.media?.name ?? "Brak filmu"}</span>
           </div>
-          <div className="stage">
+          <div className="stage" ref={stage}>
             {source ? (
-              <>
-                <video
-                  ref={video}
-                  src={source}
-                  className={gap ? "gap" : ""}
-                  preload="metadata"
-                  onLoadedMetadata={() => {
-                    const d = video.current?.duration;
-                    if (d && Number.isFinite(d)) {
-                      history.amend((p) => ({
-                        ...p,
-                        media: p.media ? { ...p.media, duration: p.media.duration ?? d } : null,
-                        clips: p.clips ?? (d>=0.05?[{id:'original',sourceIn:0,sourceOut:d,start:0}]:[]),
-                      }));
-                      playback.seek(time);
-                      setMessage("Film gotowy do odtwarzania.");
-                    }
-                  }}
-
-                  onError={() =>
-                    setMessage(
-                      "Nie można odtworzyć tego filmu. Sprawdź plik i kodek. Adapter proxy FFmpeg jest przygotowany jako interfejs, ale nie jest jeszcze zaimplementowany.",
-                    )
-                  }
-                />
-                <CaptionOverlay video={video} project={displayed} time={time} />
+              <div className="composition-surface" style={{width:surfaceWidth,height:surfaceWidth/aspect}}>
+                {projectClips(project).map(c=>{
+                  const media=clipMedia(project,c),url=media?sources[media.path]:undefined;
+                  const isVideo=c.kind!=='audio',visible=clipAt(projectClips(project),Math.min(time,duration-1e-7))?.id===c.id;
+                  const Tag=isVideo?'video':'audio';
+                  return <Tag key={c.id} ref={el=>{if(el){elements.current.set(c.id,el);if(isVideo&&(!c.assetId||!projectClips(project).some(x=>x.kind!=='audio'&&!x.assetId)))video.current=el as HTMLVideoElement;}else elements.current.delete(c.id);}} src={url} preload="metadata"
+                    className={visible?'composition-video':'composition-video gap'}
+                    onLoadedMetadata={e=>{if(isVideo&&!c.assetId){const v=e.currentTarget as HTMLVideoElement;if(v.videoWidth&&v.videoHeight)setAspect(v.videoWidth/v.videoHeight);}playback.seek(time);}} onError={()=>setMessage(`Nie można odtworzyć: ${media?.name}. WebView2 wymaga obsługi kodeka (zalecany H.264 / AAC).`)} />;
+                })}
+                <CaptionOverlay video={video} project={displayed} time={time} compositionCanvas />
                 {gap && <span className="gap-label">Przerwa między ujęciami</span>}
-              </>
+              </div>
             ) : (
               <div className="empty">
                 <div className="symbol">▷</div>

@@ -33,7 +33,12 @@ fn media_path(path: &Path) -> Result<PathBuf, String> {
         .and_then(|v| v.to_str())
         .unwrap_or("")
         .to_lowercase();
-    if !["mp4", "mov", "mkv", "webm", "avi", "m4v"].contains(&ext.as_str()) {
+    if ![
+        "mp4", "mov", "mkv", "webm", "avi", "m4v", "mp3", "wav", "m4a", "aac", "flac", "ogg",
+        "opus",
+    ]
+    .contains(&ext.as_str())
+    {
         return Err("Nieobsługiwane rozszerzenie filmu".into());
     }
     Ok(p)
@@ -44,12 +49,20 @@ struct Imported {
     name: String,
 }
 #[tauri::command]
-async fn import_video(access: State<'_, Access>) -> Result<Option<Imported>, String> {
-    let Some(file) = rfd::AsyncFileDialog::new()
-        .add_filter("Film", &["mp4", "mov", "mkv", "webm", "avi", "m4v"])
-        .pick_file()
-        .await
-    else {
+async fn import_video(
+    kind: Option<String>,
+    access: State<'_, Access>,
+) -> Result<Option<Imported>, String> {
+    let dialog = rfd::AsyncFileDialog::new();
+    let dialog = match kind.as_deref().unwrap_or("video") {
+        "video" => dialog.add_filter("Film", &["mp4", "mov", "mkv", "webm", "avi", "m4v"]),
+        "audio" => dialog.add_filter(
+            "Audio",
+            &["mp3", "wav", "m4a", "aac", "flac", "ogg", "opus"],
+        ),
+        _ => return Err("Nieprawidłowy rodzaj importu".into()),
+    };
+    let Some(file) = dialog.pick_file().await else {
         return Ok(None);
     };
     let p = media_path(file.path())?;
@@ -103,8 +116,13 @@ async fn open_project(access: State<'_, Access>) -> Result<Option<Opened>, Strin
         return Err("Projekt przekracza limit 16 MB".into());
     }
     let p = project::parse(&json)?;
-    if let Some(m) = p.media {
-        if let Ok(path) = media_path(Path::new(&m.path)) {
+    for path in p
+        .media
+        .iter()
+        .map(|m| m.path.as_str())
+        .chain(p.assets.iter().map(|a| a.path.as_str()))
+    {
+        if let Ok(path) = media_path(Path::new(path)) {
             access.0.lock().map_err(|_| "Błąd uprawnień")?.insert(path);
         }
     }

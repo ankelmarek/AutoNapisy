@@ -8,18 +8,62 @@ pub struct Project {
     pub clips: Option<Vec<Clip>>,
     pub name: String,
     pub media: Option<Media>,
+    #[serde(default)]
+    pub assets: Vec<Asset>,
     pub segments: Vec<Segment>,
     pub styles: HashMap<String, Style>,
     pub created_at: String,
     pub updated_at: String,
 }
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Clip {
     pub id: String,
     pub source_in: f64,
     pub source_out: f64,
     pub start: f64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub asset_id: Option<String>,
+    #[serde(default)]
+    pub track: u8,
+    #[serde(default = "video_kind")]
+    pub kind: String,
+    #[serde(default = "unit_volume")]
+    pub volume: f64,
+}
+fn video_kind() -> String {
+    "video".into()
+}
+fn unit_volume() -> f64 {
+    1.0
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Asset {
+    pub id: String,
+    pub path: String,
+    pub name: String,
+    pub duration: f64,
+    pub kind: String,
+    pub segments: Vec<Segment>,
+}
+impl Project {
+    pub fn clip_path(&self, c: &Clip) -> Option<&str> {
+        match &c.asset_id {
+            Some(id) => self
+                .assets
+                .iter()
+                .find(|a| &a.id == id)
+                .map(|a| a.path.as_str()),
+            None => self.media.as_ref().map(|m| m.path.as_str()),
+        }
+    }
+    pub fn clip_duration(&self, c: &Clip) -> Option<f64> {
+        match &c.asset_id {
+            Some(id) => self.assets.iter().find(|a| &a.id == id).map(|a| a.duration),
+            None => self.media.as_ref().and_then(|m| m.duration),
+        }
+    }
 }
 impl Clip {
     pub fn end(&self) -> f64 {
@@ -100,12 +144,17 @@ fn color(c: &str) -> bool {
 pub fn parse(json: &str) -> Result<Project, String> {
     let raw: serde_json::Value =
         serde_json::from_str(json).map_err(|e| format!("Niepoprawny JSON projektu: {e}"))?;
-    if raw.get("schemaVersion").and_then(|v| v.as_u64()) == Some(3) && raw.get("clips").is_none() {
+    if raw
+        .get("schemaVersion")
+        .and_then(|v| v.as_u64())
+        .is_some_and(|v| v >= 3)
+        && raw.get("clips").is_none()
+    {
         return Err("Brak listy ujęć w projekcie v3".into());
     }
     let mut p: Project =
         serde_json::from_value(raw).map_err(|e| format!("Niepoprawny JSON projektu: {e}"))?;
-    if ![1, 2, 3].contains(&p.schema_version) {
+    if ![1, 2, 3, 4].contains(&p.schema_version) {
         return Err("Nieobsługiwana wersja projektu".into());
     }
     if p.schema_version < 3 {
@@ -120,36 +169,75 @@ pub fn parse(json: &str) -> Result<Project, String> {
                     source_in: 0.0,
                     source_out: d,
                     start: 0.0,
+                    kind: video_kind(),
+                    volume: 1.0,
+                    ..Clip::default()
                 }]
             });
     }
-    p.schema_version = 3;
-    if let Some(clips) = &mut p.clips {
-        if clips.len() > 100 {
-            return Err("Maksymalnie 100 ujęć w projekcie".into());
+    p.schema_version = 4;
+    if p.assets.len() > 100 {
+        return Err("Zbyt wiele źródeł".into());
+    }
+    let mut asset_ids = HashSet::new();
+    for a in &p.assets {
+        if a.id.is_empty()
+            || a.id == "primary"
+            || !asset_ids.insert(&a.id)
+            || a.path.is_empty()
+            || !valid_time(a.duration)
+            || a.duration < 0.05
+            || !["video", "audio"].contains(&a.kind.as_str())
+        {
+            return Err("Nieprawidłowe źródło".into());
         }
-        clips.sort_by(|a, b| a.start.total_cmp(&b.start));
+        let mut validation = p.clone();
+        validation.assets.clear();
+        validation.clips = None;
+        validation.media = Some(Media {
+            path: a.path.clone(),
+            name: a.name.clone(),
+            duration: Some(a.duration),
+        });
+        validation.segments = a.segments.clone();
+        parse(&serde_json::to_string(&validation).map_err(|e| e.to_string())?)?;
+    }
+    if let Some(clips) = &p.clips {
+        if clips.len() > 100 {
+            return Err("Maksymalnie 100 ujęć".into());
+        }
         let mut ids = HashSet::new();
-        let mut previous = 0.0;
-        for c in clips {
-            let duration = p
-                .media
-                .as_ref()
-                .and_then(|m| m.duration)
-                .ok_or("Ujęcia wymagają filmu ze znanym czasem")?;
+        for (i, c) in clips.iter().enumerate() {
+            let duration = p.clip_duration(c).ok_or("Brak źródła ujęcia")?;
             if c.id.is_empty()
-                || !ids.insert(c.id.clone())
+                || !ids.insert(&c.id)
                 || !valid_time(c.start)
                 || !valid_time(c.source_in)
                 || !valid_time(c.source_out)
                 || c.source_out - c.source_in < 0.049999
                 || c.source_out > duration + 1e-6
-                || c.start < previous - 1e-6
                 || c.end() > 86400.0
+                || c.track > 1
+                || !["video", "audio"].contains(&c.kind.as_str())
+                || !c.volume.is_finite()
+                || !(0.0..=1.0).contains(&c.volume)
             {
-                return Err("Nieprawidłowe lub nakładające się ujęcia".into());
+                return Err("Nieprawidłowe ujęcie".into());
             }
-            previous = c.end();
+            if c.kind == "video"
+                && (p
+                    .assets
+                    .iter()
+                    .any(|a| Some(&a.id) == c.asset_id.as_ref() && a.kind == "audio")
+                    || clips[..i].iter().any(|o| {
+                        o.kind == "video"
+                            && o.track == c.track
+                            && c.start < o.end() - 1e-6
+                            && c.end() > o.start + 1e-6
+                    }))
+            {
+                return Err("Nakładające się ujęcia na jednej ścieżce wideo".into());
+            }
         }
     }
     if p.name.is_empty()
@@ -256,7 +344,7 @@ mod tests {
     #[test]
     fn migrate_v1_and_validate_layout() {
         let project = parse(&json()).unwrap();
-        assert_eq!(project.schema_version, 3);
+        assert_eq!(project.schema_version, 4);
         assert!(!project.styles["default"].uppercase);
         assert_eq!(project.styles["default"].max_lines, 2);
         let mut value = serde_json::to_value(project).unwrap();
@@ -298,6 +386,9 @@ mod tests {
             source_in: 7.0,
             source_out: 10.0,
             start: 0.0,
+            kind: video_kind(),
+            volume: 1.0,
+            ..Clip::default()
         }]);
         assert_eq!(composition_duration(&p), 3.0);
         let cap=serde_json::json!([{"id":"mapped","text":"tekst","start":1,"end":2,"words":[],"styleId":"default"}]).to_string();
