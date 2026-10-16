@@ -38,7 +38,7 @@
     "windows": {
       "nsis": {
         "languages": [
-          "Polish"
+          "English"
         ],
         "displayLanguageSelector": false
       }
