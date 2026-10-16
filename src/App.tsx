@@ -1,10 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  backend,
-  preview,
-  synchronization,
-  type Diagnostics,
-} from "./adapters";
+import { backend, preview, type Diagnostics } from "./adapters";
 import {
   transcription,
   toolSettings,
@@ -19,6 +14,9 @@ import {
   formatTime,
   type Project,
 } from "./model";
+import bebasLicense from "./assets/BebasNeue-OFL.txt?raw";
+import CaptionOverlay, { CaptionBox } from "./CaptionOverlay";
+import { captionExport, yellowPreset, referenceText } from "./captions";
 export default function App() {
   const [project, setProject] = useState<Project>(newProject),
     [source, setSource] = useState(""),
@@ -168,7 +166,9 @@ export default function App() {
   };
   const exportSrt = () =>
     run(async () => {
-      const path = await backend.exportSrt(serializeProject(project));
+      const path = await backend.exportSrt(
+        serializeProject(captionExport(project)),
+      );
       if (path) setMessage(`Zapisano napisy SRT: ${path}`);
     });
   const style = project.styles.default;
@@ -185,7 +185,7 @@ export default function App() {
         <div className="brand">
           <span className="logo">A</span>
           <div>
-            AutoNapisy <small>0.2 · lokalne studio napisów</small>
+            AutoNapisy <small>0.3 · lokalne studio napisów</small>
           </div>
         </div>
         <div className="actions">
@@ -352,26 +352,7 @@ export default function App() {
                     )
                   }
                 />
-                {synchronization
-                  .activeSegments(project, time)
-                  .map((segment) => {
-                    const st = project.styles[segment.styleId];
-                    return (
-                      <div
-                        key={segment.id}
-                        className={`subtitle ${st.position}`}
-                        style={{
-                          fontFamily: st.fontFamily,
-                          fontSize: `clamp(16px, ${st.fontSize / 24}vw, ${st.fontSize}px)`,
-                          color: st.color,
-                        }}
-                      >
-                        <span style={{ background: st.background }}>
-                          {segment.text}
-                        </span>
-                      </div>
-                    );
-                  })}
+                <CaptionOverlay video={video} project={project} time={time} />
               </>
             ) : (
               <div className="empty">
@@ -418,19 +399,25 @@ export default function App() {
           </div>
           <div className="panelbody">
             <p className="eyebrow">STYL DOMYŚLNY</p>
+            <button
+              className="preset-button"
+              onClick={() => updateStyle({ ...yellowPreset })}
+            >
+              Żółta plansza · Bebas Neue
+            </button>
             <label>
               Krój pisma
               <select
                 value={style.fontFamily}
                 onChange={(e) => updateStyle({ fontFamily: e.target.value })}
               >
-                {["Arial", "Segoe UI", "Georgia"].map((f) => (
+                {["Bebas Neue", "Arial", "Segoe UI", "Georgia"].map((f) => (
                   <option key={f}>{f}</option>
                 ))}
               </select>
             </label>
             <label>
-              Rozmiar <b>{style.fontSize} px</b>
+              Rozmiar <b>{style.fontSize}</b>
               <input
                 type="range"
                 min="12"
@@ -472,16 +459,100 @@ export default function App() {
                 <option value="top">Na górze</option>
               </select>
             </label>
-            <div
-              className="sample"
-              style={{
-                fontFamily: style.fontFamily,
-                color: style.color,
-                background: style.background,
-              }}
-            >
-              Tak wyglądają Twoje napisy
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={style.uppercase}
+                onChange={(e) => updateStyle({ uppercase: e.target.checked })}
+              />
+              WIELKIE LITERY
+            </label>
+            <label>
+              Maksymalnie linii
+              <select
+                value={style.maxLines}
+                onChange={(e) =>
+                  updateStyle({ maxLines: Number(e.target.value) })
+                }
+              >
+                <option value={1}>1 linia</option>
+                <option value={2}>2 linie</option>
+                <option value={3}>3 linie</option>
+              </select>
+            </label>
+            <label>
+              Znaki na linię <b>{style.charsPerLine}</b>
+              <input
+                type="range"
+                min="12"
+                max="48"
+                value={style.charsPerLine}
+                onChange={(e) =>
+                  updateStyle({ charsPerLine: Number(e.target.value) })
+                }
+              />
+            </label>
+            <label>
+              Słowa na planszę <b>{style.wordsPerCard}</b>
+              <input
+                type="range"
+                min="3"
+                max="16"
+                value={style.wordsPerCard}
+                onChange={(e) =>
+                  updateStyle({ wordsPerCard: Number(e.target.value) })
+                }
+              />
+            </label>
+            <label>
+              Szerokość planszy <b>{style.boxWidth}%</b>
+              <input
+                type="range"
+                min="40"
+                max="95"
+                value={style.boxWidth}
+                onChange={(e) =>
+                  updateStyle({ boxWidth: Number(e.target.value) })
+                }
+              />
+            </label>
+            <label>
+              Zaokrąglenie <b>{style.cornerRadius}</b>
+              <input
+                type="range"
+                min="0"
+                max="60"
+                value={style.cornerRadius}
+                onChange={(e) =>
+                  updateStyle({ cornerRadius: Number(e.target.value) })
+                }
+              />
+            </label>
+            <label>
+              Odstęp od krawędzi <b>{style.marginPercent}%</b>
+              <input
+                type="range"
+                min="0"
+                max="30"
+                value={style.marginPercent}
+                onChange={(e) =>
+                  updateStyle({ marginPercent: Number(e.target.value) })
+                }
+              />
+            </label>
+            <div className="caption-sample">
+              <CaptionBox
+                text={referenceText}
+                style={style}
+                width={240}
+                height={135}
+              />
             </div>
+            <p className="hint">
+              Enter w tekście segmentu ustawia ręczne łamanie. Krótkie plansze
+              wykorzystują czasy słów; bez nich cały segment jest dopasowywany
+              do zadanej liczby linii.
+            </p>
             <p className="hint">
               Styl jest zapisywany w projekcie. Eksport SRT zapisuje treść i
               czasy; nie zachowuje stylizacji. Renderowanie filmu jest
@@ -538,9 +609,10 @@ export default function App() {
               <button onClick={() => setSettings(false)}>Zamknij</button>
             </div>
             <p>
-              Polska mowa → polskie napisy. Wybierz lokalne komponenty. Rozpakuj
-              pełną paczkę whisper.cpp razem z bibliotekami DLL. Model musi być
-              wielojęzyczny (bez .en).
+              Polska mowa → polskie napisy. Lepszą dokładność zwykle zapewnia
+              ggml-small.bin lub ggml-medium.bin, kosztem czasu i pamięci.
+              Wybierz lokalne komponenty. Rozpakuj pełną paczkę whisper.cpp
+              razem z bibliotekami DLL. Model musi być wielojęzyczny (bez .en).
             </p>
             <div className="tools">
               <h3>Komponenty transkrypcji</h3>
@@ -590,6 +662,10 @@ export default function App() {
             ) : (
               <p>Oczekiwanie na diagnostykę. {message}</p>
             )}
+            <details className="font-license">
+              <summary>Licencja czcionki Bebas Neue</summary>
+              <pre>{bebasLicense}</pre>
+            </details>
             <p role="status">{message}</p>
           </section>
         </div>

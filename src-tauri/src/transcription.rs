@@ -473,7 +473,7 @@ pub fn execute(job: Arc<Job>, tools: Tools, media: PathBuf) -> Result<(Vec<Segme
         "result".into(),
     ];
     // Token timestamps are requested through max-length; split-on-word prevents splitting Polish words.
-    args.extend(["-ml".into(), "80".into(), "-sow".into()]);
+    args.extend(["-ml".into(), "48".into(), "-sow".into()]);
     // whisper.cpp's Windows CRT argv can lose Unicode. Its response-file support
     // reads UTF-8 bytes verbatim; relative WAV/output names also bypass narrow-path I/O.
     write_response(&temp.path().join("arguments.txt"), &args)?;

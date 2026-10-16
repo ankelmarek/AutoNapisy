@@ -1,10 +1,10 @@
-# AutoNapisy 0.2 — polska mowa → polskie napisy
+# AutoNapisy 0.3 — polska mowa → polskie napisy
 
 Lokalna aplikacja Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Rozpoznaje polską mowę przez whisper.cpp, bez tłumaczenia. Nie wysyła nagrań, nie zawiera klienta HTTP ani telemetrii.
 
-## Aktualizacja z 0.1
+## Aktualizacja z 0.1 / 0.2
 
-Zachowaj projekty i nagrania. Pobierz ZIP z GitHuba i rozpakuj do nowego folderu, np. `C:\AutoNapisy-0.2`. Nie kopiuj starych `node_modules`, `dist` i `src-tauri/target`. Projekty JSON zachowują schemat v1 i pozostają zgodne z 0.1.
+Zachowaj projekty i nagrania. Pobierz ZIP z GitHuba i rozpakuj do nowego folderu, np. `C:\AutoNapisy-0.3`. Nie kopiuj starych `node_modules`, `dist` i `src-tauri/target`. Aplikacja otwiera projekty v1 z wersji 0.1/0.2 i migruje je w pamięci. Zapisuje format v2 z dodatkowymi ustawieniami wyglądu; starsze AutoNapisy go nie odczyta. Zachowaj kopię poprzedniego JSON, jeśli potrzebujesz wracać do 0.2.
 
 Wymagania: Node.js 22 lub 24, aktualny Rust stable x64 MSVC, Visual Studio Build Tools z „Desktop development with C++” i Windows SDK oraz WebView2 Runtime.
 
@@ -51,7 +51,7 @@ Czasy segmentów pochodzą z JSON Whisper. Słowa składamy z tokenów tylko prz
 - Prywatny folder tymczasowy jest usuwany po zakończeniu/błędzie/anulowaniu. Po awarii systemu może pozostać `autonapisy-*` w TEMP; usuń go po zamknięciu aplikacji. WAV wymaga około 115 MB miejsca na godzinę nagrania.
 - JSON projektu i wynik Whisper mają limit 16 MB; nieznane wersje schematu są odrzucane.
 - `src/transcription.ts`: adapter IPC i anulowanie; `src/adapters.ts`: kontrakty podglądu/synchronizacji/renderowania; `src/model.ts`: walidacja; `src-tauri/src/transcription.rs`: procesy i parser; `commands.rs`: dialogi, konfiguracja i zadania; `subtitles.rs`: SRT; `project.rs`: walidacja backendowa.
-- `schemas/project-v1.schema.json`: schemat v1, czasy w sekundach. Nie dodano migracji ani nowej wersji formatu.
+- `schemas/project-v1.schema.json` i `schemas/project-v2.schema.json`: stare i aktualne dane; migracja v1 → v2 zachowuje dotychczasowy font, kolory i tekst. Czasy są w sekundach.
 
 ## Testy i instalator
 
@@ -67,8 +67,34 @@ Workflow `.github/workflows/windows.yml` buduje Windows x64 i publikuje instalat
 
 Testy rdzenia bez bibliotek graficznych Linux: `cargo test --manifest-path .test-core/Cargo.toml`. Uruchamiają te same moduły Rust co aplikacja. Przykładowy JSON w testach jest wyłącznie fixture, nigdy wynikiem użytkownika. Opcjonalny test prawdziwych komponentów: ustaw zmienne `AUTONAPISY_FFMPEG`, `AUTONAPISY_WHISPER`, `AUTONAPISY_MODEL`, `AUTONAPISY_SAMPLE` (lokalny plik z mową) i uruchom `cargo test --manifest-path .test-core/Cargo.toml --test local_tools -- --ignored --nocapture`.
 
-Etap 1 został sprawdzony na Windows przez użytkownika. Testy i smoke test rdzenia 0.2 nie zastępują testu interfejsu oraz polskiego nagrania na docelowym Windows. Przed wydaniem sprawdź: mowę, ciszę, brak audio, brak modelu/DLL, Unicode, anulowanie w obu fazach, zamknięcie podczas zadania, zapis/otwarcie JSON, eksport SRT oraz 1366×768 i Full HD.
+Etap 1 został sprawdzony na Windows przez użytkownika. Testy i smoke test rdzenia nie zastępują testu interfejsu oraz polskiego nagrania na docelowym Windows. Przed wydaniem sprawdź: mowę, ciszę, brak audio, brak modelu/DLL, Unicode, anulowanie w obu fazach, zamknięcie podczas zadania, zapis/otwarcie JSON, eksport SRT oraz 1366×768 i Full HD.
 
 ## Ograniczenia
 
 Brak tłumaczenia, GPU, proxy wideo, diarizacji, edycji czasów, renderowania filmu i automatycznego pobierania modeli. Podgląd zależy od kodeków WebView2; transkrypcja FFmpeg może działać nawet bez podglądu danego kodeka. Długie nagrania potrzebują miejsca i czasu; nie ma wznawiania po zamknięciu. SRT nie zawiera stylizacji. Model i komponenty nie są dołączone do źródeł ani instalatora.
+
+
+## Wygląd i łamanie napisów — 0.3
+
+Domyślny styl nowych projektów i przycisk **Żółta plansza · Bebas Neue** w prawym panelu odtwarzają referencję: czarny tekst wielkimi literami, żółte tło, zaokrąglenie i maksymalnie dwie wyśrodkowane linie. Font Bebas Neue z polskimi znakami jest dołączony lokalnie na licencji SIL OFL 1.1; treść licencji dostępna jest w Ustawieniach i `src/assets/BebasNeue-OFL.txt`. Nie trzeba instalować fontu w Windows i nie jest pobierany przez aplikację.
+
+Starsze projekty zachowują dotychczasowy styl. Otwórz projekt i kliknij **Żółta plansza · Bebas Neue**, aby zastosować nowy wygląd. Możesz zmienić rozmiar, liczbę linii (1–3), orientacyjny limit znaków na linię, słowa na planszę, szerokość, zaokrąglenie i odstęp od krawędzi. Rozmiary są względne do szerokości obrazu 720 px, a nie okna programu. Napisy są kotwiczone do rzeczywistego obrazu w podglądzie, z pominięciem czarnych pasów.
+
+Automatyczne łamanie zachowuje pełne słowa, wyrównuje długości linii i unika samotnych przyimków/spójników na ich końcu. Enter w polu tekstu ustawia ręczną linię; do zadanej liczby linii takie łamanie ma pierwszeństwo. Nadmiar ręcznych linii jest ponownie składany do limitu. Szerokości tekstu są mierzone w dołączonej czcionce; zbyt długi blok zmniejsza rozmiar, zamiast ucinać słowa. Długie segmenty warto skrócić lub ponownie rozpoznać.
+
+Krótkie plansze powstają tylko wtedy, gdy czasy słów z Whisper są spójne i odpowiadają tekstowi. Przejścia wykorzystują rzeczywiste początki słów, bez dzielenia czasu proporcjonalnie. Bez czasów słów, przy ich nakładaniu lub po korekcie tekstu cały segment jest wyświetlany jako blok i dopasowywany do liczby linii. To celowe: aplikacja nie zgaduje synchronizacji. Nowa transkrypcja prosi Whisper o krótsze segmenty (limit 48 zamiast 80), bez ucinania słów. Przy nakładaniu segmentów w podglądzie wybierana jest jedna, najpóźniej rozpoczęta plansza.
+
+**Eksport SRT** zachowuje podział plansz i linie, a tekst oryginalnego projektu nie jest zmieniany przez skład. SRT nie przenosi żółtego tła, fontu ani zaokrągleń. Wypalanie napisów w filmie nadal nie jest zaimplementowane.
+
+## Jak poprawić dokładność polskiej transkrypcji
+
+Największy wpływ ma model: `tiny`/`base` są szybkie, ale mniej dokładne. Wypróbuj [ggml-small.bin](https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin?download=true) (około 466 MiB), a przy wystarczającej pamięci i czasie `ggml-medium.bin` (około 1.5 GiB). Wielojęzyczne `large-v3` są jeszcze większe i na CPU mogą działać bardzo wolno. To nie gwarantuje poprawy każdego fragmentu — porównaj ten sam fragment nagrania. Model należy pobrać osobno i wskazać w Ustawieniach; program nie pobiera go automatycznie.
+
+Po zmianie modelu wykonaj transkrypcję ponownie. Zachowaj poprzedni projekt do porównania. Czysta, głośna mowa bez muzyki pomaga bardziej niż zwiększanie rozdzielczości wideo. Nie dodajemy automatycznego „poprawiania” tekstu, które mogłoby zmienić sens wypowiedzi. Nadal pracujemy lokalnie, bez usług chmurowych. Ustawienia wyszukiwania Whisper już używają domyślnego beam search; zmiana wyglądu i krótsze segmenty same nie poprawiają rozpoznawania słów.
+
+
+Podgląd przykładowego stylu (tekst referencyjny, nie wynik transkrypcji):
+
+![Bebas Neue na żółtej planszy](docs/caption-style.png)
+
+Weryfikacja 0.3: testy składu i migracji, kontrola polskich glifów w dołączonym foncie oraz przeglądarkowy test układu 1366×768 i 1920×1080. Test przeglądarkowy używał kontrolowanego adaptera dialogów oraz wygenerowanego jednolitego filmu demonstracyjnego; nie zastępuje rzeczywistego testu WebView2 i Whisper na Windows. Implementację samego adaptera Whisper sprawdzono wcześniej z prawdziwym CLI. Raport automatycznej kompilacji i instalator są w GitHub Actions.

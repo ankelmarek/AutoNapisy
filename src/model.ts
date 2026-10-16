@@ -7,6 +7,13 @@ export const styleSchema = z
     color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
     background: z.string().regex(/^#[0-9a-fA-F]{6}$/),
     position: z.enum(["bottom", "center", "top"]),
+    uppercase: z.boolean().default(false),
+    maxLines: z.number().int().min(1).max(3).default(2),
+    charsPerLine: z.number().int().min(12).max(48).default(24),
+    wordsPerCard: z.number().int().min(3).max(16).default(8),
+    boxWidth: z.number().min(40).max(95).default(84),
+    cornerRadius: z.number().min(0).max(60).default(10),
+    marginPercent: z.number().min(0).max(30).default(8),
   })
   .strict();
 const word = z
@@ -30,9 +37,9 @@ const segment = z
     )
       c.addIssue({ code: "custom", message: "Nieprawidłowy zakres segmentu" });
   });
-export const projectSchema = z
+const currentProjectSchema = z
   .object({
-    schemaVersion: z.literal(1),
+    schemaVersion: z.literal(2),
     name: z.string().min(1).max(200),
     media: z
       .object({
@@ -64,19 +71,36 @@ export const projectSchema = z
         message: "Nieprawidłowe identyfikatory, style lub czasy",
       });
   });
+export const projectSchema = z.preprocess((value) => {
+  if (
+    value &&
+    typeof value === "object" &&
+    "schemaVersion" in value &&
+    value.schemaVersion === 1
+  )
+    return { ...value, schemaVersion: 2 };
+  return value;
+}, currentProjectSchema);
 export type Project = z.infer<typeof projectSchema>;
 export const newProject = (): Project => ({
-  schemaVersion: 1,
+  schemaVersion: 2,
   name: "Nowy projekt",
   media: null,
   segments: [],
   styles: {
     default: {
-      fontFamily: "Arial",
-      fontSize: 42,
-      color: "#ffffff",
-      background: "#111111",
+      fontFamily: "Bebas Neue",
+      fontSize: 56,
+      color: "#080808",
+      background: "#ffe600",
       position: "bottom",
+      uppercase: true,
+      maxLines: 2,
+      charsPerLine: 24,
+      wordsPerCard: 8,
+      boxWidth: 84,
+      cornerRadius: 28,
+      marginPercent: 8,
     },
   },
   createdAt: new Date().toISOString(),
