@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { backend, preview, type Diagnostics } from "./adapters";
 import {
@@ -15,15 +15,18 @@ import {
   formatTime,
   type Project,
 } from "./model";
+import Timeline from "./Timeline";
+import { useProjectHistory } from "./useHistory";
+import { usePlayback } from "./usePlayback";
+import { clipAt, editDuration, projectClips, compositionSegments, compositionProject } from "./editing";
 import { rendering, type ExportStatus } from "./rendering";
 import bebasLicense from "./assets/BebasNeue-OFL.txt?raw";
 import CaptionOverlay, { CaptionBox } from "./CaptionOverlay";
 import { captionExport, yellowPreset, referenceText } from "./captions";
 export default function App() {
-  const [project, setProject] = useState<Project>(newProject),
-    [source, setSource] = useState(""),
-    [time, setTime] = useState(0),
-    [playing, setPlaying] = useState(false),
+  const history = useProjectHistory();
+  const {project,setProject} = history;
+  const [source, setSource] = useState(""),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState(
       "Gotowy. Wszystkie pliki pozostają na tym komputerze.",
@@ -50,7 +53,22 @@ export default function App() {
   );
   const locked = busy || transcribing || exporting;
   const video = useRef<HTMLVideoElement>(null);
-  const duration = project.media?.duration ?? 0;
+  const playback = usePlayback(video,project,source);
+  const {time,playing,seek,toggle} = playback;
+  const duration = editDuration(project);
+  const displayed = useMemo(()=>compositionProject(project),[project]);
+  const displayedSegments = useMemo(()=>compositionSegments(project),[project]);
+  const gap = !clipAt(projectClips(project),Math.min(time,Math.max(0,duration-1e-7)));
+  const undo = () => {playback.pause();history.undo();setDirty(true);};
+  const redo = () => {playback.pause();history.redo();setDirty(true);};
+  useEffect(()=>{
+    const key=(e:KeyboardEvent)=>{
+      if(locked || !(e.ctrlKey||e.metaKey) || (e.target instanceof HTMLElement && (e.target.isContentEditable || ['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))))return;
+      if(e.key.toLowerCase()==='z'){e.preventDefault();if(e.shiftKey)redo();else undo();}
+      if(e.key.toLowerCase()==='y'){e.preventDefault();redo();}
+    };window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key);
+  },[locked,history.canUndo,history.canRedo]);
+  useEffect(()=>{if(playback.error)setMessage(playback.error);},[playback.error]);
   const run = async (fn: () => Promise<void>) => {
     setBusy(true);
     try {
@@ -61,24 +79,17 @@ export default function App() {
       setBusy(false);
     }
   };
-  const resetPlayback = () => {
-    video.current?.pause();
-    setPlaying(false);
-    setTime(0);
-  };
+  const resetPlayback = playback.reset;
   const replace = () =>
     !dirty || window.confirm("Projekt ma niezapisane zmiany. Kontynuować?");
   const importVideo = () =>
     run(async () => {
+      if (!replace()) return;
       const media = await preview.import();
       if (!media) return;
       const url = await preview.prepare(media.path);
       resetPlayback();
-      setProject((p) => ({
-        ...p,
-        media: { ...media, duration: null },
-        segments: [],
-      }));
+      history.reset({...project,media:{...media,duration:null},segments:[],clips:null});
       setSource(url);
       setDirty(true);
       setMessage("Wczytano film. Sprawdzanie obsługi przez odtwarzacz…");
@@ -100,7 +111,7 @@ export default function App() {
         }
       }
       resetPlayback();
-      setProject(p);
+      history.reset(p);
       setSource(url);
       setDirty(false);
       if (url || !p.media) setMessage("Projekt otwarty.");
@@ -112,18 +123,6 @@ export default function App() {
         setDirty(false);
         setMessage(`Zapisano projekt: ${path}`);
       }
-    });
-  const seek = (value: number) => {
-    if (video.current && duration > 0) {
-      video.current.currentTime = Math.min(duration, Math.max(0, value));
-      setTime(video.current.currentTime);
-    }
-  };
-  const toggle = () =>
-    run(async () => {
-      if (!video.current) return;
-      if (video.current.paused) await video.current.play();
-      else video.current.pause();
     });
   const loadSettings = async () => {
     const [d, t, l] = await Promise.all([
@@ -181,7 +180,8 @@ export default function App() {
   const exportSrt = () =>
     run(async () => {
       const path = await backend.exportSrt(
-        serializeProject(captionExport(project)),
+        serializeProject(project),
+        JSON.stringify(captionExport(displayed).segments),
       );
       if (path) setMessage(`Zapisano napisy SRT: ${path}`);
     });
@@ -224,7 +224,7 @@ export default function App() {
         <div className="brand">
           <span className="logo">A</span>
           <div>
-            AutoNapisy <small>0.5 · lokalne studio napisów</small>
+            AutoNapisy <small>0.6 · lokalne studio napisów</small>
           </div>
         </div>
         <div className="actions">
@@ -233,7 +233,7 @@ export default function App() {
             onClick={() => {
               if (replace()) {
                 resetPlayback();
-                setProject(newProject());
+                history.reset(newProject());
                 setSource("");
                 setDirty(false);
               }
@@ -278,7 +278,7 @@ export default function App() {
           disabled={
             locked ||
             !project.media ||
-            !project.segments.some((s) => s.text.trim())
+            duration <= 0
           }
           onClick={() => void exportMp4()}
         >
@@ -313,7 +313,7 @@ export default function App() {
         <section className="panel transcript">
           <div className="panelhead">
             <h2>Transkrypcja</h2>
-            <span>{project.segments.length} segmentów</span>
+            <span>{displayedSegments.length} segmentów w montażu</span>
           </div>
           <div className="transcription-controls">
             <button
@@ -324,7 +324,7 @@ export default function App() {
               Transkrybuj po polsku
             </button>
             <button
-              disabled={locked || !project.segments.length}
+              disabled={locked || !displayedSegments.length}
               onClick={exportSrt}
             >
               Eksport SRT
@@ -350,8 +350,8 @@ export default function App() {
             )}
           </div>
           <div className="panelbody">
-            {project.segments.length ? (
-              project.segments.map((s) => (
+            {displayedSegments.length ? (
+              displayedSegments.map((s) => (
                 <article
                   className={
                     s.start <= time && time < s.end
@@ -363,16 +363,17 @@ export default function App() {
                   <button onClick={() => seek(s.start)}>
                     {formatTime(s.start)} — {formatTime(s.end)}
                   </button>
+                  <small className="source-caption-note">Tekst źródłowy · zmiana we wszystkich ujęciach</small>
                   <textarea
                     aria-label={`Treść segmentu ${s.id}`}
                     disabled={transcribing || exporting}
-                    value={s.text}
+                    value={project.segments.find(original=>original.id===s.sourceId)?.text??s.text}
                     onChange={(e) => {
                       const text = e.target.value;
                       setProject((p) => ({
                         ...p,
                         segments: p.segments.map((segment) =>
-                          segment.id === s.id
+                          segment.id === s.sourceId
                             ? { ...segment, text, words: [] }
                             : segment,
                         ),
@@ -406,28 +407,28 @@ export default function App() {
                 <video
                   ref={video}
                   src={source}
+                  className={gap ? "gap" : ""}
                   preload="metadata"
                   onLoadedMetadata={() => {
                     const d = video.current?.duration;
                     if (d && Number.isFinite(d)) {
-                      setProject((p) => ({
+                      history.amend((p) => ({
                         ...p,
-                        media: p.media ? { ...p.media, duration: d } : null,
+                        media: p.media ? { ...p.media, duration: p.media.duration ?? d } : null,
+                        clips: p.clips ?? (d>=0.05?[{id:'original',sourceIn:0,sourceOut:d,start:0}]:[]),
                       }));
                       setMessage("Film gotowy do odtwarzania.");
                     }
                   }}
-                  onTimeUpdate={() => setTime(video.current?.currentTime ?? 0)}
-                  onPlay={() => setPlaying(true)}
-                  onPause={() => setPlaying(false)}
-                  onEnded={() => setPlaying(false)}
+
                   onError={() =>
                     setMessage(
                       "Nie można odtworzyć tego filmu. Sprawdź plik i kodek. Adapter proxy FFmpeg jest przygotowany jako interfejs, ale nie jest jeszcze zaimplementowany.",
                     )
                   }
                 />
-                <CaptionOverlay video={video} project={project} time={time} />
+                <CaptionOverlay video={video} project={displayed} time={time} />
+                {gap && <span className="gap-label">Przerwa między ujęciami</span>}
               </>
             ) : (
               <div className="empty">
@@ -638,37 +639,9 @@ export default function App() {
           </div>
         </section>
       </main>
-      <section className="timeline">
-        <div className="panelhead">
-          <h2>Oś czasu</h2>
-          <span>
-            {formatTime(time)} / {formatTime(duration)}
-          </span>
-        </div>
-        <div className="ruler">
-          <span>00:00</span>
-          <span>{formatTime(duration / 4)}</span>
-          <span>{formatTime(duration / 2)}</span>
-          <span>{formatTime((duration * 3) / 4)}</span>
-          <span>{formatTime(duration)}</span>
-        </div>
-        <input
-          aria-label="Pozycja odtwarzania"
-          type="range"
-          min="0"
-          max={duration || 1}
-          step="0.01"
-          value={Math.min(time, duration || 1)}
-          disabled={!duration}
-          onChange={(e) => seek(Number(e.target.value))}
-        />
-        <div className="track">
-          <span>WIDEO</span>
-          <div className={project.media ? "clip" : ""}>
-            {project.media?.name ?? "Zaimportuj film, aby aktywować oś czasu"}
-          </div>
-        </div>
-      </section>
+      <Timeline project={project} time={time} locked={locked} onSeek={seek}
+        onChange={clips=>{playback.pause();setProject(p=>({...p,clips}));setDirty(true);}}
+        undo={undo} redo={redo} canUndo={history.canUndo} canRedo={history.canRedo}/>
       <footer role="status">
         {busy ? "Przetwarzanie…" : message}
         <span>● Offline · bez wysyłania nagrań</span>

@@ -2,6 +2,7 @@
 mod bundled;
 mod commands;
 mod export_commands;
+mod montage;
 mod project;
 mod rendering;
 mod subtitles;

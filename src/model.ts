@@ -39,7 +39,8 @@ const segment = z
   });
 const currentProjectSchema = z
   .object({
-    schemaVersion: z.literal(2),
+    schemaVersion: z.literal(3),
+    clips: z.array(z.object({id:z.string().min(1),sourceIn:time,sourceOut:time,start:time}).strict()).max(100).nullable(),
     name: z.string().min(1).max(200),
     media: z
       .object({
@@ -56,6 +57,12 @@ const currentProjectSchema = z
   })
   .strict()
   .superRefine((p, c) => {
+    const clips = [...(p.clips ?? [])].sort((a,b)=>a.start-b.start);
+    if (new Set(clips.map(c=>c.id)).size !== clips.length || clips.some((clip,i)=>
+      !p.media || p.media.duration == null || clip.sourceOut-clip.sourceIn < 0.049999 ||
+      clip.sourceOut > p.media.duration+1e-6 || clip.start+clip.sourceOut-clip.sourceIn>86400 ||
+      (i>0 && clip.start < clips[i-1].start+clips[i-1].sourceOut-clips[i-1].sourceIn-1e-6)))
+      c.addIssue({code:'custom',message:'Nieprawidłowe lub nakładające się ujęcia'});
     if (!p.styles.default)
       c.addIssue({ code: "custom", message: "Brak stylu domyślnego" });
     if (
@@ -72,18 +79,16 @@ const currentProjectSchema = z
       });
   });
 export const projectSchema = z.preprocess((value) => {
-  if (
-    value &&
-    typeof value === "object" &&
-    "schemaVersion" in value &&
-    value.schemaVersion === 1
-  )
-    return { ...value, schemaVersion: 2 };
+  if (value && typeof value==='object' && 'schemaVersion' in value && [1,2].includes(Number(value.schemaVersion))) {
+    const p=value as {media?:{duration?:number};schemaVersion:number};
+    return {...value,schemaVersion:3,clips:p.media?.duration ? [{id:'original',sourceIn:0,sourceOut:p.media.duration,start:0}] : null};
+  }
   return value;
 }, currentProjectSchema);
 export type Project = z.infer<typeof projectSchema>;
 export const newProject = (): Project => ({
-  schemaVersion: 2,
+  schemaVersion: 3,
+  clips: null,
   name: "Nowy projekt",
   media: null,
   segments: [],

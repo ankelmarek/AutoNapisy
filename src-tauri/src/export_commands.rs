@@ -61,6 +61,7 @@ fn failed(job: &Arc<Job>, error: String) {
 #[tauri::command]
 pub async fn begin_video_export(
     json: String,
+    captions: Option<String>,
     access: State<'_, Access>,
     tools: State<'_, ToolState>,
     tasks: State<'_, Tasks>,
@@ -69,10 +70,14 @@ pub async fn begin_video_export(
     if json.len() > 16 * 1024 * 1024 {
         return Err("Projekt przekracza 16 MB".into());
     }
-    let project = project::parse(&json)?;
-    if project.segments.is_empty() || project.segments.len() > rendering::MAX_FRAMES {
+    let mut project = project::parse(&json)?;
+    if project::composition_duration(&project) <= 0.0 {
+        return Err("Montaż jest pusty".into());
+    }
+    project.segments = project::export_captions(&project, captions.as_deref())?;
+    if project.segments.len() > rendering::MAX_FRAMES {
         return Err(
-            "Eksport wymaga od 1 do 3000 plansz napisów. Dłuższy film podziel na projekty.".into(),
+            "Eksport wymaga od 0 do 3000 plansz napisów. Dłuższy film podziel na projekty.".into(),
         );
     }
     let media = media_path(std::path::Path::new(
@@ -153,8 +158,16 @@ pub async fn begin_video_export(
             let result = rendering::inspect(&running, &probe_ffmpeg, &probe_media, &probe_dir);
             let mut slot = sessions.lock().unwrap();
             match result {
-                Ok(meta) if !running.cancel.load(Ordering::SeqCst) => {
+                Ok(mut meta) if !running.cancel.load(Ordering::SeqCst) => {
                     if let Some(session) = slot.as_mut().filter(|s| s.id == id) {
+                        if session.project.clips.as_ref().is_some_and(|clips| {
+                            clips.iter().any(|c| c.source_out > meta.duration + 0.05)
+                        }) {
+                            slot.take();
+                            failed(&running, "Ujęcie wychodzi poza rzeczywisty film".into());
+                            return;
+                        }
+                        meta.duration = project::composition_duration(&session.project);
                         session.metadata = Some(meta.clone());
                         let mut status = running.status.lock().unwrap();
                         if running.cancel.load(Ordering::SeqCst) {

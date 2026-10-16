@@ -1,10 +1,10 @@
-# AutoNapisy 0.5 — polska mowa → polskie napisy
+# AutoNapisy 0.6 — polska mowa → polskie napisy
 
 Lokalna aplikacja Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Rozpoznaje polską mowę przez whisper.cpp, bez tłumaczenia. Nie wysyła nagrań, nie zawiera klienta HTTP ani telemetrii.
 
 ## Aktualizacja z 0.1 / 0.2
 
-Zachowaj projekty i nagrania. Pobierz ZIP z GitHuba i rozpakuj do nowego folderu, np. `C:\AutoNapisy-0.4`. Nie kopiuj starych `node_modules`, `dist` i `src-tauri/target`. Aplikacja otwiera projekty v1 z wersji 0.1/0.2 i migruje je w pamięci. Zapisuje format v2 z dodatkowymi ustawieniami wyglądu; starsze AutoNapisy go nie odczyta. Zachowaj kopię poprzedniego JSON, jeśli potrzebujesz wracać do 0.2.
+Zachowaj projekty i nagrania. Pobierz ZIP z GitHuba i rozpakuj do nowego folderu, np. `C:\AutoNapisy-0.4`. Nie kopiuj starych `node_modules`, `dist` i `src-tauri/target`. Aplikacja otwiera projekty v1 z wersji 0.1/0.2 i migruje je w pamięci. Wersja 0.6 zapisuje format v3 z montażem oraz ustawieniami wyglądu; starsze AutoNapisy go nie odczyta. Zachowaj kopię poprzedniego JSON, jeśli potrzebujesz wracać do 0.2.
 
 Wymagania: Node.js 22 lub 24, aktualny Rust stable x64 MSVC, Visual Studio Build Tools z „Desktop development with C++” i Windows SDK oraz WebView2 Runtime.
 
@@ -144,3 +144,44 @@ Zwykłe `npm run tauri -- dev` i `npm run tauri -- build` pozostają wariantami
 deweloperskimi bez wbudowanych narzędzi. Pierwsza pełna kompilacja trwa dłużej.
 
 Workflow dodatkowo instaluje gotowy pakiet w katalogu ze spacją i polskimi znakami, sprawdza obecność źródeł i licencji oraz uruchamia narzędzia z zainstalowanego katalogu. whisper.cpp jest budowany ze statycznym runtime C++, aby nie wymagać osobnego instalowania Visual C++ Redistributable.
+
+
+## Montaż na jednej ścieżce — 0.6
+
+Importuj jeden film i wycinaj z niego ujęcia. Oryginał pozostaje bez zmian.
+- **Żyletka** (C): kliknij klip lub ustaw głowicę i wybierz **Przetnij tutaj**.
+- **Zaznacz** (V): przeciągnij środek klipu, aby go przesunąć. Klipy nie nakładają się. Przeniesienie fragmentu za inny zmienia kolejność.
+- Przeciągnij boczny uchwyt, aby skrócić lub przywrócić fragment w granicach źródła i wolnego miejsca.
+- **Magnes** przyciąga krawędzie do sąsiada (10 pikseli), uchwyty także do głowicy.
+- **Usuń ujęcie** / Delete usuwa zaznaczony fragment i pozostawia przerwę. **Dosuń wszystkie** zamyka wszystkie przerwy w aktualnej kolejności.
+- **Cofnij/Ponów**: przyciski lub Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y. Jedno przeciągnięcie jest jedną zmianą.
+- Kliknij lub przeciągnij linijkę, aby przewinąć. Zoom i poziomy pasek przewijania pomagają przy dłuższych nagraniach. Pola pod osią umożliwiają dokładne ustawienie czasów w sekundach.
+
+Podgląd przeskakuje między punktami wejścia i wyjścia ujęć. Przerwy są czarne
+i bez dźwięku. Napisy z oryginalnymi czasami słów są przycinane i przesuwane
+razem z materiałem; ponownie użyty fragment korzysta z tego samego źródłowego
+tekstu. Edycja tekstu w panelu dotyczy źródłowego segmentu we wszystkich jego
+użyciach. Po ręcznej zmianie tekstu czasy słów są usuwane — program nie zgaduje
+nowych czasów. Segment bez czasów słów zachowuje cały tekst w widocznej części
+ujęcia; przy cięciu wewnątrz takiego segmentu tekst może powtórzyć się po cięciu.
+
+Eksport MP4 i SRT korzystają z czasu montażu. MP4 można wyeksportować także
+bez napisów. Eksport jest sekwencyjny, wymaga miejsca na pliki pośrednie i
+normalizuje obraz do **30 kl./s**, dźwięk do stereo 48 kHz AAC. Cięcia eksportu
+są dopasowane do klatek (do około 1/30 s). Krawędzie dźwięku nie mają przejść
+ani wygładzania. Przy dużej liczbie ujęć przygotowanie eksportu potrwa dłużej;
+postęp dotyczy aktualnego etapu. Anulowanie zachowuje istniejący plik docelowy.
+
+Format projektu v3 zapisuje `clips: [{id, sourceIn, sourceOut, start}]`. Napisy
+w projekcie nadal mają czasy źródłowe. `clips: []` oznacza pusty montaż,
+`null` oczekiwanie na metadane pierwszego filmu. Projekty v1/v2 są migrowane
+do jednego ujęcia obejmującego źródło. Starsze wersje aplikacji nie otworzą v3;
+zachowaj kopię starszego JSON. Maksymalnie 100 ujęć, jedna ścieżka i jedno
+nagranie źródłowe; brak przejść i nakładania. Nie dodano automatycznego proxy
+HEVC — podgląd nadal wymaga kodeka obsługiwanego przez WebView2.
+
+Rzeczywisty test eksportu: `AUTONAPISY_FFMPEG` wskazuje FFmpeg, następnie
+`cargo test --manifest-path .test-core/Cargo.toml --test montage_export -- --ignored`.
+Test sam generuje kolorowe nagranie, sprawdza kolejność i cięcia, czarne/ciche
+przerwy, źródło bez audio, czas wyniku, ścieżki Unicode i niezmieniony oryginał.
+Workflow Windows uruchamia go z dołączonym FFmpeg przed budową instalatora.

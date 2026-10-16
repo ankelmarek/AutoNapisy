@@ -57,6 +57,10 @@ jobs:
       - name: Generate dependency license reports
         if: steps.vendor-cache.outputs.cache-hit != 'true'
         run: ./scripts/license-report.ps1
+      - name: Test real montage export with bundled FFmpeg
+        env:
+          AUTONAPISY_FFMPEG: ${{ github.workspace }}/src-tauri/.bundled/vendor/ffmpeg.exe
+        run: cargo test --manifest-path .test-core/Cargo.toml --test montage_export -- --ignored --nocapture
       - run: npm run tauri -- build --target x86_64-pc-windows-msvc --config src-tauri/tauri.bundled.conf.json
       - name: Test actual installation and bundled tools
         run: ./scripts/test-installer.ps1

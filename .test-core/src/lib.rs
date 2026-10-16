@@ -10,3 +10,6 @@ pub mod rendering;
 
 #[path = "../../src-tauri/src/bundled.rs"]
 pub mod bundled;
+
+#[path = "../../src-tauri/src/montage.rs"]
+pub mod montage;

@@ -21,6 +21,8 @@ pub struct Metadata {
     pub width: u32,
     pub height: u32,
     pub duration: f64,
+    #[serde(default)]
+    pub has_audio: bool,
 }
 #[derive(Clone, Debug, PartialEq)]
 pub struct Fingerprint {
@@ -80,7 +82,11 @@ struct Format {
 }
 #[derive(Deserialize)]
 struct Stream {
+    #[serde(default)]
+    codec_type: String,
+    #[serde(default)]
     width: u32,
+    #[serde(default)]
     height: u32,
     sample_aspect_ratio: Option<String>,
     #[serde(default)]
@@ -95,7 +101,11 @@ struct SideData {
 pub fn parse_probe(json: &str) -> Result<Metadata, String> {
     let p: Probe = serde_json::from_str(json)
         .map_err(|e| format!("Nie można odczytać informacji o filmie: {e}"))?;
-    let stream = p.streams.first().ok_or("Film nie ma ścieżki wideo")?;
+    let stream = p
+        .streams
+        .iter()
+        .find(|s| s.width > 0 && s.height > 0)
+        .ok_or("Film nie ma ścieżki wideo")?;
     let duration = p
         .format
         .duration
@@ -137,6 +147,7 @@ pub fn parse_probe(json: &str) -> Result<Metadata, String> {
         width,
         height,
         duration,
+        has_audio: p.streams.iter().any(|s| s.codec_type == "audio"),
     })
 }
 pub fn inspect(
@@ -147,7 +158,7 @@ pub fn inspect(
 ) -> Result<Metadata, String> {
     let probe = ffprobe_path(ffmpeg)?;
     let capture = dir.join("probe.json");
-    let mut args:Vec<OsString>=["-v","error","-protocol_whitelist","file,pipe","-select_streams","v:0","-show_entries","stream=width,height,sample_aspect_ratio:stream_tags=rotate:stream_side_data=rotation:format=duration","-of","json"].iter().map(Into::into).collect();
+    let mut args:Vec<OsString>=["-v","error","-protocol_whitelist","file,pipe","-show_entries","stream=codec_type,width,height,sample_aspect_ratio:stream_tags=rotate:stream_side_data=rotation:format=duration","-of","json"].iter().map(Into::into).collect();
     args.push(media.as_os_str().to_owned());
     run_process_capture(job, &probe, &args, false, dir, Some(&capture))?;
     let mut data = String::new();
@@ -278,8 +289,18 @@ pub fn render(
         .to_owned();
     job.check()?;
     let intervals = timeline(project, meta.duration);
-    if !intervals.iter().any(|i| i.index.is_some()) {
-        return Err("Żaden napis nie mieści się w czasie filmu".into());
+    let assembled = if project.clips.is_some() {
+        Some(crate::montage::assemble(
+            job, ffmpeg, media, dir, project, meta,
+        )?)
+    } else {
+        None
+    };
+    let render_media = assembled.as_deref().unwrap_or(media);
+    {
+        let mut status = job.status.lock().unwrap();
+        status.message = "Kodowanie MP4 z napisami…".into();
+        status.progress = Some(0);
     }
     empty_png(dir, meta)?;
     fs::write(dir.join("timeline.ffconcat"), concat_text(&intervals)).map_err(|e| e.to_string())?;
@@ -297,7 +318,7 @@ pub fn render(
     .iter()
     .map(Into::into)
     .collect();
-    args.push(media.as_os_str().to_owned());
+    args.push(render_media.as_os_str().to_owned());
     args.extend(
         [
             "-protocol_whitelist",
@@ -463,6 +484,7 @@ mod tests {
         let meta = Metadata {
             width: 2,
             height: 2,
+            has_audio: false,
             duration: 1.0,
         };
         empty_png(dir.path(), &meta).unwrap();

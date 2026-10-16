@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { serializeProject, type Project } from "./model";
+import { compositionProject, editDuration } from "./editing";
 import { captionExport } from "./captions";
 import { createFrameRenderer, ensureCaptionFonts } from "./captionCanvas";
 export type ExportInfo = {
@@ -40,13 +41,14 @@ const pause = () => new Promise((resolve) => setTimeout(resolve, 400));
 export const rendering: RenderingAdapter = {
   async render(project, signal, onStatus) {
     check(signal);
-    if (!project.media || !project.segments.some((s) => s.text.trim()))
-      throw new Error("Zaimportuj film i przygotuj napisy");
+    if (!project.media || editDuration(project)<=0)
+      throw new Error("Zaimportuj film i przygotuj montaż");
     await ensureCaptionFonts(project);
     check(signal);
-    const snapshot = captionExport(project);
+    const snapshot = captionExport(compositionProject(project));
     const id = await invoke<number | null>("begin_video_export", {
-      json: serializeProject(snapshot),
+      json: serializeProject(project),
+      captions: JSON.stringify(snapshot.segments),
     });
     if (id == null) return null;
     let cancelSent = false;

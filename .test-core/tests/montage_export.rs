@@ -1,0 +1,176 @@
+//! Real render verifies reordered colors, black/silent gaps, audio, and source preservation.
+use autonapisy_core_tests::{project, rendering, transcription::Job};
+use std::{fs, path::Path, process::Command, sync::Arc};
+fn run(ffmpeg: &Path, args: &[&str]) {
+    let out = Command::new(ffmpeg).args(args).output().unwrap();
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+fn pixel(ffmpeg: &Path, file: &Path, time: &str) -> Vec<u8> {
+    let out = Command::new(ffmpeg)
+        .args(["-v", "error", "-ss", time, "-i"])
+        .arg(file)
+        .args([
+            "-frames:v",
+            "1",
+            "-vf",
+            "scale=1:1",
+            "-f",
+            "rawvideo",
+            "-pix_fmt",
+            "rgb24",
+            "pipe:1",
+        ])
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    out.stdout
+}
+fn rms(ffmpeg: &Path, file: &Path, time: &str) -> f64 {
+    let out = Command::new(ffmpeg)
+        .args(["-v", "error", "-ss", time, "-i"])
+        .arg(file)
+        .args([
+            "-t", "0.4", "-vn", "-ac", "1", "-ar", "48000", "-f", "s16le", "pipe:1",
+        ])
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    let data: Vec<f64> = out
+        .stdout
+        .chunks_exact(2)
+        .map(|b| i16::from_le_bytes([b[0], b[1]]) as f64)
+        .collect();
+    assert!(data.len() > 1000);
+    (data.iter().map(|n| n * n).sum::<f64>() / data.len() as f64).sqrt()
+}
+#[test]
+#[ignore = "requires AUTONAPISY_FFMPEG; generates all test material locally"]
+fn real_montage_video_audio_gaps_and_no_audio() {
+    let ffmpeg =
+        std::path::PathBuf::from(std::env::var("AUTONAPISY_FFMPEG").expect("AUTONAPISY_FFMPEG"));
+    let dir = tempfile::tempdir().unwrap();
+    let source = dir.path().join("Źródło Łódź.mp4");
+    let source_text = source.to_str().unwrap();
+    run(
+        &ffmpeg,
+        &[
+            "-v",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=red:s=160x90:r=30:d=2",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=green:s=160x90:r=30:d=2",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=blue:s=160x90:r=30:d=2",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=6",
+            "-filter_complex",
+            "[0:v][1:v][2:v]concat=n=3:v=1:a=0[v]",
+            "-map",
+            "[v]",
+            "-map",
+            "3:a",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            source_text,
+        ],
+    );
+    let original = fs::read(&source).unwrap();
+    for audio in [true, false] {
+        let input = if audio {
+            source.clone()
+        } else {
+            let p = dir.path().join("Bez dźwięku.mp4");
+            run(
+                &ffmpeg,
+                &[
+                    "-v",
+                    "error",
+                    "-y",
+                    "-i",
+                    source_text,
+                    "-an",
+                    "-c:v",
+                    "copy",
+                    p.to_str().unwrap(),
+                ],
+            );
+            p
+        };
+        let mut p=project::parse(&serde_json::json!({"schemaVersion":3,"name":"Montaż testowy","media":{"path":input.to_str().unwrap(),"name":"test","duration":6},"clips":[{"id":"blue","sourceIn":4,"sourceOut":6,"start":0},{"id":"red","sourceIn":0,"sourceOut":1,"start":3},{"id":"red-tail","sourceIn":1,"sourceOut":2,"start":4}],"segments":[],"styles":{"default":{"fontFamily":"Bebas Neue","fontSize":56,"color":"#080808","background":"#ffe600","position":"bottom"}},"createdAt":"2026-10-16T00:00:00Z","updatedAt":"2026-10-16T00:00:00Z"}).to_string()).unwrap();
+        if audio {
+            let caps = r#"[{"id":"caption","text":"test","start":0.5,"end":1.5,"words":[],"styleId":"default"}]"#;
+            p.segments = project::export_captions(&p, Some(caps)).unwrap();
+            let file = fs::File::create(dir.path().join(rendering::frame_name(0))).unwrap();
+            let mut encoder = png::Encoder::new(file, 160, 90);
+            encoder.set_color(png::ColorType::Rgba);
+            encoder.set_depth(png::BitDepth::Eight);
+            encoder
+                .write_header()
+                .unwrap()
+                .write_image_data(&[255, 230, 0, 255].repeat(160 * 90))
+                .unwrap();
+        }
+        let job = Arc::new(Job::new(1));
+        job.status.lock().unwrap().state = "rendering".into();
+        let mut meta = rendering::inspect(&job, &ffmpeg, &input, dir.path()).unwrap();
+        assert_eq!(meta.has_audio, audio);
+        meta.duration = project::composition_duration(&p);
+        assert_eq!(meta.duration, 5.0);
+        let target = dir.path().join(if audio {
+            "Montaż z audio.mp4"
+        } else {
+            "Montaż bez audio.mp4"
+        });
+        rendering::render(&job, &ffmpeg, &input, &target, &None, dir.path(), &p, &meta).unwrap();
+        let output =
+            rendering::inspect(&Arc::new(Job::new(2)), &ffmpeg, &target, dir.path()).unwrap();
+        assert!(
+            (output.duration - 5.0).abs() < 0.1,
+            "duration {}",
+            output.duration
+        );
+        let blue = pixel(&ffmpeg, &target, "0.2");
+        assert!(blue[2] > 180 && blue[0] < 35, "blue {blue:?}");
+        if audio {
+            let yellow = pixel(&ffmpeg, &target, "1.0");
+            assert!(
+                yellow[0] > 180 && yellow[1] > 160 && yellow[2] < 50,
+                "caption {yellow:?}"
+            );
+        }
+        let black = pixel(&ffmpeg, &target, "2.5");
+        assert!(black.iter().all(|n| *n < 15), "gap {black:?}");
+        for time in ["3.5", "4.5"] {
+            let red = pixel(&ffmpeg, &target, time);
+            assert!(red[0] > 180 && red[2] < 35, "red {red:?}");
+        }
+        assert!(rms(&ffmpeg, &target, "2.2") < 50.0, "gap must be silent");
+        if audio {
+            assert!(rms(&ffmpeg, &target, "0.3") > 500.0);
+            assert!(rms(&ffmpeg, &target, "3.2") > 500.0);
+        } else {
+            assert!(rms(&ffmpeg, &target, "0.3") < 50.0);
+        }
+        assert_eq!(job.status.lock().unwrap().state, "completed");
+    }
+    assert_eq!(fs::read(&source).unwrap(), original);
+    println!("Reorder, trims, black gaps, audio/silence, no-audio input and Unicode paths: OK");
+}

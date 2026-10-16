@@ -186,7 +186,7 @@ pub fn cancel_transcription(id: u64, tasks: State<'_, Tasks>) -> Result<(), Stri
     Ok(())
 }
 #[tauri::command]
-pub async fn export_srt(json: String) -> Result<Option<String>, String> {
+pub async fn export_srt(json: String, captions: Option<String>) -> Result<Option<String>, String> {
     if json.len() > 16 * 1024 * 1024 {
         return Err("Projekt przekracza 16 MB".into());
     }
@@ -194,7 +194,8 @@ pub async fn export_srt(json: String) -> Result<Option<String>, String> {
     if project.segments.is_empty() {
         return Err("Brak napisów do eksportu".into());
     }
-    let srt = crate::subtitles::to_srt(&project.segments)?;
+    let segments = crate::project::export_captions(&project, captions.as_deref())?;
+    let srt = crate::subtitles::to_srt(&segments)?;
     let Some(file) = rfd::AsyncFileDialog::new()
         .set_file_name("napisy.srt")
         .add_filter("Napisy SRT", &["srt"])
@@ -213,17 +214,41 @@ pub async fn export_srt(json: String) -> Result<Option<String>, String> {
 }
 
 #[derive(serde::Serialize)]
-pub struct LicenseNotice { name: String, text: String }
+pub struct LicenseNotice {
+    name: String,
+    text: String,
+}
 #[tauri::command]
 pub fn component_licenses(app: tauri::AppHandle) -> Result<Vec<LicenseNotice>, String> {
-    let root = app.path().resource_dir().map_err(|e| e.to_string())?.join("licenses");
-    let mut notices = vec![LicenseNotice { name: "Komponenty i licencje".into(), text: include_str!("../../licenses/THIRD-PARTY-NOTICES.txt").into() }];
-    for file in ["FFmpeg-GPL-2.0.txt", "x264-COPYING.txt", "whisper.cpp-MIT.txt", "ggml-MIT.txt", "FFmpeg-build.txt", "components.json", "SHA256SUMS.txt"] {
+    let root = app
+        .path()
+        .resource_dir()
+        .map_err(|e| e.to_string())?
+        .join("licenses");
+    let mut notices = vec![LicenseNotice {
+        name: "Komponenty i licencje".into(),
+        text: include_str!("../../licenses/THIRD-PARTY-NOTICES.txt").into(),
+    }];
+    for file in [
+        "FFmpeg-GPL-2.0.txt",
+        "x264-COPYING.txt",
+        "whisper.cpp-MIT.txt",
+        "ggml-MIT.txt",
+        "FFmpeg-build.txt",
+        "components.json",
+        "SHA256SUMS.txt",
+    ] {
         let path = root.join(file);
         if path.is_file() {
-            let text = fs::read_to_string(&path).map_err(|e| format!("Nie można odczytać licencji: {e}"))?;
-            if text.len() > 2 * 1024 * 1024 { return Err("Plik licencji jest zbyt duży".into()); }
-            notices.push(LicenseNotice { name: file.into(), text });
+            let text = fs::read_to_string(&path)
+                .map_err(|e| format!("Nie można odczytać licencji: {e}"))?;
+            if text.len() > 2 * 1024 * 1024 {
+                return Err("Plik licencji jest zbyt duży".into());
+            }
+            notices.push(LicenseNotice {
+                name: file.into(),
+                text,
+            });
         }
     }
     notices.push(LicenseNotice { name: "Pliki licencji i źródeł".into(), text: format!("Licencje: {}\nŹródła i skrypty budowania: {}\nW wersji z narzędziami te foldery są instalowane razem z aplikacją. Raporty bibliotek: zaleznosci-frontend.json i zaleznosci-rust.html.", root.display(), root.parent().unwrap().join("sources").display()) });
