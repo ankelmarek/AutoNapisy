@@ -1,6 +1,6 @@
 [package]
 name = "autonapisy"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 rust-version = "1.77.2"
 [build-dependencies]
@@ -13,3 +13,5 @@ rfd = "0.15"
 sysinfo = "0.33"
 tempfile = "3"
 hound = "3.5"
+png = "0.17"
+base64 = "0.22"

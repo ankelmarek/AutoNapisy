@@ -1,12 +1,8 @@
 import { useEffect, useMemo, useState, type RefObject } from "react";
 import type { Project } from "./model";
-import {
-  captionCards,
-  wrapCaption,
-  activeCaption,
-  type CaptionStyle,
-} from "./captions";
+import { captionCards, activeCaption, type CaptionStyle } from "./captions";
 
+import { layoutCaption } from "./captionCanvas";
 type Rect = { left: number; top: number; width: number; height: number };
 export function fitVideoRect(
   width: number,
@@ -49,32 +45,10 @@ export function CaptionBox({
       alive = false;
     };
   }, [style.fontFamily]);
-  const layout = useMemo(() => {
-    const scale = width / 720,
-      base = style.fontSize * scale;
-    const canvas = document.createElement("canvas"),
-      ctx = canvas.getContext("2d");
-    if (ctx) ctx.font = `${base}px "${style.fontFamily}"`;
-    const measure = (s: string) =>
-      ctx?.measureText(s).width ?? s.length * base * 0.6;
-    const padding = Math.min(base * 0.55, width * 0.06),
-      paddingY = Math.min(base * 0.4, height * 0.1),
-      available = Math.max(1, (width * style.boxWidth) / 100 - padding * 2);
-    const lines = wrapCaption(text, style, measure, available);
-    const widest = Math.max(1, ...lines.map(measure));
-    const fontScale = Math.min(
-      1,
-      available / widest,
-      Math.max(1, height * 0.45 - paddingY * 2) / (base * lines.length * 1.04),
-    );
-    return {
-      lines,
-      fontSize: base * fontScale,
-      paddingX: padding,
-      paddingY,
-      borderRadius: style.cornerRadius * scale,
-    };
-  }, [text, style, width, height, fontsReady]);
+  const layout = useMemo(
+    () => layoutCaption(text, style, width, height),
+    [text, style, width, height, fontsReady],
+  );
   return (
     <div
       className="caption-box"

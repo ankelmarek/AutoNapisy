@@ -4,3 +4,6 @@ pub mod project;
 pub mod subtitles;
 #[path = "../../src-tauri/src/transcription.rs"]
 pub mod transcription;
+
+#[path = "../../src-tauri/src/rendering.rs"]
+pub mod rendering;

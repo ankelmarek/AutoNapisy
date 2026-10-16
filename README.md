@@ -1,10 +1,10 @@
-# AutoNapisy 0.3 — polska mowa → polskie napisy
+# AutoNapisy 0.4 — polska mowa → polskie napisy
 
 Lokalna aplikacja Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Rozpoznaje polską mowę przez whisper.cpp, bez tłumaczenia. Nie wysyła nagrań, nie zawiera klienta HTTP ani telemetrii.
 
 ## Aktualizacja z 0.1 / 0.2
 
-Zachowaj projekty i nagrania. Pobierz ZIP z GitHuba i rozpakuj do nowego folderu, np. `C:\AutoNapisy-0.3`. Nie kopiuj starych `node_modules`, `dist` i `src-tauri/target`. Aplikacja otwiera projekty v1 z wersji 0.1/0.2 i migruje je w pamięci. Zapisuje format v2 z dodatkowymi ustawieniami wyglądu; starsze AutoNapisy go nie odczyta. Zachowaj kopię poprzedniego JSON, jeśli potrzebujesz wracać do 0.2.
+Zachowaj projekty i nagrania. Pobierz ZIP z GitHuba i rozpakuj do nowego folderu, np. `C:\AutoNapisy-0.4`. Nie kopiuj starych `node_modules`, `dist` i `src-tauri/target`. Aplikacja otwiera projekty v1 z wersji 0.1/0.2 i migruje je w pamięci. Zapisuje format v2 z dodatkowymi ustawieniami wyglądu; starsze AutoNapisy go nie odczyta. Zachowaj kopię poprzedniego JSON, jeśli potrzebujesz wracać do 0.2.
 
 Wymagania: Node.js 22 lub 24, aktualny Rust stable x64 MSVC, Visual Studio Build Tools z „Desktop development with C++” i Windows SDK oraz WebView2 Runtime.
 
@@ -84,7 +84,7 @@ Automatyczne łamanie zachowuje pełne słowa, wyrównuje długości linii i uni
 
 Krótkie plansze powstają tylko wtedy, gdy czasy słów z Whisper są spójne i odpowiadają tekstowi. Przejścia wykorzystują rzeczywiste początki słów, bez dzielenia czasu proporcjonalnie. Bez czasów słów, przy ich nakładaniu lub po korekcie tekstu cały segment jest wyświetlany jako blok i dopasowywany do liczby linii. To celowe: aplikacja nie zgaduje synchronizacji. Nowa transkrypcja prosi Whisper o krótsze segmenty (limit 48 zamiast 80), bez ucinania słów. Przy nakładaniu segmentów w podglądzie wybierana jest jedna, najpóźniej rozpoczęta plansza.
 
-**Eksport SRT** zachowuje podział plansz i linie, a tekst oryginalnego projektu nie jest zmieniany przez skład. SRT nie przenosi żółtego tła, fontu ani zaokrągleń. Wypalanie napisów w filmie nadal nie jest zaimplementowane.
+**Eksport SRT** zachowuje podział plansz i linie, a tekst oryginalnego projektu nie jest zmieniany przez skład. SRT nie przenosi żółtego tła, fontu ani zaokrągleń. Eksport MP4 utrwala wygląd napisów w obrazie.
 
 ## Jak poprawić dokładność polskiej transkrypcji
 
@@ -98,3 +98,18 @@ Podgląd przykładowego stylu (tekst referencyjny, nie wynik transkrypcji):
 ![Bebas Neue na żółtej planszy](docs/caption-style.png)
 
 Weryfikacja 0.3: testy składu i migracji, kontrola polskich glifów w dołączonym foncie oraz przeglądarkowy test układu 1366×768 i 1920×1080. Test przeglądarkowy używał kontrolowanego adaptera dialogów oraz wygenerowanego jednolitego filmu demonstracyjnego; nie zastępuje rzeczywistego testu WebView2 i Whisper na Windows. Implementację samego adaptera Whisper sprawdzono wcześniej z prawdziwym CLI. Raport automatycznej kompilacji i instalator są w GitHub Actions.
+
+
+## Eksport MP4 — 0.4
+
+1. W ustawieniach wskaż `ffmpeg.exe` z pełnego pakietu FFmpeg; obok musi znajdować się `ffprobe.exe`. Nie potrzebujesz dodatkowych ustawień Whisper do samego eksportu.
+2. Otwórz projekt, sprawdź tekst, podział plansz i wygląd w podglądzie.
+3. Kliknij **Eksport MP4**, wybierz plik docelowy i zaczekaj na komunikat zakończenia. Przycisk **Anuluj** przerywa pracę.
+
+Napisy są na stałe zapisane w obrazie: Bebas Neue, kolory, zaokrąglone tło i ręczne łamanie korzystają ze wspólnego układu z podglądem. Eksport używa lokalnych plansz PNG i FFmpeg (H.264/libx264, CRF 18, preset medium, pierwsza ścieżka audio AAC 192 kb/s). Obsługuje również film bez dźwięku. Nie wysyła nagrania do internetu.
+
+Źródło nie może być plikiem docelowym. Kodowanie odbywa się w katalogu tymczasowym obok wybranego pliku; potrzebne jest wolne miejsce na plansze i cały MP4. Anulowanie lub błąd zachowuje istniejący plik docelowy; udane kodowanie zastępuje go po sprawdzeniu, czy nie został zmieniony podczas pracy.
+
+Limity tej wersji: 3000 plansz, 8 MB na planszę, 512 MB plansz łącznie, maksymalnie 16 megapikseli i 8192 pikseli na bok, film do 24 godzin. Eksport działa na CPU i może potrwać. Nie zawiera montażu, wyboru ścieżek audio ani eksportu HDR. Rozmiar uwzględnia obrót o wielokrotność 90° oraz proporcje pikseli, wynik ma parzyste wymiary i kwadratowe piksele.
+
+Testy eksportu: testy adaptera IPC, walidacji PNG, osi czasu i ochrony źródła oraz test integracyjny z prawdziwym FFmpeg. Test integracyjny jest opcjonalny: `.test-core/tests/video_export.rs` opisuje zmienne środowiskowe z lokalnymi plikami testowymi; uruchom `cargo test --manifest-path .test-core/Cargo.toml --test video_export -- --ignored`. Kompilację natywnego Tauri i instalatora sprawdza workflow Windows.

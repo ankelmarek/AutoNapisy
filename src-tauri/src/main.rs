@@ -1,6 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod commands;
+mod export_commands;
 mod project;
+mod rendering;
 mod subtitles;
 mod transcription;
 use serde::Serialize;
@@ -182,7 +184,7 @@ fn diagnostics(tools: State<'_, commands::ToolState>) -> Diagnostics {
                 status: component_status("whisper", tools.whisper.as_deref()),
             },
             Component {
-                name: "FFmpeg / dźwięk".into(),
+                name: "FFmpeg / audio i MP4".into(),
                 status: component_status("ffmpeg", tools.ffmpeg.as_deref()),
             },
             Component {
@@ -201,6 +203,7 @@ fn main() {
         .manage(Access::default())
         .manage(commands::ToolState::default())
         .manage(commands::Tasks::default())
+        .manage(export_commands::ExportState::default())
         .setup(|app| {
             *app.state::<commands::ToolState>().0.lock().unwrap() =
                 commands::load_tools(app.handle());
@@ -217,13 +220,18 @@ fn main() {
             commands::start_transcription,
             commands::transcription_status,
             commands::cancel_transcription,
-            commands::export_srt
+            commands::export_srt,
+            export_commands::begin_video_export,
+            export_commands::upload_export_frame,
+            export_commands::finish_export_frames,
+            export_commands::cancel_video_export
         ])
         .build(tauri::generate_context!())
         .expect("Nie można uruchomić AutoNapisy");
     app.run(|handle, event| {
         if let tauri::RunEvent::ExitRequested { .. } = event {
             handle.state::<commands::Tasks>().shutdown();
+            handle.state::<export_commands::ExportState>().shutdown();
         }
     });
 }

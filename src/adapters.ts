@@ -17,14 +17,7 @@ export interface SynchronizationAdapter {
 export const synchronization: SynchronizationAdapter = {
   activeSegments: (p, t) => p.segments.filter((s) => s.start <= t && t < s.end),
 };
-export interface RenderingAdapter {
-  render(project: Project): Promise<string>;
-}
-export const rendering: RenderingAdapter = {
-  async render() {
-    throw new Error("Eksport filmu będzie dostępny w kolejnym etapie.");
-  },
-};
+export { rendering, type RenderingAdapter } from "./rendering";
 export type Diagnostics = {
   os: string;
   arch: string;

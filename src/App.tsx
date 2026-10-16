@@ -14,6 +14,7 @@ import {
   formatTime,
   type Project,
 } from "./model";
+import { rendering, type ExportStatus } from "./rendering";
 import bebasLicense from "./assets/BebasNeue-OFL.txt?raw";
 import CaptionOverlay, { CaptionBox } from "./CaptionOverlay";
 import { captionExport, yellowPreset, referenceText } from "./captions";
@@ -33,10 +34,19 @@ export default function App() {
     [task, setTask] = useState<TaskStatus | null>(null),
     [tools, setTools] = useState<Tools | null>(null);
   const controller = useRef<AbortController | null>(null);
+  const exportController = useRef<AbortController | null>(null);
+  const [exporting, setExporting] = useState(false),
+    [exportStatus, setExportStatus] = useState<ExportStatus | null>(null);
   const latestProject = useRef(project);
   latestProject.current = project;
-  useEffect(() => () => controller.current?.abort(), []);
-  const locked = busy || transcribing;
+  useEffect(
+    () => () => {
+      controller.current?.abort();
+      exportController.current?.abort();
+    },
+    [],
+  );
+  const locked = busy || transcribing || exporting;
   const video = useRef<HTMLVideoElement>(null);
   const duration = project.media?.duration ?? 0;
   const run = async (fn: () => Promise<void>) => {
@@ -171,6 +181,31 @@ export default function App() {
       );
       if (path) setMessage(`Zapisano napisy SRT: ${path}`);
     });
+  const exportMp4 = async () => {
+    if (exportController.current || locked) return;
+    const abort = new AbortController();
+    exportController.current = abort;
+    setExporting(true);
+    setExportStatus(null);
+    try {
+      const path = await rendering.render(
+        project,
+        abort.signal,
+        setExportStatus,
+      );
+      if (path) setMessage(`Zapisano MP4 z napisami: ${path}`);
+      else setMessage("Anulowano wybór pliku eksportu");
+    } catch (error) {
+      setMessage(
+        error instanceof DOMException && error.name === "AbortError"
+          ? "Anulowano eksport. Plik docelowy pozostaje bez zmian."
+          : `Błąd eksportu: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    } finally {
+      exportController.current = null;
+      setExporting(false);
+    }
+  };
   const style = project.styles.default;
   const updateStyle = (patch: Partial<typeof style>) => {
     setProject((p) => ({
@@ -185,7 +220,7 @@ export default function App() {
         <div className="brand">
           <span className="logo">A</span>
           <div>
-            AutoNapisy <small>0.3 · lokalne studio napisów</small>
+            AutoNapisy <small>0.4 · lokalne studio napisów</small>
           </div>
         </div>
         <div className="actions">
@@ -209,7 +244,7 @@ export default function App() {
             Zapisz{dirty ? " •" : ""}
           </button>
           <button
-            disabled={busy}
+            disabled={busy || exporting}
             onClick={() => {
               setSettings(true);
               void run(loadSettings);
@@ -222,6 +257,7 @@ export default function App() {
       <div className="projectbar">
         <input
           aria-label="Nazwa projektu"
+          disabled={exporting}
           value={project.name}
           maxLength={200}
           onChange={(e) => {
@@ -233,7 +269,42 @@ export default function App() {
         <button className="primary" disabled={locked} onClick={importVideo}>
           ＋ Importuj film
         </button>
+        <button
+          className="export-button"
+          disabled={
+            locked ||
+            !project.media ||
+            !project.segments.some((s) => s.text.trim())
+          }
+          onClick={() => void exportMp4()}
+        >
+          Eksport MP4
+        </button>
       </div>
+      {exporting && (
+        <section className="export-progress" role="status">
+          <div>
+            <b>Eksport filmu</b>
+            <span>
+              {exportStatus?.message ?? "Wybierz miejsce zapisu MP4…"}
+            </span>
+          </div>
+          <progress
+            aria-label="Postęp eksportu MP4"
+            max={100}
+            value={exportStatus?.progress ?? undefined}
+          />
+          <span>
+            {exportStatus?.progress != null ? `${exportStatus.progress}%` : ""}
+          </span>
+          <button
+            disabled={exportStatus?.state === "cancelling"}
+            onClick={() => exportController.current?.abort()}
+          >
+            Anuluj eksport
+          </button>
+        </section>
+      )}
       <main>
         <section className="panel transcript">
           <div className="panelhead">
@@ -290,7 +361,7 @@ export default function App() {
                   </button>
                   <textarea
                     aria-label={`Treść segmentu ${s.id}`}
-                    disabled={transcribing}
+                    disabled={transcribing || exporting}
                     value={s.text}
                     onChange={(e) => {
                       const text = e.target.value;
@@ -398,166 +469,168 @@ export default function App() {
             <h2>Stylizacja napisów</h2>
           </div>
           <div className="panelbody">
-            <p className="eyebrow">STYL DOMYŚLNY</p>
-            <button
-              className="preset-button"
-              onClick={() => updateStyle({ ...yellowPreset })}
-            >
-              Żółta plansza · Bebas Neue
-            </button>
-            <label>
-              Krój pisma
-              <select
-                value={style.fontFamily}
-                onChange={(e) => updateStyle({ fontFamily: e.target.value })}
+            <fieldset className="style-fields" disabled={exporting}>
+              <p className="eyebrow">STYL DOMYŚLNY</p>
+              <button
+                className="preset-button"
+                onClick={() => updateStyle({ ...yellowPreset })}
               >
-                {["Bebas Neue", "Arial", "Segoe UI", "Georgia"].map((f) => (
-                  <option key={f}>{f}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Rozmiar <b>{style.fontSize}</b>
-              <input
-                type="range"
-                min="12"
-                max="100"
-                value={style.fontSize}
-                onChange={(e) =>
-                  updateStyle({ fontSize: Number(e.target.value) })
-                }
-              />
-            </label>
-            <label>
-              Kolor tekstu
-              <input
-                type="color"
-                value={style.color}
-                onChange={(e) => updateStyle({ color: e.target.value })}
-              />
-            </label>
-            <label>
-              Tło napisów
-              <input
-                type="color"
-                value={style.background}
-                onChange={(e) => updateStyle({ background: e.target.value })}
-              />
-            </label>
-            <label>
-              Pozycja
-              <select
-                value={style.position}
-                onChange={(e) =>
-                  updateStyle({
-                    position: e.target.value as typeof style.position,
-                  })
-                }
-              >
-                <option value="bottom">Na dole</option>
-                <option value="center">Pośrodku</option>
-                <option value="top">Na górze</option>
-              </select>
-            </label>
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={style.uppercase}
-                onChange={(e) => updateStyle({ uppercase: e.target.checked })}
-              />
-              WIELKIE LITERY
-            </label>
-            <label>
-              Maksymalnie linii
-              <select
-                value={style.maxLines}
-                onChange={(e) =>
-                  updateStyle({ maxLines: Number(e.target.value) })
-                }
-              >
-                <option value={1}>1 linia</option>
-                <option value={2}>2 linie</option>
-                <option value={3}>3 linie</option>
-              </select>
-            </label>
-            <label>
-              Znaki na linię <b>{style.charsPerLine}</b>
-              <input
-                type="range"
-                min="12"
-                max="48"
-                value={style.charsPerLine}
-                onChange={(e) =>
-                  updateStyle({ charsPerLine: Number(e.target.value) })
-                }
-              />
-            </label>
-            <label>
-              Słowa na planszę <b>{style.wordsPerCard}</b>
-              <input
-                type="range"
-                min="3"
-                max="16"
-                value={style.wordsPerCard}
-                onChange={(e) =>
-                  updateStyle({ wordsPerCard: Number(e.target.value) })
-                }
-              />
-            </label>
-            <label>
-              Szerokość planszy <b>{style.boxWidth}%</b>
-              <input
-                type="range"
-                min="40"
-                max="95"
-                value={style.boxWidth}
-                onChange={(e) =>
-                  updateStyle({ boxWidth: Number(e.target.value) })
-                }
-              />
-            </label>
-            <label>
-              Zaokrąglenie <b>{style.cornerRadius}</b>
-              <input
-                type="range"
-                min="0"
-                max="60"
-                value={style.cornerRadius}
-                onChange={(e) =>
-                  updateStyle({ cornerRadius: Number(e.target.value) })
-                }
-              />
-            </label>
-            <label>
-              Odstęp od krawędzi <b>{style.marginPercent}%</b>
-              <input
-                type="range"
-                min="0"
-                max="30"
-                value={style.marginPercent}
-                onChange={(e) =>
-                  updateStyle({ marginPercent: Number(e.target.value) })
-                }
-              />
-            </label>
-            <div className="caption-sample">
-              <CaptionBox
-                text={referenceText}
-                style={style}
-                width={240}
-                height={135}
-              />
-            </div>
-            <p className="hint">
-              Enter w tekście segmentu ustawia ręczne łamanie. Krótkie plansze
-              wykorzystują czasy słów; bez nich cały segment jest dopasowywany
-              do zadanej liczby linii.
-            </p>
-            <p className="hint">
-              Styl jest zapisywany w projekcie. Eksport SRT zapisuje treść i
-              czasy; nie zachowuje stylizacji. Renderowanie filmu jest
-              niedostępne.
-            </p>
+                Żółta plansza · Bebas Neue
+              </button>
+              <label>
+                Krój pisma
+                <select
+                  value={style.fontFamily}
+                  onChange={(e) => updateStyle({ fontFamily: e.target.value })}
+                >
+                  {["Bebas Neue", "Arial", "Segoe UI", "Georgia"].map((f) => (
+                    <option key={f}>{f}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Rozmiar <b>{style.fontSize}</b>
+                <input
+                  type="range"
+                  min="12"
+                  max="100"
+                  value={style.fontSize}
+                  onChange={(e) =>
+                    updateStyle({ fontSize: Number(e.target.value) })
+                  }
+                />
+              </label>
+              <label>
+                Kolor tekstu
+                <input
+                  type="color"
+                  value={style.color}
+                  onChange={(e) => updateStyle({ color: e.target.value })}
+                />
+              </label>
+              <label>
+                Tło napisów
+                <input
+                  type="color"
+                  value={style.background}
+                  onChange={(e) => updateStyle({ background: e.target.value })}
+                />
+              </label>
+              <label>
+                Pozycja
+                <select
+                  value={style.position}
+                  onChange={(e) =>
+                    updateStyle({
+                      position: e.target.value as typeof style.position,
+                    })
+                  }
+                >
+                  <option value="bottom">Na dole</option>
+                  <option value="center">Pośrodku</option>
+                  <option value="top">Na górze</option>
+                </select>
+              </label>
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={style.uppercase}
+                  onChange={(e) => updateStyle({ uppercase: e.target.checked })}
+                />
+                WIELKIE LITERY
+              </label>
+              <label>
+                Maksymalnie linii
+                <select
+                  value={style.maxLines}
+                  onChange={(e) =>
+                    updateStyle({ maxLines: Number(e.target.value) })
+                  }
+                >
+                  <option value={1}>1 linia</option>
+                  <option value={2}>2 linie</option>
+                  <option value={3}>3 linie</option>
+                </select>
+              </label>
+              <label>
+                Znaki na linię <b>{style.charsPerLine}</b>
+                <input
+                  type="range"
+                  min="12"
+                  max="48"
+                  value={style.charsPerLine}
+                  onChange={(e) =>
+                    updateStyle({ charsPerLine: Number(e.target.value) })
+                  }
+                />
+              </label>
+              <label>
+                Słowa na planszę <b>{style.wordsPerCard}</b>
+                <input
+                  type="range"
+                  min="3"
+                  max="16"
+                  value={style.wordsPerCard}
+                  onChange={(e) =>
+                    updateStyle({ wordsPerCard: Number(e.target.value) })
+                  }
+                />
+              </label>
+              <label>
+                Szerokość planszy <b>{style.boxWidth}%</b>
+                <input
+                  type="range"
+                  min="40"
+                  max="95"
+                  value={style.boxWidth}
+                  onChange={(e) =>
+                    updateStyle({ boxWidth: Number(e.target.value) })
+                  }
+                />
+              </label>
+              <label>
+                Zaokrąglenie <b>{style.cornerRadius}</b>
+                <input
+                  type="range"
+                  min="0"
+                  max="60"
+                  value={style.cornerRadius}
+                  onChange={(e) =>
+                    updateStyle({ cornerRadius: Number(e.target.value) })
+                  }
+                />
+              </label>
+              <label>
+                Odstęp od krawędzi <b>{style.marginPercent}%</b>
+                <input
+                  type="range"
+                  min="0"
+                  max="30"
+                  value={style.marginPercent}
+                  onChange={(e) =>
+                    updateStyle({ marginPercent: Number(e.target.value) })
+                  }
+                />
+              </label>
+              <div className="caption-sample">
+                <CaptionBox
+                  text={referenceText}
+                  style={style}
+                  width={240}
+                  height={135}
+                />
+              </div>
+              <p className="hint">
+                Enter w tekście segmentu ustawia ręczne łamanie. Krótkie plansze
+                wykorzystują czasy słów; bez nich cały segment jest dopasowywany
+                do zadanej liczby linii.
+              </p>
+              <p className="hint">
+                Styl jest zapisywany w projekcie. Eksport SRT zapisuje treść i
+                czasy; nie zachowuje stylizacji. Eksport MP4 wypala wygląd
+                napisów w obrazie.
+              </p>
+            </fieldset>
           </div>
         </section>
       </main>

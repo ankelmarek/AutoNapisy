@@ -13,3 +13,7 @@ footer{max-height:72px;overflow:auto;flex-shrink:0;line-height:1.6}
 .checkbox-label{display:flex;align-items:center;gap:9px}.checkbox-label input{accent-color:#ffe600}
 
 .font-license{font-size:11px;color:#8e9ab5;margin-top:18px}.font-license pre{white-space:pre-wrap;max-height:180px;overflow:auto;font-size:10px}
+
+.export-button{background:#ffe600;color:#111;border-color:#ffe600;font-weight:600}.export-button:hover{background:#ffed4b}
+.export-progress{display:grid;grid-template-columns:minmax(220px,1fr) minmax(100px,260px) 42px auto;align-items:center;gap:12px;padding:10px 14px;background:#20283a;border:1px solid #455478;border-radius:8px;flex-shrink:0;font-size:12px}.export-progress b{display:block}.export-progress span{color:#b7c5df}.export-progress progress{width:100%;accent-color:#ffe600}.style-fields{border:0;margin:0;padding:0;min-width:0}.style-fields:disabled{opacity:.6}
+@media(max-width:1100px){.export-progress{grid-template-columns:1fr 100px 30px auto}}

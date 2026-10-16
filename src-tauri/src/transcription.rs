@@ -78,6 +78,16 @@ impl Tools {
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ExportInfo {
+    pub width: u32,
+    pub height: u32,
+    pub duration: f64,
+    pub frames: usize,
+    pub received: usize,
+    pub output_path: String,
+}
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Status {
     pub id: u64,
     pub state: String,
@@ -86,6 +96,8 @@ pub struct Status {
     pub progress: Option<u8>,
     pub segments: Option<Vec<Segment>>,
     pub audio_duration: Option<f64>,
+    pub export_info: Option<ExportInfo>,
+    pub output_path: Option<String>,
 }
 pub struct Job {
     pub cancel: AtomicBool,
@@ -104,6 +116,8 @@ impl Job {
                 progress: None,
                 segments: None,
                 audio_duration: None,
+                export_info: None,
+                output_path: None,
             }),
         }
     }
@@ -111,7 +125,7 @@ impl Job {
         let s = self.status.lock().unwrap();
         matches!(
             s.state.as_str(),
-            "preparing" | "transcribing" | "cancelling"
+            "preparing" | "transcribing" | "awaiting_frames" | "rendering" | "cancelling"
         )
     }
     pub fn cancel(&self) {
@@ -119,7 +133,7 @@ impl Job {
         let mut status = self.status.lock().unwrap();
         if !matches!(
             status.state.as_str(),
-            "preparing" | "transcribing" | "cancelling"
+            "preparing" | "transcribing" | "awaiting_frames" | "rendering" | "cancelling"
         ) {
             return;
         }
@@ -131,9 +145,9 @@ impl Job {
             let _ = child.kill();
         }
     }
-    fn check(&self) -> Result<(), String> {
+    pub(crate) fn check(&self) -> Result<(), String> {
         if self.cancel.load(Ordering::SeqCst) {
-            Err("Anulowano transkrypcję".into())
+            Err("Anulowano zadanie".into())
         } else {
             Ok(())
         }
@@ -159,12 +173,23 @@ pub fn progress_from_line(line: &str) -> Option<u8> {
     (n <= 100).then_some(n)
 }
 
-fn run_process(
+pub(crate) fn run_process(
     job: &Arc<Job>,
     program: &Path,
     args: &[std::ffi::OsString],
     whisper: bool,
     cwd: &Path,
+) -> Result<(), String> {
+    run_process_capture(job, program, args, whisper, cwd, None)
+}
+
+pub(crate) fn run_process_capture(
+    job: &Arc<Job>,
+    program: &Path,
+    args: &[std::ffi::OsString],
+    whisper: bool,
+    cwd: &Path,
+    capture: Option<&Path>,
 ) -> Result<(), String> {
     job.check()?;
     let mut command = Command::new(program);
@@ -174,6 +199,9 @@ fn run_process(
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::piped());
+    if let Some(path) = capture {
+        command.stdout(fs::File::create(path).map_err(|e| e.to_string())?);
+    }
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
@@ -211,6 +239,22 @@ fn run_process(
                     let mut s = reporter.status.lock().unwrap();
                     if s.state == "transcribing" {
                         s.progress = Some(s.progress.unwrap_or(0).max(p));
+                    }
+                }
+            }
+            if !whisper {
+                if let Some(value) = line
+                    .trim()
+                    .strip_prefix("out_time_us=")
+                    .and_then(|s| s.parse::<f64>().ok())
+                {
+                    let mut status = reporter.status.lock().unwrap();
+                    if status.state == "rendering" {
+                        if let Some(info) = &status.export_info {
+                            let percent = ((value / 1_000_000.0 / info.duration) * 100.0)
+                                .clamp(0.0, 99.0) as u8;
+                            status.progress = Some(status.progress.unwrap_or(0).max(percent));
+                        }
                     }
                 }
             }
@@ -447,7 +491,7 @@ pub fn execute(job: Arc<Job>, tools: Tools, media: PathBuf) -> Result<(Vec<Segme
     {
         let mut s = job.status.lock().unwrap();
         if job.cancel.load(Ordering::SeqCst) {
-            return Err("Anulowano transkrypcję".into());
+            return Err("Anulowano zadanie".into());
         }
         s.state = "transcribing".into();
         s.message = "Rozpoznawanie polskiej mowy…".into();

@@ -18,9 +18,9 @@ use tauri::{Manager, State};
 pub struct ToolState(pub Mutex<Tools>);
 #[derive(Default)]
 pub struct Tasks {
-    current: Mutex<Option<Arc<Job>>>,
-    worker: Mutex<Option<JoinHandle<()>>>,
-    sequence: AtomicU64,
+    pub(crate) current: Mutex<Option<Arc<Job>>>,
+    pub(crate) worker: Mutex<Option<JoinHandle<()>>>,
+    pub(crate) sequence: AtomicU64,
 }
 impl Tasks {
     pub fn shutdown(&self) {
