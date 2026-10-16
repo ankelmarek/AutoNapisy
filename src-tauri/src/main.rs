@@ -1,4 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+mod bundled;
 mod commands;
 mod export_commands;
 mod project;
@@ -216,6 +217,7 @@ fn main() {
             save_project,
             diagnostics,
             commands::tool_settings,
+            commands::component_licenses,
             commands::choose_component,
             commands::start_transcription,
             commands::transcription_status,

@@ -40,12 +40,16 @@ fn config_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
         .join("components.json"))
 }
 pub fn load_tools(app: &tauri::AppHandle) -> Tools {
-    config_path(app)
+    let mut settings = config_path(app)
         .ok()
         .and_then(|p| fs::read(p).ok())
         .filter(|v| v.len() <= 64 * 1024)
         .and_then(|v| serde_json::from_slice(&v).ok())
-        .unwrap_or_default()
+        .unwrap_or_default();
+    if let Ok(resources) = app.path().resource_dir() {
+        crate::bundled::apply_defaults(&mut settings, &resources);
+    }
+    settings
 }
 #[tauri::command]
 pub fn tool_settings(state: State<'_, ToolState>) -> Tools {
@@ -206,4 +210,22 @@ pub async fn export_srt(json: String) -> Result<Option<String>, String> {
     temp.as_file().sync_all().map_err(|e| e.to_string())?;
     temp.persist(path).map_err(|e| e.to_string())?;
     Ok(Some(path_string(path)?))
+}
+
+#[derive(serde::Serialize)]
+pub struct LicenseNotice { name: String, text: String }
+#[tauri::command]
+pub fn component_licenses(app: tauri::AppHandle) -> Result<Vec<LicenseNotice>, String> {
+    let root = app.path().resource_dir().map_err(|e| e.to_string())?.join("licenses");
+    let mut notices = vec![LicenseNotice { name: "Komponenty i licencje".into(), text: include_str!("../../licenses/THIRD-PARTY-NOTICES.txt").into() }];
+    for file in ["FFmpeg-GPL-2.0.txt", "x264-COPYING.txt", "whisper.cpp-MIT.txt", "ggml-MIT.txt", "FFmpeg-build.txt", "components.json", "SHA256SUMS.txt"] {
+        let path = root.join(file);
+        if path.is_file() {
+            let text = fs::read_to_string(&path).map_err(|e| format!("Nie można odczytać licencji: {e}"))?;
+            if text.len() > 2 * 1024 * 1024 { return Err("Plik licencji jest zbyt duży".into()); }
+            notices.push(LicenseNotice { name: file.into(), text });
+        }
+    }
+    notices.push(LicenseNotice { name: "Pliki licencji i źródeł".into(), text: format!("Licencje: {}\nŹródła i skrypty budowania: {}\nW wersji z narzędziami te foldery są instalowane razem z aplikacją. Raporty bibliotek: zaleznosci-frontend.json i zaleznosci-rust.html.", root.display(), root.parent().unwrap().join("sources").display()) });
+    Ok(notices)
 }

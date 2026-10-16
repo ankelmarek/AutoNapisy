@@ -1,0 +1,9 @@
+{
+  "bundle": {
+    "resources": {
+      ".bundled/vendor/": "vendor/",
+      ".bundled/licenses/": "licenses/",
+      ".bundled/sources/": "sources/"
+    }
+  }
+}

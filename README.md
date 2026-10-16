@@ -1,4 +1,4 @@
-# AutoNapisy 0.4 — polska mowa → polskie napisy
+# AutoNapisy 0.5 — polska mowa → polskie napisy
 
 Lokalna aplikacja Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Rozpoznaje polską mowę przez whisper.cpp, bez tłumaczenia. Nie wysyła nagrań, nie zawiera klienta HTTP ani telemetrii.
 
@@ -113,3 +113,32 @@ Napisy są na stałe zapisane w obrazie: Bebas Neue, kolory, zaokrąglone tło i
 Limity tej wersji: 3000 plansz, 8 MB na planszę, 512 MB plansz łącznie, maksymalnie 16 megapikseli i 8192 pikseli na bok, film do 24 godzin. Eksport działa na CPU i może potrwać. Nie zawiera montażu, wyboru ścieżek audio ani eksportu HDR. Rozmiar uwzględnia obrót o wielokrotność 90° oraz proporcje pikseli, wynik ma parzyste wymiary i kwadratowe piksele.
 
 Testy eksportu: testy adaptera IPC, walidacji PNG, osi czasu i ochrony źródła oraz test integracyjny z prawdziwym FFmpeg. Test integracyjny jest opcjonalny: `.test-core/tests/video_export.rs` opisuje zmienne środowiskowe z lokalnymi plikami testowymi; uruchom `cargo test --manifest-path .test-core/Cargo.toml --test video_export -- --ignored`. Kompilację natywnego Tauri i instalatora sprawdza workflow Windows.
+
+
+## Pełny instalator 0.5 — narzędzia i licencje
+
+Pełny instalator z workflow Windows zawiera `ffmpeg.exe`, `ffprobe.exe` oraz
+`whisper-cli.exe` (CPU x64). Aplikacja wykrywa je z własnego katalogu zasobów;
+nie korzysta z PATH. Działające ścieżki wybrane ręcznie mają pierwszeństwo.
+Nieaktualne ścieżki z poprzedniej instalacji zastępuje narzędziami dołączonymi.
+Model GGML nadal wybierasz osobno; aplikacja nie pobiera modeli ani nie wysyła nagrań.
+
+Ustawienia → „Komponenty i licencje” zawierają informacje oraz pełne teksty
+GPL i MIT; licencja Bebas Neue jest dostępna osobno. Obok aplikacji są foldery
+`licenses` (również raporty zależności JS/Rust, licencje runtime i sumy SHA-256)
+i `sources` (dokładne archiwa źródłowe FFmpeg, x264, whisper.cpp, konfiguracje
+i skrypty kompilacji). Nie usuwaj tych plików z dystrybuowanego pakietu.
+
+FFmpeg z libx264 jest na GPL-2.0-or-later; brak komponentów nonfree. Narzędzia
+są odrębnymi procesami, nie bibliotekami linkowanymi do aplikacji. whisper.cpp
+i ggml mają MIT, Bebas Neue SIL OFL 1.1. Licencję modelu należy sprawdzić u
+jego dostawcy — nie jest dołączony. Nie nadano nowej licencji kodowi AutoNapisy.
+
+Budowanie pełnego instalatora wymaga MSYS2 MINGW64 (`C:\msys64`) z pakietami
+`make diffutils curl mingw-w64-x86_64-gcc mingw-w64-x86_64-pkgconf mingw-w64-x86_64-nasm`,
+VS C++ z CMake, Node i Rust. Uruchom `powershell -ExecutionPolicy Bypass -File scripts/build-windows.ps1`.
+Skrypt pobiera źródła i narzędzia do raportowania licencji wyłącznie podczas
+budowania. Tak samo robi `.github/workflows/windows.yml`; sprawdza uruchomienie
+FFmpeg/FFprobe/Whisper i rzeczywiste kodowanie H.264 przed utworzeniem instalatora.
+Zwykłe `npm run tauri -- dev` i `npm run tauri -- build` pozostają wariantami
+deweloperskimi bez wbudowanych narzędzi. Pierwsza pełna kompilacja trwa dłużej.

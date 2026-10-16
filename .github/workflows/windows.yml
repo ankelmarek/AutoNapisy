@@ -21,7 +21,31 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: cargo test --manifest-path src-tauri/Cargo.toml
-      - run: npm run tauri -- build --target x86_64-pc-windows-msvc
+      - name: Cache bundled tools and license reports
+        id: vendor-cache
+        uses: actions/cache@v4
+        with:
+          path: src-tauri/.bundled
+          key: vendor-x64-v1-${{ hashFiles('scripts/build-bundled-*', 'scripts/license-report.ps1', 'licenses/**', 'src-tauri/about.toml', 'package-lock.json', 'src-tauri/Cargo.lock') }}
+      - uses: msys2/setup-msys2@v2
+        if: steps.vendor-cache.outputs.cache-hit != 'true'
+        with:
+          msystem: MINGW64
+          update: true
+          install: make diffutils curl mingw-w64-x86_64-gcc mingw-w64-x86_64-pkgconf mingw-w64-x86_64-nasm
+      - name: Build FFmpeg and x264 from pinned sources
+        if: steps.vendor-cache.outputs.cache-hit != 'true'
+        shell: msys2 {0}
+        run: ./scripts/build-bundled-ffmpeg.sh
+      - name: Build whisper.cpp and collect source licenses
+        if: steps.vendor-cache.outputs.cache-hit != 'true'
+        run: ./scripts/build-bundled-whisper.ps1
+      - uses: taiki-e/install-action@cargo-about
+        if: steps.vendor-cache.outputs.cache-hit != 'true'
+      - name: Generate dependency license reports
+        if: steps.vendor-cache.outputs.cache-hit != 'true'
+        run: ./scripts/license-report.ps1
+      - run: npm run tauri -- build --target x86_64-pc-windows-msvc --config src-tauri/tauri.bundled.conf.json
       - uses: actions/upload-artifact@v4
         with:
           name: AutoNapisy-Windows-x64

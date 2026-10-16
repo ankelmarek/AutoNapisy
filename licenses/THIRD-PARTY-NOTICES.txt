@@ -1,0 +1,30 @@
+AutoNapisy — komponenty zewnętrzne
+
+FFmpeg 8.0.1 + libx264: GPL-2.0-or-later. Oddzielne programy ffmpeg.exe i
+ffprobe.exe są uruchamiane jako procesy. AutoNapisy nie linkuje bibliotek FFmpeg.
+Konfiguracja nie zawiera komponentów nonfree i nie korzysta z sieci.
+Źródła FFmpeg i x264, skrypty budowania oraz konfiguracje znajdują się w folderze
+sources obok zainstalowanej aplikacji. Są to źródła wersji użytych do budowania
+załączonych plików binarnych. Licencje i informacje o kompilacji: folder licenses.
+Możesz kopiować, modyfikować i rozpowszechniać te komponenty na warunkach GPL.
+https://ffmpeg.org/legal.html
+https://www.videolan.org/developers/x264.html
+
+whisper.cpp 1.7.6 oraz ggml: MIT. Pełne informacje o prawach autorskich i teksty
+licencji dołączono do folderu licenses. Źródła CLI są w sources/whisper.cpp.tar.gz.
+https://github.com/ggml-org/whisper.cpp
+
+Bebas Neue: SIL Open Font License 1.1. Pełny tekst licencji z informacją
+o autorach jest w BebasNeue-OFL.txt i w ustawieniach aplikacji.
+
+Model Whisper nie jest dołączony ani pobierany automatycznie. Licencja modelu
+zależy od wybranego pliku i jego źródła. Oryginalne modele OpenAI Whisper są
+udostępniane na licencji MIT; nie należy zakładać tej licencji dla modeli innych
+autorów. Aplikacja przetwarza wybrany model i nagrania wyłącznie lokalnie.
+
+Dodatkowe informacje o licencjach bibliotek JavaScript i Rust znajdują się
+w plikach zaleznosci-frontend.json i zaleznosci-rust.html (w instalatorze pełnym).
+Licencje zależności nie określają automatycznie licencji samej aplikacji.
+Materiały użytkownika pozostają własnością ich uprawnionych właścicieli.
+
+Komponenty zewnętrzne są udostępniane bez gwarancji, zgodnie z ich licencjami.

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { backend, preview, type Diagnostics } from "./adapters";
 import {
   transcription,
@@ -33,6 +34,7 @@ export default function App() {
   const [transcribing, setTranscribing] = useState(false),
     [task, setTask] = useState<TaskStatus | null>(null),
     [tools, setTools] = useState<Tools | null>(null);
+  const [licenses, setLicenses] = useState<{name: string; text: string}[]>([]);
   const controller = useRef<AbortController | null>(null);
   const exportController = useRef<AbortController | null>(null);
   const [exporting, setExporting] = useState(false),
@@ -124,12 +126,14 @@ export default function App() {
       else video.current.pause();
     });
   const loadSettings = async () => {
-    const [d, t] = await Promise.all([
+    const [d, t, l] = await Promise.all([
       backend.diagnostics(),
       toolSettings.get(),
+      invoke<{name: string; text: string}[]>("component_licenses"),
     ]);
     setDiagnostics(d);
     setTools(t);
+    setLicenses(l);
   };
   const chooseTool = (kind: keyof Tools) =>
     run(async () => {
@@ -684,8 +688,9 @@ export default function App() {
             <p>
               Polska mowa → polskie napisy. Lepszą dokładność zwykle zapewnia
               ggml-small.bin lub ggml-medium.bin, kosztem czasu i pamięci.
-              Wybierz lokalne komponenty. Rozpakuj pełną paczkę whisper.cpp
-              razem z bibliotekami DLL. Model musi być wielojęzyczny (bez .en).
+              Pełny instalator zawiera FFmpeg, FFprobe i whisper.cpp — są wykrywane
+              automatycznie. Wybierz osobno lokalny model wielojęzyczny (bez .en).
+              Możesz też wskazać własne wersje narzędzi.
             </p>
             <div className="tools">
               <h3>Komponenty transkrypcji</h3>
@@ -707,8 +712,8 @@ export default function App() {
                 </div>
               ))}
               <p>
-                CPU · język polski · pliki pozostają na komputerze. Programy i
-                model pobierasz osobno z zaufanych źródeł.
+                CPU · język polski · pliki pozostają na komputerze. Model nie jest
+                pobierany automatycznie ani dołączony do instalatora.
               </p>
             </div>
             {diagnostics ? (
@@ -735,6 +740,11 @@ export default function App() {
             ) : (
               <p>Oczekiwanie na diagnostykę. {message}</p>
             )}
+            {licenses.map((license) => (
+              <details className="font-license" key={license.name}>
+                <summary>{license.name}</summary><pre>{license.text}</pre>
+              </details>
+            ))}
             <details className="font-license">
               <summary>Licencja czcionki Bebas Neue</summary>
               <pre>{bebasLicense}</pre>
