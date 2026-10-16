@@ -47,6 +47,7 @@ Czasy segmentów pochodzą z JSON Whisper. Słowa składamy z tokenów tylko prz
 - Frontend nie ma shell, dowolnego dostępu do plików ani HTTP. Rust używa `Command` bez powłoki, ze stałymi argumentami i ścieżkami jako osobnymi argumentami Unicode.
 - Film musi wcześniej zostać wybrany przez natywny import lub projekt. Zakres asset obejmuje konkretne pliki, nie katalogi. Projekt zawiera absolutną ścieżkę, a nie film; nie przenoś nagrania po zapisaniu projektu.
 - FFmpeg ma whitelistę protokołów `file,pipe`. Whisper otrzymuje lokalny WAV, lokalny model, `-l pl`, bez tłumaczenia, z wyłączonym GPU.
+- Dla whisper.cpp argumenty są zapisywane do pliku UTF-8 (jeden argument na wiersz), a WAV i wynik mają względne nazwy ASCII. Zapobiega to utracie Unicode przez starszy Windows CRT. Znaki nowej linii w ścieżkach są odrzucane.
 - Prywatny folder tymczasowy jest usuwany po zakończeniu/błędzie/anulowaniu. Po awarii systemu może pozostać `autonapisy-*` w TEMP; usuń go po zamknięciu aplikacji. WAV wymaga około 115 MB miejsca na godzinę nagrania.
 - JSON projektu i wynik Whisper mają limit 16 MB; nieznane wersje schematu są odrzucane.
 - `src/transcription.ts`: adapter IPC i anulowanie; `src/adapters.ts`: kontrakty podglądu/synchronizacji/renderowania; `src/model.ts`: walidacja; `src-tauri/src/transcription.rs`: procesy i parser; `commands.rs`: dialogi, konfiguracja i zadania; `subtitles.rs`: SRT; `project.rs`: walidacja backendowa.

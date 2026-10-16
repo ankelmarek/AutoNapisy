@@ -376,6 +376,21 @@ pub fn parse_output(json: &str, duration: f64) -> Result<Vec<Segment>, String> {
     Ok(result)
 }
 
+fn write_response(path: &Path, args: &[std::ffi::OsString]) -> Result<(), String> {
+    let mut text = String::new();
+    for arg in args {
+        let value = arg
+            .to_str()
+            .ok_or("Ścieżka komponentu nie jest poprawnym Unicode")?;
+        if value.contains(['\n', '\r']) {
+            return Err("Ścieżka zawiera niedozwolony znak nowej linii".into());
+        }
+        text.push_str(value);
+        text.push('\n');
+    }
+    fs::write(path, text).map_err(|e| format!("Nie można zapisać argumentów Whisper: {e}"))
+}
+
 pub fn execute(job: Arc<Job>, tools: Tools, media: PathBuf) -> Result<(Vec<Segment>, f64), String> {
     let temp = tempfile::Builder::new()
         .prefix("autonapisy-")
@@ -446,7 +461,7 @@ pub fn execute(job: Arc<Job>, tools: Tools, media: PathBuf) -> Result<(Vec<Segme
         "-m".into(),
         tools.model.ok_or("Brak modelu")?.into_os_string(),
         "-f".into(),
-        wav.into_os_string(),
+        "audio.wav".into(),
         "-l".into(),
         "pl".into(),
         "-ng".into(),
@@ -455,14 +470,17 @@ pub fn execute(job: Arc<Job>, tools: Tools, media: PathBuf) -> Result<(Vec<Segme
         "-ojf".into(),
         "-pp".into(),
         "-of".into(),
-        output.clone().into_os_string(),
+        "result".into(),
     ];
     // Token timestamps are requested through max-length; split-on-word prevents splitting Polish words.
     args.extend(["-ml".into(), "80".into(), "-sow".into()]);
+    // whisper.cpp's Windows CRT argv can lose Unicode. Its response-file support
+    // reads UTF-8 bytes verbatim; relative WAV/output names also bypass narrow-path I/O.
+    write_response(&temp.path().join("arguments.txt"), &args)?;
     run_process(
         &job,
         tools.whisper.as_deref().ok_or("Brak Whisper")?,
-        &args,
+        &["@arguments.txt".into()],
         true,
         temp.path(),
     )?;
@@ -536,6 +554,17 @@ mod tests {
         );
         assert!(result.is_err());
         assert!(job.child.lock().unwrap().is_none());
+    }
+    #[test]
+    fn unicode_response_file_and_newline_rejection() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("arguments.txt");
+        write_response(&file, &["-m".into(), "C:/Łódź/model z odstępem.bin".into()]).unwrap();
+        assert_eq!(
+            fs::read_to_string(&file).unwrap(),
+            "-m\nC:/Łódź/model z odstępem.bin\n"
+        );
+        assert!(write_response(&file, &["bad\n-l\nen".into()]).is_err());
     }
     #[test]
     fn real_offsets_and_unicode() {
