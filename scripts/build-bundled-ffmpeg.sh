@@ -60,4 +60,4 @@ done
 
 # The caption renderer consumes PNG, so H.264 alone is not a sufficient smoke test.
 "$out/vendor/ffmpeg.exe" -v error -y -f lavfi -i color=c=yellow:s=128x128:d=0.1 -frames:v 1 "$work/png-smoke.png"
-"$out/vendor/ffmpeg.exe" -v error -y -i "$work/png-smoke.png" -frames:v 1 -c:v libx264 "$work/png-smoke.mp4"
+"$out/vendor/ffmpeg.exe" -v error -y -i "$work/png-smoke.png" -frames:v 1 -c:v libx264 -pix_fmt yuv420p "$work/png-smoke.mp4"

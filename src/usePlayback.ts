@@ -34,6 +34,10 @@ export function usePlayback(video:RefObject<HTMLVideoElement|null>,project:Proje
   frame=requestAnimationFrame(tick);
   return ()=>{alive=false;cancelAnimationFrame(frame);};
  },[playing,video]);
- useEffect(()=>()=>video.current?.pause(),[video]);
+ useEffect(()=>{
+  const hidden=()=>{if(document.hidden){setPlaying(false);video.current?.pause();}};
+  document.addEventListener('visibilitychange',hidden);
+  return()=>{document.removeEventListener('visibilitychange',hidden);video.current?.pause();};
+ },[video]);
  return {time,playing,error,seek,pause,reset:()=>{pause();seek(0);},toggle:()=>{if(playing)pause();else if(source&&editDuration(latest.current)>0){if(cursor.current>=editDuration(latest.current))seek(0);setError('');setPlaying(true);}}};
 }

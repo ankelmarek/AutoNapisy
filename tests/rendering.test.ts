@@ -19,4 +19,12 @@ describe('eksport MP4',()=>{
  it('anulowany sygnał nie otwiera dialogu',async()=>{const controller=new AbortController();controller.abort();await expect(rendering.render(project(),controller.signal)).rejects.toMatchObject({name:'AbortError'});expect(invoke).not.toHaveBeenCalled();});
  it('anulowanie podczas przygotowania wysyła cancel bez finish',async()=>{const controller=new AbortController();invoke.mockImplementation(async(cmd:string)=>{if(cmd==='begin_video_export')return 9;if(cmd==='transcription_status')return status('awaiting_frames');});frame.mockImplementation(async()=>{controller.abort();return 'PNG';});await expect(rendering.render(project(),controller.signal)).rejects.toMatchObject({name:'AbortError'});expect(invoke).toHaveBeenCalledWith('cancel_video_export',{id:9});expect(invoke.mock.calls.some(c=>c[0]==='finish_export_frames')).toBe(false);});
  it('zakończenie zapisu wygrywa z późnym anulowaniem',async()=>{const controller=new AbortController();invoke.mockImplementation(async(cmd:string)=>{if(cmd==='begin_video_export')return 9;if(cmd==='transcription_status'){controller.abort();return status('completed',{outputPath:'C:/Wynik.mp4'});}});expect(await rendering.render(project(),controller.signal)).toBe('C:/Wynik.mp4');});
+ it('przekazuje napisy w czasie montażu bez zmiany czasów źródłowych projektu',async()=>{
+  const p=project();p.clips=[{id:'moved',sourceIn:0,sourceOut:2,start:10}];
+  invoke.mockImplementation(async(cmd:string)=>{if(cmd==='begin_video_export')return 9;if(cmd==='transcription_status')return invoke.mock.calls.some(c=>c[0]==='finish_export_frames')?status('completed',{outputPath:'C:/Wynik.mp4'}):status('awaiting_frames');if(cmd==='upload_export_frame')return status('awaiting_frames');});
+  await rendering.render(p);const call=invoke.mock.calls.find(c=>c[0]==='begin_video_export')!;
+  expect(JSON.parse(call[1].json).segments[0].start).toBe(0);expect(JSON.parse(call[1].json).media.duration).toBe(3);
+  expect(JSON.parse(call[1].captions)[0]).toMatchObject({start:10,end:12});
+ });
+
 });

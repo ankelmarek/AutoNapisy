@@ -9,7 +9,7 @@ export function projectClips(p: Project): Clip[] {
 export const editDuration = (p: Project) => Math.max(0,...projectClips(p).map(clipEnd));
 export function clipAt(clips: Clip[], time: number) { return ordered(clips).find(c=>c.start<=time && time<clipEnd(c)); }
 export function splitClip(clips: Clip[], id: string, time: number, newId:string=crypto.randomUUID()): Clip[] {
-  const c=clips.find(x=>x.id===id); if(!c || time-c.start<MIN_CLIP || clipEnd(c)-time<MIN_CLIP)return clips;
+  const c=clips.find(x=>x.id===id); if(clips.length>=100 || !c || time-c.start<MIN_CLIP || clipEnd(c)-time<MIN_CLIP)return clips;
   const cut=c.sourceIn+time-c.start;
   return ordered(clips.flatMap(x=>x.id===id?[{...c,sourceOut:cut},{...c,id:newId,start:time,sourceIn:cut}]:[x]));
 }

@@ -19,5 +19,5 @@ Write-Output 'Installer resources, licenses, sources and installed tools: OK'
 $png = Join-Path $env:RUNNER_TEMP 'plansza Łódź.png'
 & "$destination/vendor/ffmpeg.exe" -v error -y -f lavfi -i 'color=c=yellow:s=128x128:d=0.1' -frames:v 1 $png
 if ($LASTEXITCODE) { throw 'Zainstalowany FFmpeg nie koduje PNG' }
-& "$destination/vendor/ffmpeg.exe" -v error -y -i $png -frames:v 1 -c:v libx264 $video
+& "$destination/vendor/ffmpeg.exe" -v error -y -i $png -frames:v 1 -c:v libx264 -pix_fmt yuv420p $video
 if ($LASTEXITCODE) { throw 'Zainstalowany FFmpeg nie dekoduje PNG do MP4' }

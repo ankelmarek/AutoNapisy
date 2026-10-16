@@ -11,7 +11,7 @@ execFileSync(process.env.AUTONAPISY_FFMPEG??'ffmpeg',['-hide_banner','-loglevel'
 const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
 for(const [width,height]of[[1366,768],[1920,1080]]){
  const page=await browser.newPage({viewport:{width,height}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
- await page.addInitScript(({json})=>{window.__saved=null;window.__TAURI_INTERNALS__={convertFileSrc:()=>'/edit.webm',invoke:async(cmd,args)=>{if(cmd==='open_project')return {json,path:'/test.json'};if(cmd==='prepare_preview')return '/test.mp4';if(cmd==='save_project'){window.__saved=JSON.parse(args.json);return '/test.json';}throw Error(cmd);}};},{json:JSON.stringify(project)});
+ await page.addInitScript(({json})=>{window.__saved=null;window.__TAURI_INTERNALS__={convertFileSrc:()=>'/edit.webm',invoke:async(cmd,args)=>{if(cmd==='open_project')return {json:localStorage.getItem('e2eSaved')??json,path:'/test.json'};if(cmd==='prepare_preview')return '/test.mp4';if(cmd==='save_project'){window.__saved=JSON.parse(args.json);return '/test.json';}throw Error(cmd);}};},{json:JSON.stringify(project)});
  const buffer=fs.readFileSync(path.join(root,'.tools/edit-demo.webm'));
  await page.route('**/edit.webm',r=>{const match=/bytes=(\d+)-(\d*)/.exec(r.request().headers().range??'');if(match){const start=Number(match[1]),end=match[2]?Math.min(Number(match[2]),buffer.length-1):buffer.length-1;return r.fulfill({status:206,contentType:'video/webm',headers:{'accept-ranges':'bytes','content-range':`bytes ${start}-${end}/${buffer.length}`,'content-length':String(end-start+1)},body:buffer.subarray(start,end+1)});}return r.fulfill({status:200,contentType:'video/webm',headers:{'accept-ranges':'bytes','content-length':String(buffer.length)},body:buffer});});
  await page.goto(process.env.AUTONAPISY_VITE_URL??'http://127.0.0.1:1420');await page.getByRole('button',{name:'Otwórz',exact:true}).click();await page.waitForTimeout(500);
@@ -30,6 +30,10 @@ for(const [width,height]of[[1366,768],[1920,1080]]){
  await page.mouse.click(box.x+195,box.y+10);assert(await page.locator('video').evaluate(v=>v.classList.contains('gap')&&v.paused),'gap should be black and paused');
  await page.getByRole('button',{name:'▶',exact:true}).click();await page.waitForTimeout(2200);assert(await page.locator('video').evaluate(v=>!v.classList.contains('gap')&&v.currentTime>7),'playback did not leave gap');await page.getByRole('button',{name:'Ⅱ',exact:true}).click();
  await page.screenshot({path:`docs/montage-${width}.png`});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);assert.equal(await page.evaluate(()=>document.documentElement.scrollHeight>innerHeight),false,'vertical overflow');assert.deepEqual(errors,[]);
+ for(let i=0;i<2;i++){await page.locator('.edit-clip').first().click({position:{x:40,y:20}});await page.getByRole('button',{name:'Usuń ujęcie'}).click();}
+ assert.equal(await page.locator('.edit-clip').count(),0);await page.getByRole('button',{name:'Przywróć cały film'}).click();assert.equal(await page.locator('.edit-clip').count(),1);
+ await page.locator('.edit-clip').first().click({position:{x:40,y:20}});await page.getByRole('spinbutton',{name:'Wejście źródła',exact:true}).fill('7');await page.getByRole('button',{name:'Dosuń wszystkie'}).click();await page.getByRole('button',{name:/Zapisz/}).click();
+ await page.evaluate(()=>localStorage.setItem('e2eSaved',JSON.stringify(window.__saved)));await page.reload();await page.getByRole('button',{name:'Otwórz',exact:true}).click();await page.waitForTimeout(600);assert(await page.locator('video').evaluate(v=>v.currentTime>=6.99&&v.paused),'reopened trimmed project shows wrong source frame');
  console.log(JSON.stringify({viewport:[width,height],clips:saved.clips,playback:'crossed cut',errors}));await page.close();
 }
 await browser.close();

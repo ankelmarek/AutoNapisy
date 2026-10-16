@@ -1,6 +1,7 @@
 import {describe,it,expect} from 'vitest';
 import {newProject,parseProject,serializeProject} from '../src/model';
 import {splitClip,trimClip,moveClip,closeGaps,compositionSegments,editDuration,clipAt,type Clip} from '../src/editing';
+import {synchronization} from '../src/adapters';
 import {historyReducer} from '../src/useHistory';
 const base:Clip[]=[{id:'a',sourceIn:0,sourceOut:10,start:0}];
 const project=()=>({...newProject(),media:{path:'C:/Łódź/a.mp4',name:'a',duration:10},clips:base});
@@ -13,4 +14,9 @@ describe('montaż niedestrukcyjny',()=>{
  it('odrzuca nakładanie, brak źródła, nieprawidłowe granice i duplikaty',()=>{const p=project();for(const clips of [[{...base[0],sourceOut:11}],[base[0],{...base[0],id:'b',start:2}],[base[0],{...base[0],start:10}],[{...base[0],sourceIn:5,sourceOut:4}]])expect(()=>serializeProject({...p,clips})).toThrow();expect(()=>serializeProject({...p,media:null})).toThrow();});
  it('usunięcie wszystkich ujęć nie odtwarza automatycznie źródła',()=>{const p={...project(),clips:[]};expect(editDuration(p)).toBe(0);expect(compositionSegments(p)).toEqual([]);expect(parseProject(serializeProject(p)).clips).toEqual([]);});
  it('cofa i ponawia montaż, a nowa zmiana usuwa redo',()=>{const p=project();let state={present:p,past:[],future:[]} as Parameters<typeof historyReducer>[0];state=historyReducer(state,{type:'edit',value:{...p,clips:splitClip(base,'a',3,'b')}});state=historyReducer(state,{type:'undo'});expect(state.present.clips).toEqual(base);state=historyReducer(state,{type:'redo'});expect(state.present.clips).toHaveLength(2);state=historyReducer(state,{type:'undo'});state=historyReducer(state,{type:'edit',value:{...p,name:'zmiana'}});expect(state.future).toEqual([]);});
+ it('synchronizacja używa czasu montażu również poza długością źródła',()=>{
+  const p=project();p.clips=[{id:'moved',sourceIn:0,sourceOut:2,start:10}];p.segments=[{id:'s',text:'tekst',start:0,end:1,words:[],styleId:'default'}];
+  expect(synchronization.activeSegments(p,.5)).toEqual([]);expect(synchronization.activeSegments(p,10.5)[0]).toMatchObject({start:10,end:11});
+ });
+
 });

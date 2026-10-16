@@ -39,6 +39,14 @@ jobs:
             $ready = (Get-FileHash scripts/build-bundled-ffmpeg.sh).Hash -eq (Get-FileHash src-tauri/.bundled/sources/build-bundled-ffmpeg.sh).Hash
           }
           "ready=$($ready.ToString().ToLower())" >> $env:GITHUB_OUTPUT
+      - name: Restore FFmpeg intermediate objects
+        id: ffmpeg-objects
+        if: steps.ffmpeg-ready.outputs.ready != 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: .tools/vendor-build
+          key: ffmpeg-objects-v1-${{ hashFiles('scripts/build-bundled-ffmpeg.sh') }}
+          restore-keys: ffmpeg-objects-v1-
       - uses: msys2/setup-msys2@v2
         if: steps.ffmpeg-ready.outputs.ready != 'true' 
         with:
@@ -49,6 +57,12 @@ jobs:
         if: steps.ffmpeg-ready.outputs.ready != 'true'
         shell: msys2 {0}
         run: ./scripts/build-bundled-ffmpeg.sh
+      - name: Preserve FFmpeg intermediate objects
+        if: always() && steps.ffmpeg-ready.outputs.ready != 'true' && steps.ffmpeg-objects.outputs.cache-hit != 'true' && hashFiles('.tools/vendor-build/ffmpeg/config.h') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: .tools/vendor-build
+          key: ffmpeg-objects-v1-${{ hashFiles('scripts/build-bundled-ffmpeg.sh') }}
       - name: Build whisper.cpp and collect source licenses
         if: steps.vendor-cache.outputs.cache-hit != 'true'
         run: ./scripts/build-bundled-whisper.ps1

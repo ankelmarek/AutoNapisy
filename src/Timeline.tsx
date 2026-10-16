@@ -50,6 +50,7 @@ export default function Timeline(p:Props){
    <button disabled={p.locked||!clipAt(clips,p.time)} onClick={()=>{const c=clipAt(clips,p.time);if(c)cut(c.id,p.time);}}>Przetnij tutaj</button>
    <button disabled={p.locked||!chosen} onClick={remove}>Usuń ujęcie</button>
    <button disabled={p.locked||!clips.length} onClick={()=>commit(closeGaps(clips))}>Dosuń wszystkie</button>
+   {!clips.length && (p.project.media?.duration??0)>=.05 && <button disabled={p.locked} onClick={()=>commit([{id:crypto.randomUUID(),sourceIn:0,sourceOut:p.project.media!.duration!,start:0}])}>Przywróć cały film</button>}
    <button disabled={p.locked} aria-pressed={snap} onClick={()=>setSnap(!snap)}>Magnes {snap?'wł.':'wył.'}</button>
    <button disabled={p.locked||!p.canUndo} onClick={p.undo} title="Ctrl+Z">↶ Cofnij</button>
    <button disabled={p.locked||!p.canRedo} onClick={p.redo} title="Ctrl+Shift+Z">↷ Ponów</button>

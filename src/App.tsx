@@ -386,10 +386,9 @@ export default function App() {
             ) : (
               <div className="empty">
                 <div className="symbol">≋</div>
-                <h3>Tu pojawią się Twoje słowa</h3>
+                <h3>{project.media && !duration ? "Montaż jest pusty" : "Tu pojawią się Twoje słowa"}</h3>
                 <p>
-                  Importuj film i kliknij „Transkrybuj po polsku”. Najpierw
-                  wskaż Whisper, FFmpeg i model w ustawieniach.
+                  {project.media && !duration ? 'Cofnij usunięcie lub wybierz „Przywróć cały film” na osi czasu. Oryginalna transkrypcja pozostaje zapisana.' : 'Importuj film i kliknij „Transkrybuj po polsku”. W ustawieniach wskaż lokalny model Whisper.'}
                 </p>
                 <small>Rozpoznawanie lokalne · bez tłumaczenia</small>
               </div>
@@ -417,6 +416,7 @@ export default function App() {
                         media: p.media ? { ...p.media, duration: p.media.duration ?? d } : null,
                         clips: p.clips ?? (d>=0.05?[{id:'original',sourceIn:0,sourceOut:d,start:0}]:[]),
                       }));
+                      playback.seek(time);
                       setMessage("Film gotowy do odtwarzania.");
                     }
                   }}

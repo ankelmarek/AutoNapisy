@@ -153,7 +153,7 @@ Importuj jeden film i wycinaj z niego ujęcia. Oryginał pozostaje bez zmian.
 - **Zaznacz** (V): przeciągnij środek klipu, aby go przesunąć. Klipy nie nakładają się. Przeniesienie fragmentu za inny zmienia kolejność.
 - Przeciągnij boczny uchwyt, aby skrócić lub przywrócić fragment w granicach źródła i wolnego miejsca.
 - **Magnes** przyciąga krawędzie do sąsiada (10 pikseli), uchwyty także do głowicy.
-- **Usuń ujęcie** / Delete usuwa zaznaczony fragment i pozostawia przerwę. **Dosuń wszystkie** zamyka wszystkie przerwy w aktualnej kolejności.
+- **Usuń ujęcie** / Delete usuwa zaznaczony fragment i pozostawia przerwę. **Dosuń wszystkie** zamyka wszystkie przerwy w aktualnej kolejności. Gdy oś jest pusta, **Przywróć cały film** dodaje pełne źródło, zachowując oryginalną transkrypcję.
 - **Cofnij/Ponów**: przyciski lub Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y. Jedno przeciągnięcie jest jedną zmianą.
 - Kliknij lub przeciągnij linijkę, aby przewinąć. Zoom i poziomy pasek przewijania pomagają przy dłuższych nagraniach. Pola pod osią umożliwiają dokładne ustawienie czasów w sekundach.
 
