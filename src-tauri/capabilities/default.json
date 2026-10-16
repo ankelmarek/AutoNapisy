@@ -1,0 +1,1 @@
+{"$schema":"../gen/schemas/desktop-schema.json","identifier":"main","description":"Minimalne uprawnienia głównego okna; bez shell, HTTP ani ogólnego dostępu do plików.","windows":["main"],"permissions":["core:default"]}
