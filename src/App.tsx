@@ -16,6 +16,7 @@ import {
   type Project,
 } from "./model";
 import Timeline from "./Timeline";
+import LocalMedia from "./LocalMedia";
 import { useProjectHistory } from "./useHistory";
 import { usePlayback } from "./usePlayback";
 import { clipAt, editDuration, projectClips, compositionSegments, compositionProject, clipMedia, appendMedia } from "./editing";
@@ -52,7 +53,7 @@ export default function App() {
     [],
   );
   const locked = busy || transcribing || exporting;
-  const video = useRef<HTMLVideoElement>(null);
+  const captionSurface = useRef<HTMLDivElement>(null);
   const stage=useRef<HTMLDivElement>(null);
   const [stageSize,setStageSize]=useState({width:0,height:0}),[aspect,setAspect]=useState(16/9);
   useEffect(()=>{const el=stage.current;if(!el)return;const observer=new ResizeObserver(()=>setStageSize({width:el.clientWidth,height:el.clientHeight}));observer.observe(el);return()=>observer.disconnect();},[]);
@@ -416,16 +417,14 @@ export default function App() {
           </div>
           <div className="stage" ref={stage}>
             {source ? (
-              <div className="composition-surface" style={{width:surfaceWidth,height:surfaceWidth/aspect}}>
+              <div className="composition-surface" ref={captionSurface} style={{width:surfaceWidth,height:surfaceWidth/aspect}}>
                 {projectClips(project).map(c=>{
                   const media=clipMedia(project,c),url=media?sources[media.path]:undefined;
                   const isVideo=c.kind!=='audio',visible=clipAt(projectClips(project),Math.min(time,duration-1e-7))?.id===c.id;
-                  const Tag=isVideo?'video':'audio';
-                  return <Tag key={c.id} ref={el=>{if(el){elements.current.set(c.id,el);if(isVideo&&(!c.assetId||!projectClips(project).some(x=>x.kind!=='audio'&&!x.assetId)))video.current=el as HTMLVideoElement;}else elements.current.delete(c.id);}} src={url} preload="metadata"
-                    className={visible?'composition-video':'composition-video gap'}
-                    onLoadedMetadata={e=>{if(isVideo&&!c.assetId){const v=e.currentTarget as HTMLVideoElement;if(v.videoWidth&&v.videoHeight)setAspect(v.videoWidth/v.videoHeight);}playback.seek(time);}} onError={()=>setMessage(`Nie można odtworzyć: ${media?.name}. WebView2 wymaga obsługi kodeka (zalecany H.264 / AAC).`)} />;
+                  return <LocalMedia key={c.id} id={c.id} video={isVideo} visible={visible} onElement={el=>{if(el){elements.current.set(c.id,el);}else elements.current.delete(c.id);}} src={url}
+                    onMetadata={el=>{if(isVideo&&!c.assetId){const v=el as HTMLVideoElement;if(v.videoWidth&&v.videoHeight)setAspect(v.videoWidth/v.videoHeight);}playback.seek(time);}} onError={()=>setMessage(`Nie można odtworzyć: ${media?.name}. WebView2 wymaga obsługi kodeka (zalecany H.264 / AAC).`)} />;
                 })}
-                <CaptionOverlay video={video} project={displayed} time={time} compositionCanvas />
+                <CaptionOverlay video={captionSurface} project={displayed} time={time} compositionCanvas />
                 {gap && <span className="gap-label">Przerwa między ujęciami</span>}
               </div>
             ) : (

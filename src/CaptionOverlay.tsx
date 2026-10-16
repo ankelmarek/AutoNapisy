@@ -76,7 +76,7 @@ export default function CaptionOverlay({
   time,
   compositionCanvas=false,
 }: {
-  video: RefObject<HTMLVideoElement | null>;
+  video: RefObject<HTMLVideoElement | HTMLDivElement | null>;
   project: Project;
   time: number;
   compositionCanvas?:boolean;
@@ -95,8 +95,8 @@ export default function CaptionOverlay({
         fitVideoRect(
           element.clientWidth,
           element.clientHeight,
-          compositionCanvas?element.clientWidth:element.videoWidth,
-          compositionCanvas?element.clientHeight:element.videoHeight,
+          compositionCanvas||!(element instanceof HTMLVideoElement)?element.clientWidth:element.videoWidth,
+          compositionCanvas||!(element instanceof HTMLVideoElement)?element.clientHeight:element.videoHeight,
         ),
       );
     const observer = new ResizeObserver(update);
