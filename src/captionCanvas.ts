@@ -14,8 +14,8 @@ export function layoutCaption(
   if (!ctx) throw new Error("Nie można uruchomić renderowania plansz");
   ctx.font = `${base}px "${style.fontFamily}"`;
   const measure = (s: string) => ctx.measureText(s).width;
-  const paddingX = Math.min(base * 0.55, width * 0.06),
-    paddingY = Math.min(base * 0.4, height * 0.1);
+  const paddingX = Math.min(base * (style.effect==='highlight'?.25:.55), width * 0.06),
+    paddingY = Math.min(base * (style.effect==='highlight'?.08:.4), height * 0.1);
   const available = Math.max(1, (width * style.boxWidth) / 100 - paddingX * 2);
   const lines = wrapCaption(text, style, measure, available),
     widest = Math.max(1, ...lines.map(measure));
@@ -33,7 +33,7 @@ export function layoutCaption(
     fontSize,
     paddingX,
     paddingY,
-    borderRadius: style.cornerRadius * scale,
+    borderRadius: (style.effect==='highlight'?Math.min(6,style.cornerRadius):style.cornerRadius) * scale,
     boxWidth: Math.max(0, ...lineWidths) + paddingX * 2,
     boxHeight: fontSize * 1.04 * lines.length + paddingY * 2,
   };
@@ -80,7 +80,7 @@ export function createFrameRenderer(width: number, height: number) {
     ctx.arcTo(x, y + box.boxHeight, x, y, radius);
     ctx.arcTo(x, y, x + box.boxWidth, y, radius);
     ctx.closePath();
-    ctx.fill();
+    if(style.effect!=='outline')ctx.fill();
     ctx.font = `${box.fontSize}px "${style.fontFamily}"`;
     ctx.fillStyle = style.color;
     ctx.textAlign = "center";
@@ -92,9 +92,11 @@ export function createFrameRenderer(width: number, height: number) {
       lineHeight = box.fontSize * 1.04;
     const baseline =
       y + box.paddingY + (lineHeight - ascent - descent) / 2 + ascent;
-    box.lines.forEach((line, i) =>
-      ctx.fillText(line, width / 2, baseline + i * lineHeight),
-    );
+    box.lines.forEach((line,i)=>{
+      const stroke=(style.outlineWidth??(style.effect==='outline'?3:0))*width/720;
+      if(stroke>0){ctx.strokeStyle=style.outlineColor??'#080808';ctx.lineWidth=stroke;ctx.lineJoin='round';ctx.strokeText(line,width/2,baseline+i*lineHeight);}
+      ctx.fillText(line,width/2,baseline+i*lineHeight);
+    });
     const blob = await new Promise<Blob>((resolve, reject) =>
       canvas.toBlob(
         (blob) =>

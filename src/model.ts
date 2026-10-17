@@ -14,6 +14,9 @@ export const styleSchema = z
     boxWidth: z.number().min(40).max(95).default(84),
     cornerRadius: z.number().min(0).max(60).default(10),
     marginPercent: z.number().min(0).max(30).default(8),
+    effect:z.enum(['box','outline','highlight']).optional(),
+    outlineColor:z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+    outlineWidth:z.number().min(0).max(8).optional(),
   })
   .strict();
 const word = z
@@ -39,9 +42,11 @@ const segment = z
   });
 const currentProjectSchema = z
   .object({
-    schemaVersion: z.literal(4),
+    schemaVersion: z.literal(5),
+    captionEdits:z.record(z.object({trimStart:time,trimEnd:time,text:z.string().max(100000).optional(),hidden:z.boolean().optional()}).strict()).default({}),
+    transitions:z.array(z.object({id:z.string().min(1),fromId:z.string().min(1),toId:z.string().min(1),kind:z.enum(['left','right','black']),duration:z.number().min(.1).max(2)}).strict()).max(99).default([]),
     assets: z.array(z.object({id:z.string().min(1),path:z.string().min(1),name:z.string(),duration:time,kind:z.enum(["video","audio"]),segments:z.array(segment)}).strict()).max(100).default([]),
-    clips: z.array(z.object({id:z.string().min(1),sourceIn:time,sourceOut:time,start:time,assetId:z.string().optional(),track:z.union([z.literal(0),z.literal(1)]).optional(),kind:z.enum(["video","audio"]).optional(),volume:z.number().min(0).max(1).optional()}).strict()).max(100).nullable(),
+    clips: z.array(z.object({id:z.string().min(1),sourceIn:time,sourceOut:time,start:time,assetId:z.string().optional(),track:z.union([z.literal(0),z.literal(1)]).optional(),kind:z.enum(["video","audio"]).optional(),volume:z.number().min(0).max(1).optional(),adjustments:z.object({brightness:z.number().min(.25).max(2),contrast:z.number().min(.25).max(2),saturation:z.number().min(0).max(2)}).strict().optional()}).strict()).max(100).nullable(),
     name: z.string().min(1).max(200),
     media: z
       .object({
@@ -67,6 +72,12 @@ const currentProjectSchema = z
         (clip.kind!=='audio' && 'kind' in m && m.kind==='audio') ||
         (clip.kind!=='audio' && clips.slice(0,i).some(o=>o.kind!=='audio' && (o.track??0)===(clip.track??0) && clip.start<o.start+o.sourceOut-o.sourceIn-1e-6));
     })) c.addIssue({code:'custom',message:'Nieprawidłowe lub nakładające się ujęcia na tej samej ścieżce wideo'});
+    const toIds=new Set<string>();
+    if(new Set(p.transitions.map(t=>t.id)).size!==p.transitions.length||p.transitions.some(t=>{
+      const a=clips.find(c=>c.id===t.fromId),b=clips.find(c=>c.id===t.toId);
+      const invalid=!a||!b||a.kind==='audio'||b.kind==='audio'||(a.track??0)!==(b.track??0)||Math.abs(a.start+a.sourceOut-a.sourceIn-b.start)>1e-6||b.sourceIn<t.duration-1e-6||a.sourceOut-a.sourceIn<t.duration-1e-6||toIds.has(t.toId);toIds.add(t.toId);return invalid;
+    }))c.addIssue({code:'custom',message:'Nieprawidłowe połączenie przejścia'});
+    if(Object.keys(p.captionEdits).length>10000)c.addIssue({code:'custom',message:'Zbyt wiele zmian napisów'});
     if (!p.styles.default)
       c.addIssue({ code: "custom", message: "Brak stylu domyślnego" });
     if (
@@ -83,15 +94,17 @@ const currentProjectSchema = z
       });
   });
 export const projectSchema = z.preprocess((value) => {
-  if (value && typeof value==='object' && 'schemaVersion' in value && [1,2,3].includes(Number(value.schemaVersion))) {
+  if (value && typeof value==='object' && 'schemaVersion' in value && [1,2,3,4].includes(Number(value.schemaVersion))) {
     const p=value as {media?:{duration?:number};schemaVersion:number;clips?:unknown};
-    return {...value,schemaVersion:4,assets:[],clips:p.schemaVersion===3 ? p.clips : p.media?.duration ? [{id:'original',sourceIn:0,sourceOut:p.media.duration,start:0}] : null};
+    return {...value,assets:[],...value,captionEdits:{},transitions:[],schemaVersion:5,clips:p.schemaVersion>=3 ? p.clips : p.media?.duration ? [{id:'original',sourceIn:0,sourceOut:p.media.duration,start:0}] : null};
   }
   return value;
 }, currentProjectSchema);
 export type Project = z.infer<typeof projectSchema>;
 export const newProject = (): Project => ({
-  schemaVersion: 4,
+  schemaVersion: 5,
+  captionEdits:{},
+  transitions:[],
   assets: [],
   clips: null,
   name: "Nowy projekt",

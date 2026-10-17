@@ -22,13 +22,18 @@ pub fn assemble(
     p: &Project,
     meta: &Metadata,
 ) -> Result<PathBuf, String> {
-    let clips = p.clips.as_ref().ok_or("Brak montażu")?;
+    let effective = crate::effects::effective_clips(p);
+    let clips = &effective;
     if clips.is_empty() {
         return Err("Montaż jest pusty".into());
     }
     let mut audio = HashMap::new();
     audio.insert(media.to_string_lossy().into_owned(), meta.has_audio);
-    for a in &p.assets {
+    for a in p
+        .assets
+        .iter()
+        .filter(|a| clips.iter().any(|c| c.asset_id.as_ref() == Some(&a.id)))
+    {
         job.check()?;
         if a.kind == "video" {
             let m = inspect(job, ffmpeg, Path::new(&a.path), dir)?;
@@ -115,11 +120,23 @@ pub fn assemble(
             .iter()
             .filter(|c| c.start < end - 1e-7 && c.end() > start + 1e-7)
             .collect();
-        let visible = active
+        let top = active
             .iter()
             .filter(|c| c.kind == "video")
-            .max_by_key(|c| c.track)
-            .map(|c| c.id.as_str());
+            .map(|c| c.track)
+            .max();
+        let transition =
+            top.and_then(|track| crate::effects::active_transition(p, start + 1e-6, track));
+        let visible = if let Some(t) = transition {
+            vec![t.from_id.as_str(), t.to_id.as_str()]
+        } else {
+            active
+                .iter()
+                .filter(|c| c.kind == "video")
+                .max_by_key(|c| c.track)
+                .map(|c| vec![c.id.as_str()])
+                .unwrap_or_default()
+        };
         let mut args = strings(&[
             "-nostdin",
             "-hide_banner",
@@ -130,12 +147,12 @@ pub fn assemble(
             "1",
         ]);
         let mut input = 0;
-        let mut video = None;
+        let mut video = std::collections::HashMap::new();
         let mut sound = Vec::new();
         let mut filter = String::new();
         for c in &active {
             let path = p.clip_path(c).ok_or("Brak źródła")?;
-            let is_video = visible == Some(c.id.as_str());
+            let is_video = visible.contains(&c.id.as_str());
             let has_audio = audio.get(path).copied().unwrap_or(meta.has_audio) && c.volume > 0.0;
             if !is_video && !has_audio {
                 continue;
@@ -151,17 +168,51 @@ pub fn assemble(
             ]));
             args.push(path.into());
             if is_video {
-                video = Some(input);
+                video.insert(c.id.clone(), input);
+                filter.push_str(&format!("[{input}:v:0]setpts=PTS-STARTPTS,{}scale={}:{}:force_original_aspect_ratio=decrease,pad={}:{}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,fps=30,tpad=stop_mode=clone:stop_duration=0.1,format=yuv420p[v{input}];",crate::effects::color_filter(c),meta.width,meta.height,meta.width,meta.height));
             }
             if has_audio {
                 let label = format!("a{input}");
-                filter.push_str(&format!("[{input}:a:0]asetpts=PTS-STARTPTS,aresample=48000:async=1:first_pts=0,aformat=channel_layouts=stereo,volume={},apad,atrim=duration={duration}[{label}];",c.volume));
+                filter.push_str(&format!("[{input}:a:0]asetpts=PTS-STARTPTS,aresample=48000:async=1:first_pts=0,aformat=channel_layouts=stereo,volume='{}':eval=frame,apad,atrim=duration={duration}[{label}];",crate::effects::audio_gain(p,c,start)));
                 sound.push(label);
             }
             input += 1;
         }
-        if let Some(v) = video {
-            filter.push_str(&format!("[{v}:v:0]setpts=PTS-STARTPTS,scale={}:{}:force_original_aspect_ratio=decrease,pad={}:{}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,fps=30,tpad=stop_mode=clone:stop_duration=0.1[v];",meta.width,meta.height,meta.width,meta.height));
+        if let Some(t) = transition {
+            let av = *video.get(&t.from_id).ok_or("Brak początku przejścia")?;
+            let bv = *video.get(&t.to_id).ok_or("Brak końca przejścia")?;
+            let to = p
+                .clips
+                .as_deref()
+                .unwrap()
+                .iter()
+                .find(|c| c.id == t.to_id)
+                .unwrap();
+            let offset = start - (to.start - t.duration);
+            let d = t.duration;
+            if t.kind == "black" {
+                filter.push_str(&format!("[v{av}]format=gbrp[blacka];[v{bv}]format=gbrp[blackb];[blacka][blackb]blend=all_expr='A*max(0,1-2*(T+{offset})/{d})+B*max(0,2*(T+{offset})/{d}-1)',format=yuv420p[v];"));
+            } else {
+                args.extend(strings(&[
+                    "-f",
+                    "lavfi",
+                    "-i",
+                    &format!(
+                        "color=c=black:s={}x{}:r=30:d={duration}",
+                        meta.width, meta.height
+                    ),
+                ]));
+                let progress = format!("min(1,max(0,(t+{offset})/{d}))");
+                let (out_x, in_x) = if t.kind == "left" {
+                    (format!("-W*({progress})"), format!("W*(1-({progress}))"))
+                } else {
+                    (format!("W*({progress})"), format!("-W*(1-({progress}))"))
+                };
+                filter.push_str(&format!("[{input}:v:0][v{av}]overlay=x='{out_x}':y=0:shortest=1[slide];[slide][v{bv}]overlay=x='{in_x}':y=0:shortest=1[v];"));
+                input += 1;
+            }
+        } else if let Some(v) = visible.first().and_then(|id| video.get(*id)) {
+            filter.push_str(&format!("[v{v}]null[v];"));
         } else {
             args.extend(strings(&[
                 "-f",

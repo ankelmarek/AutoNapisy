@@ -13,3 +13,9 @@ pub mod bundled;
 
 #[path = "../../src-tauri/src/montage.rs"]
 pub mod montage;
+
+#[path = "../../src-tauri/src/waveform.rs"]
+pub mod waveform;
+
+#[path = "../../src-tauri/src/effects.rs"]
+pub mod effects;

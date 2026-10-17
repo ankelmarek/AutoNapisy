@@ -1,3 +1,6 @@
+mod effects;
+mod waveform;
+mod analysis_commands;
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod bundled;
 mod commands;
@@ -52,7 +55,7 @@ struct Imported {
 async fn import_video(
     kind: Option<String>,
     access: State<'_, Access>,
-) -> Result<Option<Imported>, String> {
+) -> Result<Option<Vec<Imported>>, String> {
     let dialog = rfd::AsyncFileDialog::new();
     let dialog = match kind.as_deref().unwrap_or("video") {
         "video" => dialog.add_filter("Film", &["mp4", "mov", "mkv", "webm", "avi", "m4v"]),
@@ -62,18 +65,14 @@ async fn import_video(
         ),
         _ => return Err("Nieprawidłowy rodzaj importu".into()),
     };
-    let Some(file) = dialog.pick_file().await else {
-        return Ok(None);
-    };
-    let p = media_path(file.path())?;
-    let path = path_string(&p)?;
-    let name = p
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("Film")
-        .to_owned();
-    access.0.lock().map_err(|_| "Błąd uprawnień")?.insert(p);
-    Ok(Some(Imported { path, name }))
+    let Some(files)=dialog.pick_files().await else {return Ok(None);};
+    if files.len()>100 {return Err("Maksymalnie 100 plików jednocześnie".into());}
+    let mut imported=Vec::new();
+    for file in files {
+      let p=media_path(file.path())?;let path=path_string(&p)?;let name=p.file_name().and_then(|n|n.to_str()).unwrap_or("Plik").to_owned();
+      access.0.lock().map_err(|_|"Błąd uprawnień")?.insert(p);imported.push(Imported{path,name});
+    }
+    Ok(Some(imported))
 }
 #[tauri::command]
 fn prepare_preview(
@@ -221,6 +220,7 @@ fn diagnostics(tools: State<'_, commands::ToolState>) -> Diagnostics {
 fn main() {
     let app = tauri::Builder::default()
         .manage(Access::default())
+        .manage(analysis_commands::AnalysisState::default())
         .manage(commands::ToolState::default())
         .manage(commands::Tasks::default())
         .manage(export_commands::ExportState::default())
@@ -231,6 +231,7 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             import_video,
+            analysis_commands::audio_waveform,
             prepare_preview,
             open_project,
             save_project,
@@ -251,6 +252,7 @@ fn main() {
         .expect("Nie można uruchomić RolVixa");
     app.run(|handle, event| {
         if let tauri::RunEvent::ExitRequested { .. } = event {
+            handle.state::<analysis_commands::AnalysisState>().shutdown();
             handle.state::<commands::Tasks>().shutdown();
             handle.state::<export_commands::ExportState>().shutdown();
         }

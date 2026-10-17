@@ -285,3 +285,26 @@ fn real_two_video_two_audio_mix() {
     assert!(project::parse(&serde_json::to_string(&p).unwrap()).is_err());
     println!("Two video layers, linked sound, three mixed frequencies, independent music and Unicode: OK");
 }
+
+#[test]
+#[ignore = "requires AUTONAPISY_FFMPEG"]
+fn real_transitions_correction_and_waveform(){
+ let ffmpeg=std::path::PathBuf::from(std::env::var("AUTONAPISY_FFMPEG").unwrap());let dir=tempfile::tempdir().unwrap();
+ let red=dir.path().join("Czerwony Łódź.mp4");let blue=dir.path().join("Niebieski.mp4");
+ for (file,color,freq) in [(&red,"red","440"),(&blue,"blue","880")] {run(&ffmpeg,&["-v","error","-y","-f","lavfi","-i",&format!("color=c={color}:s=160x90:r=30:d=2"),"-f","lavfi","-i",&format!("sine=frequency={freq}:duration=2"),"-c:v","libx264","-pix_fmt","yuv420p","-c:a","aac",file.to_str().unwrap()]);}
+ let original=fs::read(&red).unwrap();
+ for kind in ["left","right","black"] {
+  let p=project::parse(&serde_json::json!({"schemaVersion":5,"name":"Przejścia","media":{"path":red,"name":"red","duration":2},"assets":[{"id":"blue","path":blue,"name":"blue","duration":2,"kind":"video","segments":[]}],"clips":[{"id":"a","start":0,"sourceIn":0,"sourceOut":2},{"id":"b","assetId":"blue","start":2,"sourceIn":1,"sourceOut":2}],"transitions":[{"id":"t","fromId":"a","toId":"b","kind":kind,"duration":1}],"captionEdits":{},"segments":[],"styles":{"default":{"fontFamily":"Arial","fontSize":42,"color":"#ffffff","background":"#000000","position":"bottom"}},"createdAt":"2026-10-17T00:00:00Z","updatedAt":"2026-10-17T00:00:00Z"}).to_string()).unwrap();
+  let job=Arc::new(Job::new(10));job.status.lock().unwrap().state="rendering".into();let mut meta=rendering::inspect(&job,&ffmpeg,&red,dir.path()).unwrap();meta.duration=project::composition_duration(&p);let target=dir.path().join(format!("{kind}.mp4"));rendering::render(&job,&ffmpeg,&red,&target,&None,dir.path(),&p,&meta).unwrap();
+  assert!((rendering::inspect(&Arc::new(Job::new(11)),&ffmpeg,&target,dir.path()).unwrap().duration-3.0).abs()<0.1);
+  let before=pixel(&ffmpeg,&target,"0.5");let after=pixel(&ffmpeg,&target,"2.5");assert!(before[0]>180&&after[2]>180);
+  let middle=pixel(&ffmpeg,&target,"1.5");if kind=="black"{assert!(middle.iter().all(|v|*v<20),"dip {middle:?}");}else{assert!(middle[0]>70&&middle[2]>70,"slide {middle:?}");}
+  assert!(rms(&ffmpeg,&target,"1.3")>300.0);
+ }
+ let peaks=autonapisy_core_tests::waveform::analyze(&Arc::new(Job::new(20)),&ffmpeg,&red,2.0).unwrap();assert!(!peaks.peaks.is_empty()&&peaks.peaks.len()<=4096);assert!(peaks.peaks.iter().any(|p|*p>0.1));assert!(peaks.step>0.0);
+ // Correction darkens true pixels, not merely the preview style.
+ let mut p=project::parse(&serde_json::json!({"schemaVersion":5,"name":"Korekcja","media":{"path":red,"name":"red","duration":2},"assets":[],"clips":[{"id":"a","start":0,"sourceIn":0,"sourceOut":2,"adjustments":{"brightness":0.5,"contrast":1,"saturation":0}}],"segments":[],"styles":{"default":{"fontFamily":"Arial","fontSize":42,"color":"#ffffff","background":"#000000","position":"bottom"}},"createdAt":"2026-10-17T00:00:00Z","updatedAt":"2026-10-17T00:00:00Z"}).to_string()).unwrap();
+ let job=Arc::new(Job::new(30));job.status.lock().unwrap().state="rendering".into();let meta=rendering::inspect(&job,&ffmpeg,&red,dir.path()).unwrap();let target=dir.path().join("Korekcja.mp4");rendering::render(&job,&ffmpeg,&red,&target,&None,dir.path(),&p,&meta).unwrap();let gray=pixel(&ffmpeg,&target,"0.5");assert!((gray[0] as i32-gray[2] as i32).abs()<8&&gray[0]<60,"gray {gray:?}");
+ p.transitions.push(autonapisy_core_tests::project::Transition{id:"bad".into(),from_id:"a".into(),to_id:"missing".into(),kind:"left".into(),duration:0.5});assert!(project::parse(&serde_json::to_string(&p).unwrap()).is_err());assert_eq!(fs::read(&red).unwrap(),original);
+ println!("Left/right slides, dip to black, crossfade audio, duration, correction, waveform and source safety: OK");
+}

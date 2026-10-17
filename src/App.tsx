@@ -16,11 +16,16 @@ import {
   type Project,
 } from "./model";
 import Timeline from "./Timeline";
+import ProjectMenu from './ProjectMenu';
+import EffectsLibrary,{type EffectChoice} from './EffectsLibrary';
+import VideoProperties from './VideoProperties';
+import {visuals,videoFilter,reconcileTransitions,applyTransition} from './effects';
+import {editCaption,resizeCaption} from './captionEditing';
 import LocalMedia from "./LocalMedia";
 import MediaLibrary from "./MediaLibrary";
 import Icon from "./Icons";
 import rolvixaIcon from "./assets/rolvixa-icon.png";
-import {libraryItems,insertLibraryItem} from "./library";
+import {libraryItems,insertLibraryItem,registerMedia} from "./library";
 import { useProjectHistory } from "./useHistory";
 import { usePlayback } from "./usePlayback";
 import { clipAt, editDuration, projectClips, compositionSegments, compositionProject, clipMedia, appendMedia } from "./editing";
@@ -65,12 +70,20 @@ export default function App() {
   const elements=useRef(new Map<string,HTMLMediaElement>());
   const [sources,setSources]=useState<Record<string,string>>({});
   const [transcriptSource,setTranscriptSource]=useState("primary");
-  const [leftTab,setLeftTab]=useState<"files"|"captions">("files");
+  const [leftTab,setLeftTab]=useState<"files"|"captions"|"effects">("files");
+  const [inspectorTab,setInspectorTab]=useState<'video'|'captions'>('video'),[selectedClip,setSelectedClip]=useState(''),[selectedCaption,setSelectedCaption]=useState(''),[selectedTransition,setSelectedTransition]=useState('');
+  const [effectChoice,setEffectChoice]=useState<EffectChoice>({kind:'left',duration:.4});
+  const captionInput=useRef<HTMLTextAreaElement>(null);
   const playback = usePlayback(elements,project,source);
   const {time,playing,seek,toggle} = playback;
   const duration = editDuration(project);
   const displayed = useMemo(()=>compositionProject(project),[project]);
   const displayedSegments = useMemo(()=>compositionSegments(project),[project]);
+  const selected=projectClips(project).find(c=>c.id===selectedClip)??clipAt(projectClips(project),time);
+  const caption=displayedSegments.find(s=>s.id===selectedCaption);
+  const picture=visuals(project,Math.min(time,Math.max(0,duration-1e-7)));
+  const selectCaption=(id:string)=>{setSelectedCaption(id);setInspectorTab('captions');requestAnimationFrame(()=>{captionInput.current?.focus();captionInput.current?.scrollIntoView({block:'nearest'});});};
+  const changeProject=(p:Project)=>{setProject(p);setDirty(true);};
   const gap = !clipAt(projectClips(project),Math.min(time,Math.max(0,duration-1e-7)));
   const undo = () => {playback.pause();history.undo();setDirty(true);};
   const redo = () => {playback.pause();history.redo();setDirty(true);};
@@ -96,18 +109,19 @@ export default function App() {
   const replace = () =>
     !dirty || window.confirm("Projekt ma niezapisane zmiany. Kontynuować?");
   const importMedia = (kind:'video'|'audio') => run(async()=>{
-    const media=await preview.import(kind);if(!media)return;
-    const url=await preview.prepare(media.path);
-    const metadata=await new Promise<number>((resolve,reject)=>{
-      const el=document.createElement(kind==='video'?'video':'audio');
-      const timeout=window.setTimeout(()=>{el.removeAttribute('src');el.load();reject(new Error('Nie można odczytać czasu pliku w WebView2. Sprawdź kodek lub użyj MP4 H.264 / AAC.'));},15000);
-      el.preload='metadata';el.onloadedmetadata=()=>{clearTimeout(timeout);const d=el.duration;el.removeAttribute('src');el.load();Number.isFinite(d)&&d>=.05?resolve(d):reject(new Error('Nieprawidłowy czas nagrania'));};
-      el.onerror=()=>{clearTimeout(timeout);reject(new Error('WebView2 nie obsługuje tego pliku. Dla wideo użyj H.264 / AAC, dla audio WAV, MP3 lub AAC.'));};el.src=url;
-    });
-    playback.pause();
-    const next=appendMedia(latestProject.current,{...media,duration:metadata},kind,time);
-    setProject(next);setSources(prev=>({...prev,[media.path]:url}));setSource(url);setDirty(true);
-    setMessage(kind==='video'?'Dodano film. Jego dźwięk jest połączony z obrazem.':'Dodano niezależne audio. Możesz je przesuwać i miksować.');
+    const files=await preview.import(kind);if(!files?.length)return;
+    let next=latestProject.current;const prepared:Record<string,string>={},failed:string[]=[];let added=0;
+    for(const media of files){try{
+      const url=await preview.prepare(media.path);
+      const metadata=await new Promise<number>((resolve,reject)=>{
+        const el=document.createElement(kind==='video'?'video':'audio');let done=false;
+        const finish=(d?:number)=>{if(done)return;done=true;clearTimeout(timer);el.onloadedmetadata=null;el.onerror=null;el.removeAttribute('src');el.load();d&&Number.isFinite(d)?resolve(d):reject(Error('Nieobsługiwany kodek lub czas pliku'));};
+        const timer=window.setTimeout(()=>finish(),15000);el.preload='metadata';el.onloadedmetadata=()=>finish(el.duration);el.onerror=()=>finish();el.src=url;
+      });
+      const updated=registerMedia(next,{...media,duration:metadata},kind);if(updated!==next)added++;next=updated;prepared[media.path]=url;
+    }catch(e){failed.push(`${media.name}: ${String(e)}`);}}
+    if(added){setProject(next);setDirty(true);}setSources(prev=>({...prev,...prepared}));setSource(previous=>previous||Object.values(prepared)[0]||'');
+    setMessage(`Dodano do biblioteki: ${added}. Dodaj wybrane pliki na oś przyciskiem +.${failed.length?' Niedodane: '+failed.join('; '):''}`);
   });
   const importVideo=()=>importMedia('video');
   const open = () =>
@@ -224,6 +238,15 @@ export default function App() {
       setExporting(false);
     }
   };
+  useEffect(()=>{
+    const handler=(e:KeyboardEvent)=>{
+      if(locked)return;const el=e.target as HTMLElement,text=el?.isContentEditable||el?.tagName==='TEXTAREA'||(el?.tagName==='INPUT'&&['text','search',''].includes((el as HTMLInputElement).type));
+      if(e.code==='Space'&&(!text||e.ctrlKey)){e.preventDefault();toggle();return;}
+      if(e.ctrlKey||e.metaKey){if(e.key.toLowerCase()==='s'){e.preventDefault();void save();return;}if(e.key.toLowerCase()==='o'){e.preventDefault();void open();return;}if(e.key.toLowerCase()==='i'){e.preventDefault();if(e.shiftKey)void importMedia('audio');else void importVideo();return;}if(e.key.toLowerCase()==='n'){e.preventDefault();if(replace()){resetPlayback();history.reset(newProject());setSource('');setSources({});setDirty(false);}return;}}
+      if(text||['INPUT','SELECT'].includes(el?.tagName))return;
+      if(e.key==='Home'){e.preventDefault();seek(0);}else if(e.key==='End'){e.preventDefault();seek(duration);}else if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();seek(time+(e.key==='ArrowLeft'?-1:1)*(e.shiftKey?1:1/30));}
+    };window.addEventListener('keydown',handler);return()=>window.removeEventListener('keydown',handler);
+  },[locked,project,time,playing]);
   const style = project.styles.default;
   const updateStyle = (patch: Partial<typeof style>) => {
     setProject((p) => ({
@@ -238,68 +261,22 @@ export default function App() {
         <div className="brand">
           <img className="brand-icon" src={rolvixaIcon} alt=""/>
           <div>
-            RolVixa <small>0.8 · lokalne studio napisów</small>
+            RolVixa <small>0.9 · lokalne studio napisów</small>
           </div>
         </div>
-        <div className="actions">
-          <button
-            disabled={locked}
-            onClick={() => {
-              if (replace()) {
-                resetPlayback();
-                history.reset(newProject());
-                setSource("");setSources({});setTranscriptSource("primary");
-                setDirty(false);
-              }
-            }}
-          >
-            Nowy
-          </button>
-          <button disabled={locked} onClick={open}>
-            Otwórz
-          </button>
-          <button disabled={locked} onClick={save}>
-            Zapisz{dirty ? " •" : ""}
-          </button>
-          <button
-            disabled={busy || exporting}
-            onClick={() => {
-              setSettings(true);
-              void run(loadSettings);
-            }}
-          >
-            Ustawienia
-          </button>
-        </div>
+        <input className="header-project-name" aria-label="Nazwa projektu" value={project.name} maxLength={200} disabled={locked} onChange={e=>{setProject(p=>({...p,name:e.target.value}));setDirty(true);}}/>
+        <span className="dirty-indicator">{dirty?'●':''}</span>
+        <ProjectMenu actions={[
+          {label:'Nowy',keys:'Ctrl+N',disabled:locked,run:()=>{if(replace()){resetPlayback();history.reset(newProject());setSource('');setSources({});setDirty(false);}}},
+          {label:'Otwórz',keys:'Ctrl+O',disabled:locked,run:open},
+          {label:'Zapisz',keys:'Ctrl+S',disabled:locked,run:save},
+          {label:'Importuj filmy',keys:'Ctrl+I',disabled:locked,run:importVideo},
+          {label:'Importuj audio',keys:'Ctrl+Shift+I',disabled:locked,run:()=>importMedia('audio')},
+          {label:'Eksport MP4',disabled:locked||!project.media||!duration,run:()=>void exportMp4()},
+          {label:'Eksport SRT',disabled:locked||!displayedSegments.length,run:exportSrt},
+          {label:'Ustawienia',disabled:locked,run:()=>{setSettings(true);void run(loadSettings);}},
+        ]}/>
       </header>
-      <div className="projectbar">
-        <input
-          aria-label="Nazwa projektu"
-          disabled={exporting}
-          value={project.name}
-          maxLength={200}
-          onChange={(e) => {
-            setProject((p) => ({ ...p, name: e.target.value }));
-            setDirty(true);
-          }}
-        />
-        <span>PROJEKT LOKALNY</span>
-        <button className="primary" disabled={locked} onClick={importVideo}>
-          ＋ Importuj film
-        </button>
-        <button disabled={locked} onClick={()=>importMedia("audio")}>＋ Importuj audio</button>
-        <button
-          className="export-button"
-          disabled={
-            locked ||
-            !project.media ||
-            duration <= 0
-          }
-          onClick={() => void exportMp4()}
-        >
-          Eksport MP4
-        </button>
-      </div>
       {exporting && (
         <section className="export-progress" role="status">
           <div>
@@ -329,12 +306,13 @@ export default function App() {
           <div className="panelhead">
             <div className="library-tabs" role="tablist" aria-label="Zasoby projektu">
               <button id="files-tab" role="tab" aria-selected={leftTab==='files'} aria-controls="files-panel" onClick={()=>setLeftTab('files')}><Icon name="files" size={16}/>Pliki <small>{libraryItems(project).length}</small></button>
-              <button id="captions-tab" role="tab" aria-selected={leftTab==='captions'} aria-controls="captions-panel" onClick={()=>setLeftTab('captions')}><Icon name="captions" size={16}/>Napisy</button>
+              <button id="captions-tab" role="tab" aria-selected={leftTab==='captions'} aria-controls="captions-panel" onClick={()=>setLeftTab('captions')}><Icon name="captions" size={16}/>Napisy</button><button role="tab" aria-selected={leftTab==='effects'} onClick={()=>setLeftTab('effects')}>Efekty</button>
             </div>
           </div>
+          {leftTab==='effects'&&<EffectsLibrary chosen={effectChoice} onChoose={setEffectChoice}/>}
           {leftTab==='files'&&<MediaLibrary project={project} sources={sources} locked={locked} onImport={importVideo}
             onTranscript={id=>{setTranscriptSource(id);setLeftTab('captions');}}
-            onAdd={id=>{try{playback.pause();setProject(insertLibraryItem(project,id,time));setDirty(true);setMessage('Dodano plik z biblioteki na oś czasu.');}catch(e){setMessage(String(e));}}}/>}
+            onAdd={id=>{try{playback.pause();const next=insertLibraryItem(project,id,time);setProject(next);if(next.media?.path!==project.media?.path)setTranscriptSource('primary');setDirty(true);setMessage('Dodano plik z biblioteki na oś czasu.');}catch(e){setMessage(String(e));}}}/>}
           <div className="captions-tab-content" role="tabpanel" id="captions-panel" aria-labelledby="captions-tab" hidden={leftTab!=='captions'}>
           <div className="transcription-controls">
             <select aria-label="Źródło transkrypcji" disabled={locked} value={transcriptSource} onChange={e=>setTranscriptSource(e.target.value)}>
@@ -385,28 +363,10 @@ export default function App() {
                   }
                   key={s.id}
                 >
-                  <button onClick={() => seek(s.start)}>
+                  <button onClick={() => {seek(s.start);selectCaption(s.id);}}>
                     {formatTime(s.start)} — {formatTime(s.end)}
                   </button>
-                  <small className="source-caption-note">Tekst źródłowy · zmiana we wszystkich ujęciach</small>
-                  <textarea
-                    aria-label={`Treść segmentu ${s.id}`}
-                    disabled={transcribing || exporting}
-                    value={(s.assetId?project.assets.find(a=>a.id===s.assetId)?.segments:project.segments)?.find(original=>original.id===s.sourceId)?.text??s.text}
-                    onChange={(e) => {
-                      const text = e.target.value;
-                      setProject((p) => ({
-                        ...p,
-                        assets:p.assets.map(a=>a.id===s.assetId?{...a,segments:a.segments.map(segment=>segment.id===s.sourceId?{...segment,text,words:[]}:segment)}:a),
-                        segments: p.segments.map((segment) =>
-                          !s.assetId && segment.id === s.sourceId
-                            ? { ...segment, text, words: [] }
-                            : segment,
-                        ),
-                      }));
-                      setDirty(true);
-                    }}
-                  />
+                  <button className="caption-list-text" onClick={()=>selectCaption(s.id)}>{s.text}</button>
                 </article>
               ))
             ) : (
@@ -432,12 +392,12 @@ export default function App() {
               <div className="composition-surface" ref={captionSurface} style={{width:surfaceWidth,height:surfaceWidth/aspect}}>
                 {playback.runs.map(c=>{
                   const media=clipMedia(project,c),url=media?sources[media.path]:undefined;
-                  const isVideo=c.kind!=='audio',visible=c.clipIds.includes(clipAt(projectClips(project),Math.min(time,duration-1e-7))?.id??'');
-                  return <LocalMedia key={c.id} id={c.id} video={isVideo} visible={visible} warm={c.start<=time+5&&c.start+c.sourceOut-c.sourceIn>=time-.25} onElement={el=>{if(el){elements.current.set(c.id,el);}else elements.current.delete(c.id);}} src={url}
+                  const isVideo=c.kind!=='audio',visual=picture.find(v=>c.clipIds.includes(v.id)),visible=!!visual,activeClip=projectClips(project).find(x=>c.clipIds.includes(x.id)&&x.start<=time&&time<x.start+x.sourceOut-x.sourceIn)??c;
+                  return <LocalMedia key={c.id} id={c.id} video={isVideo} visible={visible} filter={videoFilter(activeClip)} translate={visual?.translate??0} opacity={visual?.opacity??1} warm={c.start<=time+5&&c.start+c.sourceOut-c.sourceIn>=time-.25} onElement={el=>{if(el){elements.current.set(c.id,el);}else elements.current.delete(c.id);}} src={url}
                     onMetadata={el=>{if(isVideo&&!c.assetId){const v=el as HTMLVideoElement;if(v.videoWidth&&v.videoHeight)setAspect(v.videoWidth/v.videoHeight);}playback.prepare(c.id);}} onError={()=>setMessage(`Nie można odtworzyć: ${media?.name}. WebView2 wymaga obsługi kodeka (zalecany H.264 / AAC).`)} />;
                 })}
                 <CaptionOverlay video={captionSurface} project={displayed} time={time} compositionCanvas />
-                {gap && <span className="gap-label">Przerwa między ujęciami</span>}
+                {gap && <span className="gap-label">{duration?'Przerwa między ujęciami':'Dodaj film z biblioteki na oś czasu'}</span>}
               </div>
             ) : (
               <div className="empty">
@@ -480,14 +440,27 @@ export default function App() {
         </section>
         <section className="panel styling">
           <div className="panelhead">
-            <h2>Stylizacja napisów</h2>
+            <h2>Właściwości</h2>
           </div>
           <div className="panelbody">
+            <div className="inspector-tabs"><button aria-pressed={inspectorTab==='video'} onClick={()=>setInspectorTab('video')}>Film / audio</button><button aria-pressed={inspectorTab==='captions'} onClick={()=>setInspectorTab('captions')}>Napisy</button></div>
+            {inspectorTab==='video'&&<VideoProperties project={project} clip={selected} locked={locked} transitionId={selectedTransition} onChange={changeProject}/>}
+            <div hidden={inspectorTab!=='captions'}>
+            {caption&&<div className="caption-editor"><h3>Edycja zaznaczonego napisu</h3><textarea ref={captionInput} aria-label="Tekst zaznaczonego napisu" value={caption.text} disabled={locked} onChange={e=>changeProject(editCaption(project,caption,{text:e.target.value}))}/><div><label>Początek<input aria-label="Początek napisu" type="number" step={.01} value={Number(caption.start.toFixed(3))} disabled={locked} onChange={e=>{if(Number.isFinite(e.target.valueAsNumber))changeProject(resizeCaption(project,caption,'left',e.target.valueAsNumber-caption.start));}}/></label><label>Koniec<input aria-label="Koniec napisu" type="number" step={.01} value={Number(caption.end.toFixed(3))} disabled={locked} onChange={e=>{if(Number.isFinite(e.target.valueAsNumber))changeProject(resizeCaption(project,caption,'right',e.target.valueAsNumber-caption.end));}}/></label></div></div>}
+            <div className="caption-presets">{[
+              {name:'Żółta plansza',effect:'box',color:'#080808',background:'#ffe600',outlineColor:'#000000',outlineWidth:0},
+              {name:'Biały obrys',effect:'outline',color:'#ffffff',background:'#000000',outlineColor:'#080808',outlineWidth:3},
+              {name:'Zielone podświetlenie',effect:'highlight',color:'#10140c',background:'#b4ff58',outlineColor:'#000000',outlineWidth:0},
+              {name:'Fioletowe podświetlenie',effect:'highlight',color:'#ffffff',background:'#742cff',outlineColor:'#12092a',outlineWidth:1},
+            ].map(preset=><button key={preset.name} disabled={locked} onClick={()=>updateStyle({effect:preset.effect as 'box'|'outline'|'highlight',color:preset.color,background:preset.background,outlineColor:preset.outlineColor,outlineWidth:preset.outlineWidth})}>{preset.name}</button>)}</div>
             <fieldset className="style-fields" disabled={exporting}>
               <p className="eyebrow">STYL DOMYŚLNY</p>
+              <label>Wygląd<select aria-label="Wygląd napisów" value={style.effect??'box'} onChange={e=>updateStyle({effect:e.target.value as 'box'|'outline'|'highlight'})}><option value="box">Plansza</option><option value="outline">Obrys</option><option value="highlight">Podświetlenie</option></select></label>
+              <label>Grubość obrysu <b>{style.outlineWidth??0}</b><input aria-label="Grubość obrysu" type="range" min={0} max={8} step={.5} value={style.outlineWidth??0} onChange={e=>updateStyle({outlineWidth:Number(e.target.value)})}/></label>
+              <label>Kolor obrysu<input aria-label="Kolor obrysu" type="color" value={style.outlineColor??'#080808'} onChange={e=>updateStyle({outlineColor:e.target.value})}/></label>
               <button
                 className="preset-button"
-                onClick={() => updateStyle({ ...yellowPreset })}
+                onClick={() => updateStyle({ ...yellowPreset,effect:'box',outlineWidth:0 })}
               >
                 Żółta plansza · Bebas Neue
               </button>
@@ -645,11 +618,13 @@ export default function App() {
                 napisów w obrazie.
               </p>
             </fieldset>
+            </div>
           </div>
         </section>
       </main>
       <Timeline project={project} time={time} locked={locked} onSeek={seek}
-        onChange={(clips,mode)=>{if(mode!=='volume')playback.pause();setProject(p=>({...p,clips}));setDirty(true);}} onPreviewVolume={playback.previewVolume}
+        onChange={(clips,mode)=>{if(mode!=='volume')playback.pause();setProject(p=>({...p,clips,transitions:reconcileTransitions(p,clips)}));setDirty(true);}} onPreviewVolume={playback.previewVolume} onSelect={id=>{setSelectedClip(id);setSelectedTransition('');setInspectorTab('video');}} onCaptionSelect={selectCaption}
+        onCaptionChange={p=>changeProject(p)} effectChoice={effectChoice} onTransition={(a,b,choice)=>{try{playback.pause();const next=applyTransition(project,a,b,choice.kind,choice.duration);changeProject(next);setSelectedTransition(next.transitions.find(t=>t.toId===b)!.id);setInspectorTab('video');}catch(e){setMessage(String(e));}}} onTransitionSelect={id=>{setSelectedTransition(id);setInspectorTab('video');}}
         undo={undo} redo={redo} canUndo={history.canUndo} canRedo={history.canRedo}/>
       <footer role="status">
         {busy ? "Przetwarzanie…" : message}

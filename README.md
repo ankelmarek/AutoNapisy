@@ -1,10 +1,10 @@
-# RolVixa 0.8 — polska mowa → polskie napisy
+# RolVixa 0.9 — polska mowa → polskie napisy
 
 RolVixa (wcześniej AutoNapisy) to lokalna aplikacja Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Rozpoznaje polską mowę przez whisper.cpp, bez tłumaczenia. Nie wysyła nagrań, nie zawiera klienta HTTP ani telemetrii.
 
 ## Aktualizacja i uruchomienie ze źródeł
 
-Zachowaj projekty i nagrania. Pobierz ZIP z GitHuba i rozpakuj do nowego folderu, np. `C:\RolVixa-0.8`. Nie kopiuj starych `node_modules`, `dist` i `src-tauri/target`. Aplikacja otwiera projekty v1 z wersji 0.1/0.2 i migruje je w pamięci, także z v2 i v3. Wersja 0.8 nadal zapisuje format v4 z montażem oraz ustawieniami wyglądu; AutoNapisy 0.7 także go odczytuje; wersje przed 0.7 nie odczytują v4. Zachowaj kopię poprzedniego JSON, jeśli potrzebujesz wracać do 0.2.
+Zachowaj projekty i nagrania. Pobierz ZIP z GitHuba i rozpakuj do nowego folderu, np. `C:\RolVixa-0.9`. Nie kopiuj starych `node_modules`, `dist` i `src-tauri/target`. Aplikacja otwiera projekty v1–v4 i zapisuje format v5. Przed zapisaniem zachowaj kopię JSON, jeśli chcesz wrócić do starszej wersji aplikacji.
 
 Wymagania: Node.js 22 lub 24, aktualny Rust stable x64 MSVC, Visual Studio Build Tools z „Desktop development with C++” i Windows SDK oraz WebView2 Runtime.
 
@@ -31,11 +31,11 @@ Aplikacja zapisuje ścieżki w `components.json` w katalogu konfiguracji użytko
 
 ## Obsługa
 
-1. Zaimportuj film lub otwórz projekt.
+1. W menu **Projekt** wybierz import filmów lub audio (można zaznaczyć wiele plików). Import trafia tylko do biblioteki. Przycisk **+** przy pliku dodaje go na oś czasu. Pierwszy dodany film wyznacza format obrazu. Możesz też otworzyć projekt.
 2. Kliknij **Transkrybuj po polsku**. FFmpeg wyodrębnia pierwszą ścieżkę audio do mono PCM WAV 16 kHz. Whisper rozpoznaje język polski na CPU, maksymalnie 8 wątków.
 3. Przygotowanie i ładowanie modelu mają nieokreślony pasek. Procent pochodzi z Whisper i dotyczy tylko fazy rozpoznawania; nie jest szacowanym postępem całego zadania. Niektóre CLI nie podają procentu.
 4. **Anuluj** zatrzymuje proces. Zamknięcie aplikacji też zatrzymuje zadanie, czeka na jego koniec i sprząta pliki tymczasowe.
-5. Po sukcesie segmenty pojawiają się w lewym panelu i na podglądzie. Kliknij czas, aby przewinąć film. Tekst można poprawić w polu segmentu. Korekta usuwa czasy słów tego segmentu, ponieważ przestały odpowiadać tekstowi.
+5. Po sukcesie segmenty pojawiają się w lewym panelu i na podglądzie. Kliknij czas, aby przewinąć film. Kliknięcie napisu na osi otwiera jego edycję po prawej. Uchwyty skracają czas wyświetlania bez cięcia filmu. Poprawki dotyczą wybranego wystąpienia; źródłowa transkrypcja pozostaje zachowana.
 6. **Zapisz** zapisuje projekt JSON z segmentami, słowami, czasami i stylami. **Eksport SRT** tworzy UTF-8 z tekstem i czasami; SRT nie zachowuje stylów ani nie zmienia filmu.
 
 Nowe napisy zastępują stare dopiero po sukcesie i walidacji. Błąd lub anulowanie zachowuje poprzednie segmenty. Poprawny pusty wynik zastępuje je pustą listą i pokazuje komunikat „Nie rozpoznano mowy”. Whisper może halucynować na ciszy/muzyce — zawsze sprawdzaj wynik. Aplikacja nie generuje fikcyjnych transkrypcji.
@@ -51,7 +51,7 @@ Czasy segmentów pochodzą z JSON Whisper. Słowa składamy z tokenów tylko prz
 - Prywatny folder tymczasowy jest usuwany po zakończeniu/błędzie/anulowaniu. Po awarii systemu może pozostać `autonapisy-*` w TEMP; usuń go po zamknięciu aplikacji. WAV wymaga około 115 MB miejsca na godzinę nagrania.
 - JSON projektu i wynik Whisper mają limit 16 MB; nieznane wersje schematu są odrzucane.
 - `src/transcription.ts`: adapter IPC i anulowanie; `src/adapters.ts`: kontrakty podglądu/synchronizacji/renderowania; `src/model.ts`: walidacja; `src-tauri/src/transcription.rs`: procesy i parser; `commands.rs`: dialogi, konfiguracja i zadania; `subtitles.rs`: SRT; `project.rs`: walidacja backendowa.
-- `schemas/project-v1.schema.json`, `schemas/project-v2.schema.json` `schemas/project-v3.schema.json` i aktualny `schemas/project-v4.schema.json`: migracja v1/v2/v3 → v4 zachowuje font, kolory, tekst i tworzy pełne ujęcie źródła. Czasy są w sekundach.
+- `schemas/project-v1.schema.json`, `schemas/project-v2.schema.json` `schemas/project-v3.schema.json` oraz aktualny `schemas/project-v5.schema.json`: migracja v1/v2/v3/v4 → v5 zachowuje font, kolory, tekst i tworzy pełne ujęcie źródła. Czasy są w sekundach.
 
 ## Testy i instalator
 
@@ -208,7 +208,7 @@ Wersja 0.6 poprawia też kompilację dołączonego FFmpeg: zawiera statycznie li
 Testy 0.7: jednostkowe TypeScript i Rust; rzeczywisty FFmpeg sprawdza warstwy czerwony/niebieski, jednoczesne tony 440/880/1320 Hz, muzykę nad czarną przerwą, głośność, Unicode i niezmienność źródeł. Opcjonalny `scripts/test-editor.mjs` sprawdza import, cztery pasy, połączony montaż, niezależne audio, odtwarzanie i układ w 1366×768 oraz 1920×1080 (Playwright instalowany osobno do `.tools/browser`). Windows CI uruchamia test realnego miksu także z FFmpeg dołączonym do instalatora.
 
 
-## RolVixa 0.8 — pliki, linia głośności i odtwarzanie
+## RolVixa 0.9 — pliki, linia głośności i odtwarzanie
 
 - Lewy panel otwiera się na zakładce **Pliki**. Pokazuje filmy i audio, czas trwania, pełną ścieżkę lokalną, dostępność oraz liczbę użyć. Wyszukiwarka filtruje nazwy i ścieżki. **+** na karcie dodaje istniejące źródło do montażu w pozycji głowicy; nie kopiuje nagrania. Usunięcie klipu z osi nie usuwa źródła z biblioteki. Ikona napisów przełącza na **Napisy** danego filmu.
 - Narzędzia osi są ikonami z podpowiedziami i nazwami dla czytników ekranu. Skróty C, V, Ctrl+Z i Ctrl+Shift+Z nadal działają.
@@ -220,3 +220,16 @@ Testy 0.7: jednostkowe TypeScript i Rust; rzeczywisty FFmpeg sprawdza warstwy cz
 - Ikona programu i instalatora oraz znak w nagłówku korzystają z kolorowego wariantu na ciemnym tle, przygotowanego na podstawie przesłanej planszy RolVixa. Zasób PNG jest w `src/assets/rolvixa-icon.png`, Windows ICO w `src-tauri/icons/icon.ico`; warianty rozmiarów tworzy CLI Tauri. Są to lokalne zasoby statyczne, bez usług sieciowych podczas pracy programu.
 
 Weryfikacja podglądu: `scripts/test-studio.mjs` korzysta z tej samej lokalnej próby WebM wygenerowanej przez `scripts/test-editor.mjs` oraz Playwright. Sprawdza katalog plików, ikonowe narzędzia, przeciąganie linii, klawiaturę, cofanie, anulowanie i odsłuch w trakcie zmiany. Mierzy odtwarzanie przez ciągłe cięcie i zmianę pliku, bez pauzy dekodera na ciągłym cięciu i bez przewijania nowego źródła dopiero na łączeniu. Układ jest sprawdzany w 1366×700 oraz 1920×1080. Wyniki testu Chromium nie są gwarancją identycznych opóźnień WebView2 dla dowolnego kodeka i komputera.
+
+
+## Edytor 0.9
+
+Menu **Projekt** grupuje import, zapis, eksport i ustawienia. Biblioteka ma małe miniatury, a węższy podgląd zostawia miejsce na panele boczne. Panel **Film / audio** po prawej reguluje jasność, kontrast, nasycenie i głośność zaznaczonego fragmentu. Korekcje działają również w eksporcie MP4. Panel **Napisy** oferuje żółtą kartę, biały obrys oraz zielony i fioletowy marker; marker podświetla cały napis, nie pojedyncze wypowiadane słowa.
+
+Na audio pojawia się rzeczywisty przebieg amplitudy, obliczany lokalnie przez FFmpeg. Linię głośności przeciąga się pionowo. Analiza jest wykonywana kolejno i nie zmienia źródłowych nagrań. Brak obsługi kodeka lub FFmpeg może uniemożliwić narysowanie przebiegu.
+
+W zakładce **Efekty** ustaw długość i przeciągnij przejście w lewo, w prawo lub przez czerń na połączenie dwóch sąsiadujących filmów na tym samym pasie. Można też wybrać efekt i kliknąć połączenie. Przejście zużywa początek drugiego klipu i łączy go z końcem pierwszego: montaż skraca się o długość efektu. Następne klipy na tym pasie przesuwają się, inne pasy pozostają na swoich pozycjach. Dźwięk filmów jest płynnie mieszany. Kliknięcie istniejącego przejścia otwiera jego typ, długość i usuwanie po prawej. Przesunięcie lub przycięcie klipu naruszające połączenie usuwa efekt; nie przywraca automatycznie zużytego początku. Jawne usunięcie przejścia przywraca ten fragment. Nie ma jeszcze efektów między różnymi poziomami ani animowanych parametrów.
+
+Skróty: **Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y** cofnij / ponów, **Ctrl+C / V / X / D** kopiuj / wklej przy głowicy / wytnij / duplikuj klip, **Delete** usuń klip lub ukryj napis, **Spacja** odtwarzaj / pauza. Podczas pisania Spacja wpisuje odstęp; **Ctrl+Spacja** steruje odtwarzaniem także w polu tekstowym. **Ctrl+S / O / N / I** zapis / otwórz / nowy / import filmów, **Ctrl+Shift+I** import audio. **Alt + przeciągnięcie myszą** lub środkowy przycisk przesuwa widok osi bez zmiany głowicy. Strzałki przewijają o klatkę, z Shift o sekundę; Home/End przenosi na początek/koniec.
+
+Test interfejsu: `node scripts/test-editor9.mjs` przy uruchomionym Vite i lokalnie zainstalowanym Playwright/Chromium w `.tools`. Używa wygenerowanych filmów testowych i kontrolowanego mocka IPC; nie zastępuje próby w Windows WebView2. Testy rzeczywistego FFmpeg: `cargo test --manifest-path .test-core/Cargo.toml --test montage_export -- --ignored --nocapture` (ustaw `AUTONAPISY_FFMPEG` na pełną ścieżkę do FFmpeg). Obejmują montaż, miks, przejścia, korekcję i przebieg audio.

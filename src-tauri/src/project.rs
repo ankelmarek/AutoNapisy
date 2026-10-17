@@ -10,6 +10,10 @@ pub struct Project {
     pub media: Option<Media>,
     #[serde(default)]
     pub assets: Vec<Asset>,
+    #[serde(default)]
+    pub caption_edits: HashMap<String, CaptionEdit>,
+    #[serde(default)]
+    pub transitions: Vec<Transition>,
     pub segments: Vec<Segment>,
     pub styles: HashMap<String, Style>,
     pub created_at: String,
@@ -30,6 +34,8 @@ pub struct Clip {
     pub kind: String,
     #[serde(default = "unit_volume")]
     pub volume: f64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub adjustments: Option<Adjustments>,
 }
 fn video_kind() -> String {
     "video".into()
@@ -64,6 +70,31 @@ impl Project {
             None => self.media.as_ref().and_then(|m| m.duration),
         }
     }
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Adjustments {
+    pub brightness: f64,
+    pub contrast: f64,
+    pub saturation: f64,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CaptionEdit {
+    pub trim_start: f64,
+    pub trim_end: f64,
+    pub text: Option<String>,
+    #[serde(default)]
+    pub hidden: bool,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Transition {
+    pub id: String,
+    pub from_id: String,
+    pub to_id: String,
+    pub kind: String,
+    pub duration: f64,
 }
 impl Clip {
     pub fn end(&self) -> f64 {
@@ -116,6 +147,9 @@ pub struct Style {
     pub corner_radius: f64,
     #[serde(default = "default_margin")]
     pub margin_percent: f64,
+    pub effect: Option<String>,
+    pub outline_color: Option<String>,
+    pub outline_width: Option<f64>,
 }
 fn default_lines() -> u8 {
     2
@@ -154,7 +188,7 @@ pub fn parse(json: &str) -> Result<Project, String> {
     }
     let mut p: Project =
         serde_json::from_value(raw).map_err(|e| format!("Niepoprawny JSON projektu: {e}"))?;
-    if ![1, 2, 3, 4].contains(&p.schema_version) {
+    if ![1, 2, 3, 4, 5].contains(&p.schema_version) {
         return Err("Nieobsługiwana wersja projektu".into());
     }
     if p.schema_version < 3 {
@@ -175,7 +209,7 @@ pub fn parse(json: &str) -> Result<Project, String> {
                 }]
             });
     }
-    p.schema_version = 4;
+    p.schema_version = 5;
     if p.assets.len() > 100 {
         return Err("Zbyt wiele źródeł".into());
     }
@@ -194,6 +228,7 @@ pub fn parse(json: &str) -> Result<Project, String> {
         let mut validation = p.clone();
         validation.assets.clear();
         validation.clips = None;
+        validation.transitions.clear();
         validation.media = Some(Media {
             path: a.path.clone(),
             name: a.name.clone(),
@@ -240,6 +275,58 @@ pub fn parse(json: &str) -> Result<Project, String> {
             }
         }
     }
+    if p.caption_edits.len() > 10000
+        || p.caption_edits.values().any(|e| {
+            !valid_time(e.trim_start)
+                || !valid_time(e.trim_end)
+                || e.text.as_ref().is_some_and(|t| t.len() > 400000)
+        })
+    {
+        return Err("Nieprawidłowe zmiany napisów".into());
+    }
+    let mut tids = HashSet::new();
+    let mut destinations = HashSet::new();
+    if p.transitions.len() > 99 {
+        return Err("Zbyt wiele przejść".into());
+    }
+    for t in &p.transitions {
+        let clips = p.clips.as_deref().unwrap_or(&[]);
+        let a = clips
+            .iter()
+            .find(|c| c.id == t.from_id)
+            .ok_or("Brak ujęcia przejścia")?;
+        let b = clips
+            .iter()
+            .find(|c| c.id == t.to_id)
+            .ok_or("Brak ujęcia przejścia")?;
+        if t.id.is_empty()
+            || !tids.insert(&t.id)
+            || !destinations.insert(&t.to_id)
+            || !t.duration.is_finite()
+            || !(0.1..=2.0).contains(&t.duration)
+            || !["left", "right", "black"].contains(&t.kind.as_str())
+            || a.kind != "video"
+            || b.kind != "video"
+            || a.track != b.track
+            || (a.end() - b.start).abs() > 1e-6
+            || b.source_in < t.duration - 1e-6
+            || a.source_out - a.source_in < t.duration - 1e-6
+        {
+            return Err("Nieprawidłowe przejście".into());
+        }
+    }
+    for c in p.clips.as_deref().unwrap_or(&[]) {
+        if c.adjustments.as_ref().is_some_and(|a| {
+            !a.brightness.is_finite()
+                || !a.contrast.is_finite()
+                || !a.saturation.is_finite()
+                || !(0.25..=2.0).contains(&a.brightness)
+                || !(0.25..=2.0).contains(&a.contrast)
+                || !(0.0..=2.0).contains(&a.saturation)
+        }) {
+            return Err("Nieprawidłowa korekcja obrazu".into());
+        }
+    }
     if p.name.is_empty()
         || p.name.chars().count() > 200
         || p.created_at.is_empty()
@@ -253,6 +340,15 @@ pub fn parse(json: &str) -> Result<Project, String> {
         }
     }
     for s in p.styles.values() {
+        if s.effect
+            .as_ref()
+            .is_some_and(|e| !["box", "outline", "highlight"].contains(&e.as_str()))
+            || s.outline_color.as_ref().is_some_and(|c| !color(c))
+            || s.outline_width
+                .is_some_and(|v| !v.is_finite() || !(0.0..=8.0).contains(&v))
+        {
+            return Err("Nieprawidłowy efekt napisów".into());
+        }
         if s.font_family.is_empty()
             || s.font_family.chars().count() > 100
             || !s.font_size.is_finite()
@@ -329,6 +425,7 @@ pub fn export_captions(p: &Project, json: Option<&str>) -> Result<Vec<Segment>, 
     }
     let mut validation = p.clone();
     validation.clips = None;
+    validation.transitions.clear();
     validation.segments = segments;
     if let Some(media) = validation.media.as_mut() {
         media.duration = Some(duration);
@@ -344,7 +441,7 @@ mod tests {
     #[test]
     fn migrate_v1_and_validate_layout() {
         let project = parse(&json()).unwrap();
-        assert_eq!(project.schema_version, 4);
+        assert_eq!(project.schema_version, 5);
         assert!(!project.styles["default"].uppercase);
         assert_eq!(project.styles["default"].max_lines, 2);
         let mut value = serde_json::to_value(project).unwrap();

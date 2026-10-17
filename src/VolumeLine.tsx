@@ -10,7 +10,7 @@ export default function VolumeLine({value,name,disabled,onPreview,onCommit}:{val
   onPointerDown={e=>{e.stopPropagation();if(disabled||e.button!==0)return;e.currentTarget.focus();e.currentTarget.setPointerCapture(e.pointerId);drag.current={y:e.clientY,initial:value,value};setDraft(value);}}
   onPointerMove={e=>{e.stopPropagation();const d=drag.current;if(!d)return;d.value=dragVolume(d.initial,e.clientY-d.y);setDraft(d.value);onPreview(d.value);}}
   onPointerUp={e=>finish(e)} onPointerCancel={e=>finish(e,true)}
-  onKeyDown={e=>{e.stopPropagation();if(disabled)return;const step=e.shiftKey?.1:.01;let next=value;if(e.key==='ArrowUp'||e.key==='ArrowRight')next=Math.min(1,value+step);else if(e.key==='ArrowDown'||e.key==='ArrowLeft')next=Math.max(0,value-step);else if(e.key==='Home')next=0;else if(e.key==='End')next=1;else return;e.preventDefault();next=Math.round(next*100)/100;onPreview(next);onCommit(next);}}>
+  onKeyDown={e=>{if(disabled)return;const step=e.shiftKey?.1:.01;let next=value;if(e.key==='ArrowUp'||e.key==='ArrowRight')next=Math.min(1,value+step);else if(e.key==='ArrowDown'||e.key==='ArrowLeft')next=Math.max(0,value-step);else if(e.key==='Home')next=0;else if(e.key==='End')next=1;else return;e.stopPropagation();e.preventDefault();next=Math.round(next*100)/100;onPreview(next);onCommit(next);}}>
   <span className="volume-wire"/><span className="volume-percent">{Math.round(gain*100)}%</span>
  </div>;
 }

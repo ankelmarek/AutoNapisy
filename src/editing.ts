@@ -1,5 +1,6 @@
 import type { Project } from './model';
-export type Clip = { id: string; sourceIn: number; sourceOut: number; start: number; assetId?: string; track?: 0|1; kind?: "video"|"audio"; volume?: number };
+import {presentationClips} from './effects';
+export type Clip = { id: string; sourceIn: number; sourceOut: number; start: number; assetId?: string; track?: 0|1; kind?: "video"|"audio"; volume?: number; adjustments?: {brightness:number;contrast:number;saturation:number} };
 export const MIN_CLIP = 0.05;
 export const clipEnd = (c: Clip) => c.start + c.sourceOut - c.sourceIn;
 export const ordered = (clips: Clip[]) => [...clips].sort((a,b)=>a.start-b.start);
@@ -58,9 +59,10 @@ export function closeGaps(clips: Clip[]): Clip[] {
 }
 export type EditedSegment = Project['segments'][number] & {sourceId:string;clipId:string;assetId?:string};
 export function compositionSegments(p: Project): EditedSegment[] {
-  const clips=projectClips(p);
+  const clips=presentationClips(p);
   return ordered(clips).filter(c=>c.kind!=='audio').flatMap(c=>{
-    let ranges=[{start:c.start,end:clipEnd(c)}];
+    const incoming=p.transitions.find(t=>t.toId===c.id),outgoing=p.transitions.find(t=>t.fromId===c.id),next=outgoing?projectClips(p).find(x=>x.id===outgoing.toId):undefined;
+    let ranges=[{start:c.start+(incoming?incoming.duration/2:0),end:next?next.start-outgoing!.duration/2:clipEnd(c)}];
     for(const upper of clips.filter(u=>u.kind!=='audio'&&(u.track??0)>(c.track??0)))ranges=ranges.flatMap(r=>{
       if(upper.start>=r.end||clipEnd(upper)<=r.start)return [r];
       return [...(upper.start>r.start?[{start:r.start,end:upper.start}]:[]),...(clipEnd(upper)<r.end?[{start:clipEnd(upper),end:r.end}]:[])];
@@ -71,6 +73,11 @@ export function compositionSegments(p: Project): EditedSegment[] {
       const text=s.words.length?words.map(w=>w.text).join(' ').trim():s.text;if(!text)return [];
       return [{...s,id:JSON.stringify([c.id,s.id,index]),sourceId:s.id,clipId:c.id,assetId:c.assetId,start:start+offset,end:end+offset,text,words}];
     }));
+  }).flatMap(s=>{
+    const patch=p.captionEdits[s.id];if(!patch)return [s];if(patch.hidden)return [];
+    const start=s.start+patch.trimStart,end=s.end-patch.trimEnd;if(end-start<.049999)return [];
+    const words=patch.text!==undefined||patch.trimStart>0||patch.trimEnd>0?[]:s.words;
+    return [{...s,start,end,words,text:patch.text??s.text}];
   });
 }
 

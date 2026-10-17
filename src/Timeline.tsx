@@ -2,18 +2,26 @@ import {useRef,useState,useMemo,useEffect,type PointerEvent} from 'react';
 import type {Project} from './model';
 import Icon from './Icons';
 import VolumeLine from './VolumeLine';
+import {resizeCaption,editCaption} from './captionEditing';
+import type {EditedSegment} from './editing';
+import type {EffectChoice} from './EffectsLibrary';
+import AudioWaveform from './AudioWaveform';
 const VIDEO_LANE=40,AUDIO_LANE=56;
 import {clipAt,clipEnd,closeGaps,compositionSegments,editDuration,moveClip,projectClips,splitClip,trimClip,clipMedia,changeTrack,type Clip} from './editing';
 const stamp=(s:number)=>`${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toFixed(2).padStart(5,'0')}`;
-type Props={project:Project;time:number;locked:boolean;onSeek:(t:number)=>void;onChange:(clips:Clip[],mode?:'volume')=>void;onPreviewVolume:(id:string,gain:number)=>void;undo:()=>void;redo:()=>void;canUndo:boolean;canRedo:boolean};
+type Props={project:Project;time:number;locked:boolean;onSeek:(t:number)=>void;onChange:(clips:Clip[],mode?:'volume')=>void;onPreviewVolume:(id:string,gain:number)=>void;undo:()=>void;redo:()=>void;canUndo:boolean;canRedo:boolean;onSelect:(id:string)=>void;onCaptionSelect:(id:string)=>void;onCaptionChange:(p:Project)=>void;effectChoice:EffectChoice;onTransition:(from:string,to:string,choice:EffectChoice)=>void;onTransitionSelect:(id:string)=>void};
 export default function Timeline(p:Props){
  const clips=projectClips(p.project),duration=editDuration(p.project);
  const [tool,setTool]=useState<'select'|'razor'>('select'),[snap,setSnap]=useState(true),[zoom,setZoom]=useState(30),[selected,setSelected]=useState(''),[draft,setDraft]=useState<Clip[]|null>(null);
  const shown=draft??clips,chosen=shown.find(c=>c.id===selected);
- const canvas=useRef<HTMLDivElement>(null);
+ const canvas=useRef<HTMLDivElement>(null),scroller=useRef<HTMLDivElement>(null);
+ const pan=useRef<{x:number;left:number}|null>(null);
+ const copied=useRef<Clip|null>(null);
+ const captionDrag=useRef<{segment:EditedSegment;edge:'left'|'right';x:number;next:Project}|null>(null);
+ const [captionDraft,setCaptionDraft]=useState<Project|null>(null),[captionSelected,setCaptionSelected]=useState(''),[hoverJoin,setHoverJoin]=useState('');
  const [scroll,setScroll]=useState(0),[viewport,setViewport]=useState(window.innerWidth);
  useEffect(()=>{const resize=()=>setViewport(window.innerWidth);window.addEventListener('resize',resize);return()=>window.removeEventListener('resize',resize);},[]);
- const visibleCaptions=useMemo(()=>compositionSegments({...p.project,clips:shown}).filter(s=>s.end*zoom>=scroll && s.start*zoom<=scroll+viewport),[p.project,shown,zoom,scroll,viewport]);
+ const visibleCaptions=useMemo(()=>compositionSegments(captionDraft??{...p.project,clips:shown}).filter(s=>s.end*zoom>=scroll && s.start*zoom<=scroll+viewport),[p.project,shown,zoom,scroll,viewport,captionDraft]);
  const drag=useRef<{id:string;kind:'move'|'left'|'right';x:number;y:number;audioDrag:boolean;base:Clip[];value:Clip[];moved:boolean}|null>(null);
  const point=(e:PointerEvent)=>Math.max(0,(e.clientX-(canvas.current?.getBoundingClientRect().left??0))/zoom);
  const scrubbing=useRef(false);
@@ -21,7 +29,7 @@ export default function Timeline(p:Props){
  const cut=(id:string,t:number)=>{const next=splitClip(clips,id,t);if(next!==clips)commit(next);};
  const remove=()=>{if(chosen){commit(clips.filter(c=>c.id!==selected));setSelected('');}};
  const start=(e:PointerEvent,id:string,kind:'move'|'left'|'right',mirror=false)=>{
-  if(p.locked)return;e.stopPropagation();setSelected(id);
+  if(p.locked)return;e.stopPropagation();setSelected(id);setCaptionSelected('');p.onSelect(id);
   if(tool==='razor'&&kind==='move'){cut(id,point(e));return;}
   e.currentTarget.setPointerCapture(e.pointerId);drag.current={id,kind,x:e.clientX,y:e.clientY,audioDrag:mirror||clips.find(c=>c.id===id)?.kind==='audio',base:clips,value:clips,moved:false};
  };
@@ -40,9 +48,16 @@ export default function Timeline(p:Props){
  const end=(e:PointerEvent)=>{const d=drag.current;if(!d)return;drag.current=null;if(d.moved)commit(d.value);else p.onSeek(point(e));};
  useEffect(()=>{if(drag.current && drag.current.base!==clips){drag.current=null;setDraft(null);}},[clips]);
  useEffect(()=>{const key=(e:KeyboardEvent)=>{
-  if(p.locked||e.ctrlKey||e.metaKey||e.altKey||(e.target instanceof HTMLElement&&(e.target.isContentEditable||['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))))return;
+  if(p.locked||e.altKey||(e.target instanceof HTMLElement&&(e.target.isContentEditable||['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))))return;
+  const modifier=e.ctrlKey||e.metaKey;
+  if(modifier&&e.key.toLowerCase()==='c'){if(chosen){e.preventDefault();copied.current={...chosen,adjustments:chosen.adjustments?{...chosen.adjustments}:undefined};}return;}
+  if(modifier&&e.key.toLowerCase()==='v'){if(copied.current){e.preventDefault();if(clips.length>=100)return;const copy={...copied.current,id:crypto.randomUUID(),start:Math.max(p.time,duration)};commit(moveClip([...clips,copy],copy.id,p.time,snap?10/zoom:0));}return;}
+  if(modifier&&e.key.toLowerCase()==='x'){if(chosen){e.preventDefault();copied.current={...chosen};remove();}return;}
+  if(modifier&&e.key.toLowerCase()==='d'){if(chosen&&clips.length<100){e.preventDefault();const copy={...chosen,id:crypto.randomUUID(),start:duration};commit(moveClip([...clips,copy],copy.id,clipEnd(chosen),snap?10/zoom:0));}return;}
+  if(modifier)return;
+  if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();if(captionSelected){const s=compositionSegments(p.project).find(s=>s.id===captionSelected);if(s)p.onCaptionChange(editCaption(p.project,s,{hidden:true}));setCaptionSelected('');}else remove();return;}
   if(e.key.toLowerCase()==='c')setTool('razor');if(e.key.toLowerCase()==='v')setTool('select');
- };window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key);},[p.locked]);
+ };window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key);},[p.locked,p.project,p.time,selected,captionSelected]);
  const width=Math.max(900,viewport-40,(Math.max(duration,...shown.map(clipEnd))+5)*zoom);
  const tick=[1,2,5,10,30,60,120,300,600,1800,3600].find(x=>x*zoom>=90)??3600;
  return <section className="edit-timeline" aria-label="Montaż filmu">
@@ -59,18 +74,32 @@ export default function Timeline(p:Props){
    <button disabled={p.locked||!p.canRedo} onClick={p.redo} aria-label="Ponów" title="Ponów" className="icon-button"><Icon name="redo"/></button>
    <label className="timeline-zoom"><Icon name="zoom" size={16}/><input aria-label="Powiększenie osi czasu" type="range" min={2} max={160} value={zoom} onChange={e=>setZoom(Number(e.target.value))}/></label>
   </div>
-  <div className="timeline-scroll" onScroll={e=>setScroll(e.currentTarget.scrollLeft)}>
+  <div className="timeline-scroll" ref={scroller}
+   onPointerDownCapture={e=>{if(!e.altKey&&e.button!==1)return;e.preventDefault();e.stopPropagation();pan.current={x:e.clientX,left:e.currentTarget.scrollLeft};e.currentTarget.setPointerCapture(e.pointerId);}}
+   onPointerMoveCapture={e=>{if(!pan.current)return;e.preventDefault();e.stopPropagation();e.currentTarget.scrollLeft=pan.current.left-(e.clientX-pan.current.x);}}
+   onPointerUpCapture={e=>{if(pan.current){e.stopPropagation();pan.current=null;}}} onPointerCancelCapture={()=>pan.current=null} onScroll={e=>setScroll(e.currentTarget.scrollLeft)}>
    <div ref={canvas} className={`edit-canvas ${tool}`} style={{width}} onPointerDown={e=>{if(!p.locked){scrubbing.current=true;e.currentTarget.setPointerCapture(e.pointerId);p.onSeek(point(e));}}} onPointerMove={e=>{if(scrubbing.current&&!p.locked)p.onSeek(point(e));}} onPointerUp={()=>{scrubbing.current=false;}} onPointerCancel={()=>{scrubbing.current=false;}}>
     <div className="edit-ruler">{Array.from({length:Math.ceil(viewport/zoom/tick)+3},(_,n)=>Math.max(0,Math.floor(scroll/zoom/tick)-1)+n).filter(i=>i*tick*zoom<=width).map(i=><span key={i} style={{left:i*tick*zoom}}>{stamp(i*tick)}</span>)}</div>
     {['V2 · obraz na wierzchu','V1 · obraz','A1 · dźwięk','A2 · dźwięk'].map((name,i)=><div key={name} className="multi-lane" style={{top:28+(i<2?i*VIDEO_LANE:2*VIDEO_LANE+(i-2)*AUDIO_LANE),height:i<2?VIDEO_LANE:AUDIO_LANE}}><span>{name}</span></div>)}
-    {shown.flatMap(c=>c.kind==='audio'?[{c,mirror:false}]:[{c,mirror:false},{c,mirror:true}]).map(({c,mirror},i)=><div key={c.id+(mirror?'-sound':'')} role="button" tabIndex={p.locked?-1:0} aria-label={`${mirror?'Dźwięk połączony':c.kind==='audio'?'Audio':'Ujęcie'} ${i+1}`} aria-pressed={c.id===selected} className={`edit-clip ${mirror||c.kind==='audio'?'audio-clip':''} ${c.id===selected?'selected':''}`} style={{top:31+((mirror||c.kind==='audio')?2*VIDEO_LANE+(c.track??0)*AUDIO_LANE:(1-(c.track??0))*VIDEO_LANE)+(c.kind==='audio'?28:0),left:c.start*zoom,width:(c.sourceOut-c.sourceIn)*zoom}} onFocus={()=>setSelected(c.id)} onKeyDown={e=>{if(p.locked)return;if(e.key==='Delete'){e.preventDefault();commit(clips.filter(x=>x.id!==c.id));}if(e.key==='Enter')p.onSeek(c.start);}} onPointerDown={e=>start(e,c.id,'move',mirror)} onPointerMove={move} onPointerUp={end} onPointerCancel={()=>{drag.current=null;setDraft(null);}} title={`${clipMedia(p.project,c)?.name}\nŹródło ${stamp(c.sourceIn)} – ${stamp(c.sourceOut)}\nOś ${stamp(c.start)} – ${stamp(clipEnd(c))}`}>
+    {shown.flatMap(c=>c.kind==='audio'?[{c,mirror:false}]:[{c,mirror:false},{c,mirror:true}]).map(({c,mirror},i)=><div key={c.id+(mirror?'-sound':'')} role="button" tabIndex={p.locked?-1:0} aria-label={`${mirror?'Dźwięk połączony':c.kind==='audio'?'Audio':'Ujęcie'} ${i+1}`} aria-pressed={c.id===selected} className={`edit-clip ${mirror||c.kind==='audio'?'audio-clip':''} ${c.id===selected?'selected':''}`} style={{top:31+((mirror||c.kind==='audio')?2*VIDEO_LANE+(c.track??0)*AUDIO_LANE:(1-(c.track??0))*VIDEO_LANE)+(c.kind==='audio'?28:0),left:c.start*zoom,width:(c.sourceOut-c.sourceIn)*zoom}} onFocus={()=>{setSelected(c.id);setCaptionSelected('');p.onSelect(c.id);}} onKeyDown={e=>{if(p.locked)return;if(e.key==='Delete'){e.preventDefault();commit(clips.filter(x=>x.id!==c.id));}if(e.key==='Enter')p.onSeek(c.start);}} onPointerDown={e=>start(e,c.id,'move',mirror)} onPointerMove={move} onPointerUp={end} onPointerCancel={()=>{drag.current=null;setDraft(null);}} title={`${clipMedia(p.project,c)?.name}\nŹródło ${stamp(c.sourceIn)} – ${stamp(c.sourceOut)}\nOś ${stamp(c.start)} – ${stamp(clipEnd(c))}`}>
      <div className="trim-handle left" role="separator" aria-label={`Lewy brzeg ujęcia ${i+1}`} onPointerDown={e=>start(e,c.id,'left',mirror)}/>
      <span>{mirror&&<Icon name="link" size={10}/>} {clipMedia(p.project,c)?.name}</span><small>{stamp(c.sourceIn)} → {stamp(c.sourceOut)}</small>
+     {(mirror||c.kind==='audio')&&<AudioWaveform path={clipMedia(p.project,c)?.path} duration={clipMedia(p.project,c)?.duration??0} sourceIn={c.sourceIn} sourceOut={c.sourceOut}/>}
      {(mirror||c.kind==='audio')&&<VolumeLine value={c.volume??1} name={clipMedia(p.project,c)?.name??'audio'} disabled={p.locked}
        onPreview={gain=>p.onPreviewVolume(c.id,gain)} onCommit={gain=>p.onChange(clips.map(x=>x.id===c.id?{...x,volume:gain}:x),'volume')}/>}
      <div className="trim-handle right" role="separator" aria-label={`Prawy brzeg ujęcia ${i+1}`} onPointerDown={e=>start(e,c.id,'right',mirror)}/>
     </div>)}
-    {visibleCaptions.map(s=><div className="edit-caption-mark" key={s.id} style={{left:s.start*zoom,width:Math.max(2,(s.end-s.start)*zoom)}} title={s.text}/>)}
+    <div className="caption-lane-label">NAPISY</div>
+    {visibleCaptions.map(s=><div className={`caption-timeline-clip ${captionSelected===s.id?'selected':''}`} key={s.id} style={{left:s.start*zoom,width:Math.max(3,(s.end-s.start)*zoom)}} title={s.text} role="button" tabIndex={p.locked?-1:0} aria-label={`Napis: ${s.text}`} onPointerDown={e=>{e.stopPropagation();if(p.locked)return;setCaptionSelected(s.id);setSelected('');p.onCaptionSelect(s.id);p.onSeek(s.start);}} onKeyDown={e=>{if(e.key==='Enter')p.onCaptionSelect(s.id);}}>
+      {(['left','right'] as const).map(edge=><div key={edge} role="separator" aria-label={`${edge==='left'?'Początek':'Koniec'} napisu: ${s.text}`} className={`caption-trim ${edge}`} onPointerDown={e=>{e.stopPropagation();if(p.locked)return;e.currentTarget.setPointerCapture(e.pointerId);captionDrag.current={segment:s,edge,x:e.clientX,next:p.project};}}
+       onPointerMove={e=>{e.stopPropagation();const d=captionDrag.current;if(!d)return;d.next=resizeCaption(p.project,d.segment,d.edge,(e.clientX-d.x)/zoom);setCaptionDraft(d.next);}}
+       onPointerUp={e=>{e.stopPropagation();const d=captionDrag.current;captionDrag.current=null;setCaptionDraft(null);if(d)p.onCaptionChange(d.next);}} onPointerCancel={()=>{captionDrag.current=null;setCaptionDraft(null);}}/>)}<span>{s.text}</span>
+    </div>)}
+    {shown.filter(c=>c.kind!=='audio').flatMap(a=>{const b=shown.find(c=>c.id!==a.id&&c.kind!=='audio'&&(c.track??0)===(a.track??0)&&Math.abs(c.start-clipEnd(a))<1e-6);if(!b)return [];const existing=p.project.transitions.find(t=>t.fromId===a.id&&t.toId===b.id),length=existing?.duration??p.effectChoice.duration,top=31+(1-(a.track??0))*VIDEO_LANE;
+      return [<button key={a.id+'join'} className={`transition-join ${existing?'has-transition':''} ${hoverJoin===a.id?'drop-preview':''}`} aria-label={existing?'Edytuj przejście':'Dodaj przejście'} title={`${existing?'Przejście':'Dodaj przejście'} · ${length.toFixed(2)} s`} style={{left:existing||hoverJoin===a.id?b.start*zoom-length*zoom:b.start*zoom-7,width:existing||hoverJoin===a.id?Math.max(14,length*zoom+7):14,top}}
+       disabled={p.locked} onPointerDown={e=>e.stopPropagation()} onClick={()=>existing?p.onTransitionSelect(existing.id):p.onTransition(a.id,b.id,p.effectChoice)}
+       onDragOver={e=>{if(e.dataTransfer.types.includes('application/x-rolvixa-transition')){e.preventDefault();setHoverJoin(a.id);}}} onDragLeave={()=>setHoverJoin('')} onDrop={e=>{e.preventDefault();setHoverJoin('');try{const choice=JSON.parse(e.dataTransfer.getData('application/x-rolvixa-transition'));if(['left','right','black'].includes(choice.kind)&&Number.isFinite(choice.duration))p.onTransition(a.id,b.id,choice);}catch{}}}>{existing||hoverJoin===a.id?<><span>{existing?.kind==='black'?'◒':existing?.kind==='right'?'→':'←'}</span><small>{length.toFixed(2)}s</small></>:'+'}</button>];
+    })}
     <div className="edit-playhead" style={{left:p.time*zoom}}><span>▼</span></div>
    </div>
   </div>
