@@ -147,11 +147,15 @@ jobs:
         run: cargo test --locked --manifest-path .test-core/Cargo.toml --test mlt_engine -- --ignored --nocapture
       - run: npm run tauri -- build --target x86_64-pc-windows-msvc --config src-tauri/tauri.bundled.conf.json
       - name: Test actual installation and bundled tools
+        id: installation
         run: ./scripts/test-installer.ps1
+      - name: Build instrumented WebView2 test executable
+        run: npm run tauri -- build --target x86_64-pc-windows-msvc --no-bundle --features tauri/devtools --config src-tauri/tauri.bundled.conf.json --config src-tauri/tauri.ui-tests.conf.json
       - name: Test real installed Tauri WebView2 editor
         timeout-minutes: 6
         run: ./scripts/test-webview.ps1
       - uses: actions/upload-artifact@v4
+        if: always() && steps.installation.outcome == 'success'
         with:
           name: RolVixa-Windows-x64
           path: ${{ env.ROLVIXA_INSTALLER }}

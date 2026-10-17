@@ -1,6 +1,8 @@
 $ErrorActionPreference = 'Stop'
 $destination = Join-Path $env:RUNNER_TEMP 'RolVixa test Łódź'
-$env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = '--remote-debugging-port=9222'
+# Instrumentation is compiled separately; the distributed installer keeps DevTools disabled.
+Copy-Item 'src-tauri/target/x86_64-pc-windows-msvc/release/rolvixa.exe' (Join-Path $destination 'rolvixa.exe') -Force
+$env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = '--remote-debugging-port=9222 --disable-gpu'
 $env:ROLVIXA_WEBVIEW_CDP = 'http://127.0.0.1:9222'
 $env:AUTONAPISY_FFMPEG = Join-Path $destination 'vendor/ffmpeg.exe'
 $app = Start-Process -FilePath (Join-Path $destination 'rolvixa.exe') -PassThru -RedirectStandardOutput '.tools/app-stdout.log' -RedirectStandardError '.tools/app-stderr.log'
