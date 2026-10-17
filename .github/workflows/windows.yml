@@ -1,6 +1,12 @@
 name: Windows x64
 on:
   push:
+    # Roadmap-only pushes must not cancel a running installer build.
+    paths-ignore:
+      - 'README.md'
+      - 'ROADMAP.md'
+      - 'AGENTS.md'
+      - 'docs/**'
   pull_request:
   workflow_dispatch:
 permissions:
