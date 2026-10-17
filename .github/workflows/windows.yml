@@ -17,6 +17,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   build:
+    if: github.ref_name != 'diagnostics/header-015'
     runs-on: windows-latest
     steps:
       - name: Cancel older builds of the same branch
