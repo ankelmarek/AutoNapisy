@@ -219,4 +219,34 @@ mod tests {
         );
         assert!(suggested_name("CON").starts_with("Projekt-CON"));
     }
+    #[test]
+    fn removed_directory_and_oversized_input_fail_without_creating_files() {
+        let d = tempfile::tempdir().unwrap();
+        let dir = d.path().join("sub");
+        fs::create_dir(&dir).unwrap();
+        let mut t = Target::selected(&dir.join("a.json")).unwrap();
+        fs::remove_dir(&dir).unwrap();
+        assert!(t.write(&json("A")).is_err());
+        assert!(!dir.exists());
+        assert!(t
+            .write(&" ".repeat(LIMIT + 1))
+            .unwrap_err()
+            .contains("16 MB"));
+    }
+    #[cfg(windows)]
+    #[test]
+    fn readonly_windows_target_preserves_original_on_error() {
+        let d = tempfile::tempdir().unwrap();
+        let p = d.path().join("read-only.json");
+        fs::write(&p, json("A")).unwrap();
+        let mut t = Target::selected(&p).unwrap();
+        let mut perm = fs::metadata(&p).unwrap().permissions();
+        perm.set_readonly(true);
+        fs::set_permissions(&p, perm.clone()).unwrap();
+        assert!(t.write(&json("B")).is_err());
+        assert_eq!(fs::read_to_string(&p).unwrap(), json("A"));
+        perm.set_readonly(false);
+        fs::set_permissions(&p, perm).unwrap();
+        t.write(&json("B")).unwrap();
+    }
 }

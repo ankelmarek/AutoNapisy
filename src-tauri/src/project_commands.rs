@@ -152,3 +152,16 @@ pub async fn save_project(
     s.target = Some(target);
     Ok(Some(path))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn operations_are_exclusive_and_release_after_error() {
+        let s = ProjectState::default();
+        let op = s.operation().unwrap();
+        assert!(s.operation().is_err());
+        drop(op);
+        assert!(s.operation().is_ok());
+    }
+}

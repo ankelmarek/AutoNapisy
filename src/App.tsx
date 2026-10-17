@@ -67,8 +67,9 @@ export default function App() {
   if(!saverRef.current)saverRef.current=new ProjectSaver(backend.save,refreshSave);
   const saver=saverRef.current,saveState=saver.state;
   const saving=saveState.phase==='saving';
-  const dirty=saveState.baseline===null||saveState.baseline!==projectRevision(project);
-  const status=saveStatus(saveState,project);
+  const revision=useMemo(()=>projectRevision(project),[project]);
+  const dirty=saveState.baseline===null||saveState.baseline!==revision;
+  const status=useMemo(()=>saveStatus(saveState,project),[saveState,project]);
   const statusText=status==='saved'?'Zapisano':status==='saving'?'Zapisywanie…':status==='error'?`Błąd zapisu: ${saveState.error}`:saveState.path?'Niezapisane zmiany':'Projekt niezapisany';
   const titleEditor=useRef<TitleEditor>(null);
   useEffect(
@@ -297,7 +298,7 @@ export default function App() {
           {label:'Eksport SRT',disabled:locked||!displayedSegments.length,run:exportSrt},
           {label:'Ustawienia',disabled:locked,run:()=>{playback.pause();setSettings(true);void run(loadSettings);}},
         ]}/>
-        <ProjectTitle ref={titleEditor} name={project.name} disabled={locked} onChange={name=>{const p={...latestProject.current,name};latestProject.current=p;setProject(p);}}/>
+        <ProjectTitle key={saveState.session} ref={titleEditor} name={project.name} disabled={locked} onChange={name=>{const p={...latestProject.current,name};latestProject.current=p;setProject(p);}}/>
         <span className={`save-status status-${status}`} role="status" title={saveState.error||saveState.path||statusText}>{statusText}</span>
         <div className="header-actions">
           <button className={`header-save status-${status}`} data-save-status={status} aria-label="Zapisz projekt" aria-keyshortcuts="Control+S" title={`Zapisz projekt (Ctrl+S) · ${statusText}${saveState.path?' · '+saveState.path:''}`} disabled={locked||saving} onClick={()=>void save()}><Icon name={status==='saving'?'saveLoading':status==='error'?'saveError':'save'} size={22}/>{status==='saved'&&<Icon name="check" size={11}/>}</button>
