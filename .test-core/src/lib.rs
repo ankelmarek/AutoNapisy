@@ -28,3 +28,9 @@ pub mod transition_preview;
 
 #[path = "../../src-tauri/src/mlt.rs"]
 pub mod mlt;
+
+#[path = "../../src-tauri/src/framing.rs"]
+pub mod framing;
+
+#[path = "../../src-tauri/src/audio_library.rs"]
+pub mod audio_library;

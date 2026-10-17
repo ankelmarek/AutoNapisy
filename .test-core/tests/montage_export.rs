@@ -415,6 +415,7 @@ fn real_transitions_correction_and_waveform() {
         id: "unused".into(),
         path: "missing-and-unused.mp4".into(),
         name: "Unused".into(),
+        provenance: None,
         kind: "video".into(),
         duration: 999.,
         segments: vec![],

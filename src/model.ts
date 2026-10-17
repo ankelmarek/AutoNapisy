@@ -43,15 +43,18 @@ const segment = z
     )
       c.addIssue({ code: "custom", message: "Nieprawidłowy zakres segmentu" });
   });
+export const transformSchema=z.object({scale:z.number().finite().min(.1).max(4),x:z.number().finite().min(-2).max(2),y:z.number().finite().min(-2).max(2)}).strict();
+export const provenanceSchema=z.object({provider:z.enum(['kenney','openverse']),externalId:z.string().max(200),title:z.string().max(2000),creator:z.string().max(2000),license:z.string().max(100),licenseUrl:z.string().max(2000),sourceUrl:z.string().max(2000),attribution:z.string().max(10000)}).strict();
 const currentProjectSchema = z
   .object({
-    schemaVersion: z.literal(7),
+    schemaVersion: z.literal(8),
+    canvas:z.object({width:z.number().int().min(128).max(3840).multipleOf(2),height:z.number().int().min(128).max(3840).multipleOf(2)}).strict().nullable().default(null),
     tracks:tracksSchema.default({}),
     timelineSegments:z.array(segment).nullable().default(null),
     captionEdits:z.record(z.object({trimStart:time,trimEnd:time,text:z.string().max(100000).optional(),hidden:z.boolean().optional()}).strict()).default({}),
     transitions:z.array(z.object({id:z.string().min(1),fromId:z.string().min(1),toId:z.string().min(1),kind:z.enum(transitionKinds),duration:z.number().min(.1).max(2)}).strict()).max(99).default([]),
-    assets: z.array(z.object({id:z.string().min(1),path:z.string().min(1),name:z.string(),duration:time,kind:z.enum(["video","audio"]),segments:z.array(segment)}).strict()).max(100).default([]),
-    clips: z.array(z.object({id:z.string().min(1),sourceIn:time,sourceOut:time,start:time,assetId:z.string().optional(),track:z.union([z.literal(0),z.literal(1)]).optional(),kind:z.enum(["video","audio"]).optional(),volume:z.number().min(0).max(1).optional(),adjustments:z.object({brightness:z.number().min(.25).max(2),contrast:z.number().min(.25).max(2),saturation:z.number().min(0).max(2)}).strict().optional()}).strict()).max(100).nullable(),
+    assets: z.array(z.object({id:z.string().min(1),path:z.string().min(1),name:z.string(),duration:time,kind:z.enum(["video","audio"]),provenance:provenanceSchema.optional(),segments:z.array(segment)}).strict()).max(100).default([]),
+    clips: z.array(z.object({id:z.string().min(1),sourceIn:time,sourceOut:time,start:time,assetId:z.string().optional(),track:z.union([z.literal(0),z.literal(1)]).optional(),kind:z.enum(["video","audio"]).optional(),volume:z.number().min(0).max(1).optional(),transform:transformSchema.optional(),adjustments:z.object({brightness:z.number().min(.25).max(2),contrast:z.number().min(.25).max(2),saturation:z.number().min(0).max(2)}).strict().optional()}).strict()).max(100).nullable(),
     name: z.string().min(1).max(200),
     media: z
       .object({
@@ -101,15 +104,16 @@ const currentProjectSchema = z
       });
   });
 export const projectSchema = z.preprocess((value) => {
-  if(value&&typeof value==='object'&&'schemaVersion' in value&&[1,2,3,4,5,6].includes(Number(value.schemaVersion))){
+  if(value&&typeof value==='object'&&'schemaVersion' in value&&[1,2,3,4,5,6,7].includes(Number(value.schemaVersion))){
     const p=value as Project;
-    return {...p,assets:p.assets??[],captionEdits:p.captionEdits??{},timelineSegments:p.schemaVersion>=6?p.timelineSegments:null,transitions:(p.transitions??[]).map(t=>({...t,kind:legacyTransition(t.kind)})),schemaVersion:7,clips:p.schemaVersion>=3?p.clips:p.media?.duration?[{id:'original',sourceIn:0,sourceOut:p.media.duration,start:0}]:null};
+    return {...p,assets:p.assets??[],captionEdits:p.captionEdits??{},timelineSegments:p.schemaVersion>=6?p.timelineSegments:null,transitions:(p.transitions??[]).map(t=>({...t,kind:legacyTransition(t.kind)})),schemaVersion:8,clips:p.schemaVersion>=3?p.clips:p.media?.duration?[{id:'original',sourceIn:0,sourceOut:p.media.duration,start:0}]:null};
   }
   return value;
 }, currentProjectSchema);
 export type Project = z.infer<typeof currentProjectSchema>;
 export const newProject = (): Project => ({
-  schemaVersion: 7,
+  schemaVersion: 8,
+  canvas:null,
   tracks:{},
   timelineSegments:null,
   captionEdits:{},

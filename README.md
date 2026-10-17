@@ -1,10 +1,10 @@
-# RolVixa 0.11.1 — polska mowa → polskie napisy
+# RolVixa 0.12 — polska mowa → polskie napisy
 
-RolVixa (wcześniej AutoNapisy) to lokalna aplikacja Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Rozpoznaje polską mowę przez whisper.cpp, bez tłumaczenia. Nie wysyła nagrań, nie zawiera klienta HTTP ani telemetrii.
+RolVixa (wcześniej AutoNapisy) to lokalna aplikacja Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Rozpoznaje polską mowę przez whisper.cpp, bez tłumaczenia. Transkrypcja i montaż działają na komputerze. Opcjonalna biblioteka muzyki łączy się z Openverse po wpisaniu frazy wyszukiwania; nie wysyła nagrań użytkownika.
 
 ## Aktualizacja i uruchomienie ze źródeł
 
-Zachowaj projekty i nagrania. Pobierz ZIP z GitHuba i rozpakuj do nowego folderu, np. `C:\RolVixa-0.11.1`. Nie kopiuj starych `node_modules`, `dist` i `src-tauri/target`. Aplikacja otwiera projekty v1–v6 i zapisuje format v7. Przed zapisaniem zachowaj kopię JSON, jeśli chcesz wrócić do starszej wersji aplikacji.
+Zachowaj projekty i nagrania. Pobierz ZIP z GitHuba i rozpakuj do nowego folderu, np. `C:\RolVixa-0.12`. Nie kopiuj starych `node_modules`, `dist` i `src-tauri/target`. Aplikacja otwiera projekty v1–v7 i zapisuje format v8. Przed zapisaniem zachowaj kopię JSON, jeśli chcesz wrócić do starszej wersji aplikacji.
 
 Wymagania: Node.js 22 lub 24, aktualny Rust stable x64 MSVC, Visual Studio Build Tools z „Desktop development with C++” i Windows SDK oraz WebView2 Runtime.
 
@@ -255,7 +255,7 @@ Podgląd jest jednym strumieniem H.264/AAC z MLT, odbieranym przez kontrolowane 
 
 Napisy: **klik** zaznacza bez otwierania edycji, **Delete** ukrywa zaznaczony napis, **dwuklik / Enter** otwiera edycję po prawej. **Ctrl+Z** cofa usunięcie. Importowane filmy i efekty można przeciągać z galerii na oś. Wyłączono natywne Tauri drag-and-drop, które na Windows przechwytuje zdarzenia HTML5. Windows CI sprawdza przeciąganie w WebView2 przez CDP, używając osobno skompilowanego programu testowego z włączonymi DevTools i zasobami z instalacji; fixture IPC zastępuje dialogi na czas testu. Instalator użytkownika zachowuje wyłączone DevTools. Błąd automatyzacji UI nie usuwa artefaktu poprawnie zbudowanego i przetestowanego instalatora, ale pozostawia workflow ze statusem błędu. Osobne testy Rust sprawdzają rzeczywisty MLT, kodeki, warstwy, audio, cięcia, przejścia, korekcję i Unicode.
 
-Ze źródeł: pełne komponenty buduje `scripts/prepare-bundle.ps1`; MLT można zbudować oddzielnie w MSYS2 MINGW64 przez `scripts/build-bundled-mlt.sh`. W trybie deweloperskim `ROLVIXA_MLT` może wskazywać lokalny `melt`/`melt.exe`. W wydaniu instalacyjnym używany jest wyłącznie silnik z zasobów aplikacji. Dla testów: `ROLVIXA_MLT=/ścieżka/melt AUTONAPISY_FFMPEG=/ścieżka/ffmpeg cargo test --manifest-path .test-core/Cargo.toml --test mlt_engine -- --ignored --nocapture`. Projekt zapisuje format v7.
+Ze źródeł: pełne komponenty buduje `scripts/prepare-bundle.ps1`; MLT można zbudować oddzielnie w MSYS2 MINGW64 przez `scripts/build-bundled-mlt.sh`. W trybie deweloperskim `ROLVIXA_MLT` może wskazywać lokalny `melt`/`melt.exe`. W wydaniu instalacyjnym używany jest wyłącznie silnik z zasobów aplikacji. Dla testów: `ROLVIXA_MLT=/ścieżka/melt AUTONAPISY_FFMPEG=/ścieżka/ffmpeg cargo test --manifest-path .test-core/Cargo.toml --test mlt_engine -- --ignored --nocapture`. Projekt zapisuje format v8.
 
 
 ## Poprawka 0.11.1 — podgląd Windows i sterowanie ścieżkami
@@ -265,3 +265,19 @@ Ze źródeł: pełne komponenty buduje `scripts/prepare-bundle.ps1`; MLT można 
 - Ustawienia ścieżek mają historię Ctrl+Z/Ctrl+Shift+Z i zapisują się w projekcie **v7** (`schemas/project-v7.schema.json`). Otwierane są wersje v1–v6; przed nadpisaniem starszego projektu zachowaj kopię, jeśli potrzebujesz wrócić do starszej aplikacji.
 - Błędy podglądu są widoczne również bezpośrednio nad filmem, z przyciskiem **Ponów podgląd**. Błąd odczytu bufora lub dekodowania WebView2 nie pozostawia pustego obrazu bez komunikatu.
 - `scripts/test-native-preview.mjs` sprawdza zainstalowaną aplikację Windows bez zastępowania IPC podglądu: otwarcie projektu, rzeczywisty MLT, odczyt rosnącego MP4, dekodowane piksele, odtwarzanie, pauzę, przewinięcie i oczko. Jedynie wybór pliku projektu jest zastępowany stałą fixture w oddzielnym programie testowym (`ui-tests`); instalator użytkownika nie zawiera tej funkcji. Dotychczasowy `test-editor9.mjs` pozostaje testem interakcji UI z zastępczymi danymi IPC.
+
+
+## RolVixa 0.12 — kadr, warstwy i biblioteka audio
+
+- Nad podglądem wybierz format: źródło, rolka 9:16, poziom 16:9 lub kwadrat. Format ustala również rozmiar MP4. Przy źródle zachowana jest rozdzielczość głównego filmu.
+- Zatrzymaj odtwarzanie i zaznacz film w podglądzie lub panelu „Warstwy”. Przeciągaj obraz, aby przesuwać kadr; uchwyty narożników zmieniają skalę. Shift ogranicza przesuwanie do jednej osi. Panel „Kadr warstwy” udostępnia skalę 10–400%, położenie X/Y, Dopasuj, Wypełnij i Wyśrodkuj. Każdy klip ma niezależny kadr, zapisywany w projekcie i zachowywany po cięciu. Ctrl+Z cofa zatwierdzony gest. Podczas przejścia zatrzymaj głowicę poza efektem, aby kadrować pojedynczy film.
+- Podczas edycji zatrzymanego obrazu pokazywane są rzeczywiste klatki warstw wyodrębnione przez FFmpeg. Odtwarzanie i eksport składa MLT z adapterem affine; przejścia FFmpeg otrzymują te same parametry kadru. Podgląd roboczy pozostaje ograniczony do 540 px.
+- Panel „Warstwy” pokazuje napisy T i klipy V1/V2 z wyborem i widocznością ścieżki. Sekcja dodawania tekstu, grafiki, naklejek i animacji jest przygotowanym interfejsem; te typy warstw nie są jeszcze implementowane.
+- Zakładka Audio → Dźwięki zawiera **100 efektów Kenney Interface Sounds** dołączonych do instalatora. Wyszukuj po polskiej nazwie, odsłuchuj, dodawaj przyciskiem + w pozycji głowicy lub przeciągaj na A1/A2. Odsłuch zatrzymuje główne odtwarzanie i odwrotnie. Efekty są na CC0 1.0; dane autora i licencji są dostępne przy każdym pliku. Źródło: https://kenney.nl/assets/interface-sounds . Instalator zawiera oryginalną paczkę, licencję i recepturę konwersji WAV (`scripts/prepare-audio.py`, archiwum weryfikowane SHA-256).
+- Audio → Muzyka: wpisz frazę i kliknij Szukaj. Openverse udostępnia utwory na różnych licencjach; domyślnie filtrujemy utwory dopuszczające komercyjne wykorzystanie i modyfikacje. Przeczytaj warunki wybranego nagrania, pobierz je do projektu, a następnie odsłuchaj lub dodaj na A1/A2. Autor, licencja, adres źródła i informacja o autorstwie zapisują się z plikiem i w projekcie. Pobieranie ma limit 100 MB; odsłuch trwa do 30 sekund. Usługa zewnętrzna może zwrócić limit 429, blokadę 403 lub niedostępny plik; aplikacja pokazuje błąd i pozwala nadal używać dźwięków wbudowanych i własnych.
+- Audio → Moje audio: import wielu plików do biblioteki, bez automatycznego dodawania na oś. Dotychczasowy import audio nadal działa.
+- Schemat projektu v8: `schemas/project-v8.schema.json`. Nowe pola: `canvas`, `clips[].transform` (skala oraz położenie liczone względem rozmiaru kadru), `assets[].provenance`. Migracja v1–v7 zachowuje montaż, napisy i ustawienia ścieżek. Zapisz kopię starszego projektu przed nadpisaniem.
+
+Połączenia sieciowe biblioteki wykonuje wyłącznie Rust przez kontrolowane komendy. Wyszukiwanie wysyła frazę i filtry do `https://api.openverse.org/v1/audio/`; pobranie wykonuje żądanie HTTPS do dostawcy wybranego utworu. Nie wysyłamy filmów, ścieżek lokalnych ani projektów. Frontend nadal nie ma dostępu do dowolnych komend ani sieci. Wbudowany FFmpeg zachowuje wyłączoną obsługę sieci. Kenney i własne audio nie wymagają internetu.
+
+Test kadrowania rzeczywistymi silnikami: `ROLVIXA_MLT=/ścieżka/melt AUTONAPISY_FFMPEG=/ścieżka/ffmpeg cargo test --manifest-path .test-core/Cargo.toml --test framing -- --ignored --nocapture`. Test sprawdza rozmiar pionowego MP4, dopasowanie, powiększenie, przesunięcie i kolory po przejściu.

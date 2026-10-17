@@ -5,6 +5,8 @@ use std::collections::{HashMap, HashSet};
 pub struct Project {
     pub schema_version: u32,
     #[serde(default)]
+    pub canvas: Option<Canvas>,
+    #[serde(default)]
     pub tracks: TrackControls,
     #[serde(default)]
     pub clips: Option<Vec<Clip>>,
@@ -22,6 +24,31 @@ pub struct Project {
     pub styles: HashMap<String, Style>,
     pub created_at: String,
     pub updated_at: String,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Canvas {
+    pub width: u32,
+    pub height: u32,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Transform {
+    pub scale: f64,
+    pub x: f64,
+    pub y: f64,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Provenance {
+    pub provider: String,
+    pub external_id: String,
+    pub title: String,
+    pub creator: String,
+    pub license: String,
+    pub license_url: String,
+    pub source_url: String,
+    pub attribution: String,
 }
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -83,6 +110,8 @@ pub struct Clip {
     #[serde(default = "unit_volume")]
     pub volume: f64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub transform: Option<Transform>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub adjustments: Option<Adjustments>,
 }
 fn video_kind() -> String {
@@ -100,6 +129,8 @@ pub struct Asset {
     pub duration: f64,
     pub kind: String,
     pub segments: Vec<Segment>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provenance: Option<Provenance>,
 }
 impl Project {
     pub fn clip_path(&self, c: &Clip) -> Option<&str> {
@@ -236,7 +267,7 @@ pub fn parse(json: &str) -> Result<Project, String> {
     }
     let mut p: Project =
         serde_json::from_value(raw).map_err(|e| format!("Niepoprawny JSON projektu: {e}"))?;
-    if ![1, 2, 3, 4, 5, 6, 7].contains(&p.schema_version) {
+    if ![1, 2, 3, 4, 5, 6, 7, 8].contains(&p.schema_version) {
         return Err("Nieobsługiwana wersja projektu".into());
     }
     if p.schema_version < 3 {
@@ -268,7 +299,43 @@ pub fn parse(json: &str) -> Result<Project, String> {
             .into();
         }
     }
-    p.schema_version = 7;
+    p.schema_version = 8;
+    if p.canvas.as_ref().is_some_and(|v| {
+        v.width < 128
+            || v.height < 128
+            || v.width > 3840
+            || v.height > 3840
+            || v.width % 2 != 0
+            || v.height % 2 != 0
+    }) {
+        return Err("Nieprawidłowy rozmiar obrazu".into());
+    }
+    for c in p.clips.as_deref().unwrap_or(&[]) {
+        if c.transform.as_ref().is_some_and(|t| {
+            !t.scale.is_finite()
+                || !(0.1..=4.0).contains(&t.scale)
+                || !t.x.is_finite()
+                || !t.y.is_finite()
+                || t.x.abs() > 2.0
+                || t.y.abs() > 2.0
+        }) {
+            return Err("Nieprawidłowe kadrowanie filmu".into());
+        }
+    }
+    for a in &p.assets {
+        if a.provenance.as_ref().is_some_and(|v| {
+            !["kenney", "openverse"].contains(&v.provider.as_str())
+                || v.external_id.len() > 200
+                || v.title.len() > 2000
+                || v.creator.len() > 2000
+                || v.license.len() > 100
+                || v.license_url.len() > 2000
+                || v.source_url.len() > 2000
+                || v.attribution.len() > 10000
+        }) {
+            return Err("Nieprawidłowe informacje o licencji audio".into());
+        }
+    }
     if p.assets.len() > 100 {
         return Err("Zbyt wiele źródeł".into());
     }
@@ -523,7 +590,7 @@ mod tests {
     #[test]
     fn migrate_v1_and_validate_layout() {
         let project = parse(&json()).unwrap();
-        assert_eq!(project.schema_version, 7);
+        assert_eq!(project.schema_version, 8);
         assert!(!project.styles["default"].uppercase);
         assert_eq!(project.styles["default"].max_lines, 2);
         let mut value = serde_json::to_value(project).unwrap();

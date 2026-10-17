@@ -24,9 +24,9 @@ export function insertLibraryItem(p:Project,id:string,at:number,requestedTrack?:
  const clip:Clip={id:crypto.randomUUID(),sourceIn:0,sourceOut:m.duration,start,track,kind:m.kind,...(id==='primary'?{}:{assetId:id})};
  return {...p,clips:[...clips,clip]};
 }
-export function registerMedia(p:Project,media:{path:string;name:string;duration:number},kind:'video'|'audio'):Project{
- if(libraryItems(p).length>=100)throw Error('Maksymalnie 100 plików w bibliotece');
+export function registerMedia(p:Project,media:{path:string;name:string;duration:number;provenance?:Project['assets'][number]['provenance']},kind:'video'|'audio'):Project{
  if(libraryItems(p).some(m=>m.path===media.path))return p;
+ if(libraryItems(p).length>=100)throw Error('Maksymalnie 100 plików w bibliotece');
  const clips=projectClips(p);
  return !p.media&&kind==='video'?{...p,media,clips}:{...p,clips,assets:[...p.assets,{...media,id:crypto.randomUUID(),kind,segments:[]}]};
 }

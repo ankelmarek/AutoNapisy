@@ -5,6 +5,7 @@ use crate::{
     waveform::{self, Peaks},
     Access,
 };
+use base64::Engine;
 use std::{
     path::Path,
     sync::{Arc, Mutex},
@@ -12,6 +13,7 @@ use std::{
 use tauri::State;
 #[derive(Default)]
 pub struct AnalysisState {
+    frame_job: Mutex<Option<Arc<Job>>>,
     jobs: Arc<Mutex<Vec<Arc<Job>>>>,
     gate: Arc<Mutex<()>>,
 }
@@ -21,6 +23,74 @@ impl AnalysisState {
             job.cancel();
         }
     }
+}
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LayerFrame {
+    id: String,
+    png: String,
+    source_aspect: f64,
+}
+#[derive(serde::Serialize)]
+pub struct LayerFrames {
+    width: u32,
+    height: u32,
+    layers: Vec<LayerFrame>,
+}
+#[tauri::command]
+pub async fn layer_frames(
+    json: String,
+    time: f64,
+    access: State<'_, Access>,
+    tools: State<'_, ToolState>,
+    analysis: State<'_, AnalysisState>,
+) -> Result<LayerFrames, String> {
+    let p = crate::mlt_commands::authorized(&json, &access)?;
+    if !time.is_finite() || time < 0. || time > 86400. {
+        return Err("Nieprawidłowa pozycja podglądu".into());
+    }
+    let ffmpeg = {
+        let t = tools.0.lock().unwrap();
+        validate_tool("ffmpeg", t.ffmpeg.as_deref().ok_or("Wskaż FFmpeg")?)?
+    };
+    let job = Arc::new(Job::new(0));
+    if let Some(old) = analysis.frame_job.lock().unwrap().replace(job.clone()) {
+        old.cancel();
+    }
+    {
+        let mut jobs = analysis.jobs.lock().unwrap();
+        jobs.retain(|j| j.active());
+        if jobs.len() > 32 {
+            return Err("Podgląd jest zajęty".into());
+        }
+        jobs.push(job.clone());
+    }
+    let gate = analysis.gate.clone();
+    tauri::async_runtime::spawn_blocking(move||{
+      let result=(||{
+       let _guard=gate.lock().map_err(|_|"Błąd kolejki podglądu")?;
+       job.check()?;
+       let dir=tempfile::tempdir().map_err(|e|e.to_string())?;
+       let mut meta=if let Some(m)=&p.media{crate::rendering::inspect(&job,&ffmpeg,Path::new(&m.path),dir.path())?}else{crate::rendering::Metadata{width:1280,height:720,duration:1.,has_audio:false}};
+       crate::framing::apply_canvas(&p,&mut meta);
+       let scale=(540./meta.width.max(meta.height) as f64).min(1.);
+       let width=((meta.width as f64*scale/2.).round() as u32*2).max(2);let height=((meta.height as f64*scale/2.).round() as u32*2).max(2);
+       if (0..2).any(|track|crate::effects::active_transition(&p,time,track).is_some()){return Err("Ustaw głowicę poza przejściem, aby kadrować film".into());}
+       let mut layers=vec![];
+       for c in crate::effects::effective_clips(&p).iter().filter(|c|c.kind=="video"&&c.start<=time&&time<c.end()&&!p.tracks.video_hidden(c)){
+        let path=Path::new(p.clip_path(c).ok_or("Brak filmu warstwy")?);
+        let source=crate::rendering::inspect(&job,&ffmpeg,path,dir.path())?;
+        let output=dir.path().join(format!("frame-{}.png",layers.len()));
+        let filter=format!("{}scale={width}:{height}:force_original_aspect_ratio=decrease,format=rgba,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=black@0,setsar=1",crate::effects::color_filter(c));
+        let mut args:Vec<std::ffi::OsString>=["-v","error","-nostdin","-y","-ss",&(c.source_in+time-c.start).to_string(),"-protocol_whitelist","file,pipe","-i"].iter().map(Into::into).collect();args.push(path.as_os_str().to_owned());
+        args.extend(["-frames:v","1","-vf",&filter,"-threads","1"].iter().map(std::ffi::OsString::from));args.push(output.clone().into_os_string());
+        crate::transcription::run_process(&job,&ffmpeg,&args,false,dir.path())?;
+        let data=std::fs::read(output).map_err(|e|e.to_string())?;if data.len()>8*1024*1024{return Err("Klatka podglądu jest zbyt duża".into());}
+        layers.push(LayerFrame{id:c.id.clone(),png:base64::engine::general_purpose::STANDARD.encode(data),source_aspect:source.width as f64/source.height as f64});
+       }
+       Ok(LayerFrames{width,height,layers})
+      })();job.status.lock().unwrap().state=if result.is_ok(){"completed"}else{"failed"}.into();result
+    }).await.map_err(|e|e.to_string())?
 }
 #[tauri::command]
 pub async fn audio_waveform(

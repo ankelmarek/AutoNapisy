@@ -89,7 +89,10 @@ fn actual_mlt_tracks() {
     fs::create_dir(&hidden).unwrap();
     let out = mlt::assemble(&job, &melt, &ff, &p, &meta, &hidden).unwrap();
     let px = pixel(&ff, &out, "0.8");
-    assert!(px[0] > 180 && px[2] < 40, "hidden V2 must reveal V1: {px:?}");
+    assert!(
+        px[0] > 180 && px[2] < 40,
+        "hidden V2 must reveal V1: {px:?}"
+    );
     p.tracks.v1.hidden = true;
     let hidden_all = dir.path().join("hidden-all");
     fs::create_dir(&hidden_all).unwrap();
@@ -181,9 +184,13 @@ fn actual_mlt_tracks() {
     // Measure linked sound, independent sound, mixing and clip gain in the actual engine.
     p.clips.as_mut().unwrap()[0].adjustments = None;
     let mut levels = vec![];
-    for (label, volume, independent) in
-        [("full", 1., false), ("half", 0.5, false), ("mix", 1., true), ("mute-video",1.,false), ("mute-a1",1.,true)]
-    {
+    for (label, volume, independent) in [
+        ("full", 1., false),
+        ("half", 0.5, false),
+        ("mix", 1., true),
+        ("mute-video", 1., false),
+        ("mute-a1", 1., true),
+    ] {
         p.tracks = Default::default();
         p.tracks.v1.muted = label == "mute-video";
         p.tracks.a1.muted = label == "mute-a1";
@@ -225,6 +232,9 @@ fn actual_mlt_tracks() {
         "audio mix RMS {levels:?}"
     );
     assert!(levels[3] < 1., "V1 mute RMS {levels:?}");
-    assert!((levels[4]/levels[0]-0.5).abs()<0.05,"A1 mute must preserve independent A2 {levels:?}");
+    assert!(
+        (levels[4] / levels[0] - 0.5).abs() < 0.05,
+        "A1 mute must preserve independent A2 {levels:?}"
+    );
     println!("MLT actual layers, cuts, gap, Unicode, transitions, audio mixing and gain: OK");
 }

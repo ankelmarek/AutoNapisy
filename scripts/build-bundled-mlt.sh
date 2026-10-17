@@ -127,8 +127,8 @@ p=Path(sys.argv[1]);s=p.read_text().replace('${FFMPEG_LIBRARIES}', '"-Wl,--start
 PY
 static_libs=$(pkg-config --static --libs libavformat libavcodec libavfilter libswscale libswresample libavutil | tr ' ' ';')
 opts=()
-for name in DECKLINK FREI0R GDK GLAXNIMATE_QT6 JACKRACK KDENLIVE MOVIT NDI OLDFILM OPENCV OPENFX PLACEBO PLUS PLUSGPL QT6 RESAMPLE RTAUDIO RUBBERBAND RNNOISE SDL1 SDL2 SOX SPATIALAUDIO VIDSTAB VORBIS XINE; do opts+=("-DMOD_$name=OFF"); done
-cmake -S "$work/mlt" -B "$work/mlt-out" -G 'MinGW Makefiles' -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$(cygpath -m "$install")" -DCMAKE_PREFIX_PATH="$prefix_win;$ffprefix_win" -DCMAKE_C_FLAGS=-DMELT_NOSDL -DCMAKE_DISABLE_FIND_PACKAGE_SDL2=ON -DCMAKE_SHARED_LINKER_FLAGS='-static-libgcc -static-libstdc++' -DCMAKE_MODULE_LINKER_FLAGS='-static-libgcc -static-libstdc++' -DCMAKE_EXE_LINKER_FLAGS='-static-libgcc -static-libstdc++' -DGPL=ON -DGPL3=OFF -DUSE_AVDEVICE=OFF -DMOD_AVFORMAT=ON -DMOD_XML=ON -DMOD_NORMALIZE=ON -DROLVIXA_FFMPEG_STATIC_DEPS="$static_libs" -DBUILD_TESTING=OFF -DBUILD_DOCS=OFF -DCLANG_FORMAT=OFF "${opts[@]}"
+for name in DECKLINK FREI0R GDK GLAXNIMATE_QT6 JACKRACK KDENLIVE MOVIT NDI OLDFILM OPENCV OPENFX PLACEBO PLUSGPL QT6 RESAMPLE RTAUDIO RUBBERBAND RNNOISE SDL1 SDL2 SOX SPATIALAUDIO VIDSTAB VORBIS XINE; do opts+=("-DMOD_$name=OFF"); done
+cmake -S "$work/mlt" -B "$work/mlt-out" -G 'MinGW Makefiles' -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$(cygpath -m "$install")" -DCMAKE_PREFIX_PATH="$prefix_win;$ffprefix_win" -DCMAKE_C_FLAGS=-DMELT_NOSDL -DCMAKE_DISABLE_FIND_PACKAGE_SDL2=ON -DCMAKE_SHARED_LINKER_FLAGS='-static-libgcc -static-libstdc++' -DCMAKE_MODULE_LINKER_FLAGS='-static-libgcc -static-libstdc++' -DCMAKE_EXE_LINKER_FLAGS='-static-libgcc -static-libstdc++' -DGPL=ON -DGPL3=OFF -DUSE_AVDEVICE=OFF -DMOD_PLUS=ON -DMOD_AVFORMAT=ON -DMOD_XML=ON -DMOD_NORMALIZE=ON -DROLVIXA_FFMPEG_STATIC_DEPS="$static_libs" -DBUILD_TESTING=OFF -DBUILD_DOCS=OFF -DCLANG_FORMAT=OFF "${opts[@]}"
 cmake --build "$work/mlt-out" -j "$jobs"
 cmake --install "$work/mlt-out"
 # All compiler runtimes stay beside melt. Never rely on the developer's PATH.
@@ -153,4 +153,6 @@ export MLT_PROFILES_PATH="$install/share/mlt/profiles"
 "$install/melt.exe" --version
 "$install/melt.exe" -query consumer=avformat > "$work/mlt-services.txt" 2>&1
 grep -q 'identifier: avformat' "$work/mlt-services.txt"
+"$install/melt.exe" -query transition=affine > "$work/mlt-affine.txt" 2>&1
+grep -q 'identifier: affine' "$work/mlt-affine.txt"
 printf 'MLT 7.42.0 built from verified sources\n' > "$install/BUILD.txt"

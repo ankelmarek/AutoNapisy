@@ -12,5 +12,7 @@ try {
   & $bash -lc './scripts/build-bundled-mlt.sh'
   if ($LASTEXITCODE) { throw 'Budowanie MLT nie powiodło się' }
   & "$PSScriptRoot/build-bundled-whisper.ps1"
+  python "$PSScriptRoot/prepare-audio.py"
+  if ($LASTEXITCODE) { throw "Przygotowanie biblioteki audio nie powiodło się" }
   & "$PSScriptRoot/license-report.ps1"
 } finally { Pop-Location }

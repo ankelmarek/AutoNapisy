@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useMemo } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke,convertFileSrc } from "@tauri-apps/api/core";
+import AudioLibrary,{type LibraryAudio} from "./AudioLibrary";
 import { backend, preview, type Diagnostics } from "./adapters";
 import {
   transcription,
@@ -28,6 +29,9 @@ import Icon from "./Icons";
 import rolvixaIcon from "./assets/rolvixa-icon.png";
 import {libraryItems,insertLibraryItem,registerMedia} from "./library";
 import { useProjectHistory } from "./useHistory";
+import FrameEditor from './FrameEditor';
+import TransformControls from './TransformControls';
+import LayersPanel from './LayersPanel';
 import { useMltPlayback } from "./useMltPlayback";
 import { clipAt, editDuration, projectClips, compositionSegments, compositionProject, clipMedia, appendMedia } from "./editing";
 import { rendering, type ExportStatus } from "./rendering";
@@ -67,11 +71,13 @@ export default function App() {
   const stage=useRef<HTMLDivElement>(null);
   const [stageSize,setStageSize]=useState({width:0,height:0}),[aspect,setAspect]=useState(16/9);
   useEffect(()=>{const el=stage.current;if(!el)return;const observer=new ResizeObserver(()=>setStageSize({width:el.clientWidth,height:el.clientHeight}));observer.observe(el);return()=>observer.disconnect();},[]);
-  const surfaceWidth=Math.min(stageSize.width,stageSize.height*aspect);
+  const canvasAspect=project.canvas?project.canvas.width/project.canvas.height:aspect;
+  const surfaceWidth=Math.min(stageSize.width,stageSize.height*canvasAspect);
+  const [frameAspects,setFrameAspects]=useState<Record<string,number>>({});
   const elements=useRef(new Map<string,HTMLMediaElement>());
   const [sources,setSources]=useState<Record<string,string>>({});
-  const [leftTab,setLeftTab]=useState<"files"|"captions"|"effects">("files");
-  const [inspectorTab,setInspectorTab]=useState<'video'|'captions'>('video'),[selectedClip,setSelectedClip]=useState(''),[selectedCaption,setSelectedCaption]=useState(''),[selectedTransition,setSelectedTransition]=useState('');
+  const [leftTab,setLeftTab]=useState<"files"|"captions"|"effects"|"audio">("files");
+  const [inspectorTab,setInspectorTab]=useState<'video'|'captions'|'layers'>('video'),[selectedClip,setSelectedClip]=useState(''),[selectedCaption,setSelectedCaption]=useState(''),[selectedTransition,setSelectedTransition]=useState('');
   const [effectChoice,setEffectChoice]=useState<EffectChoice>({kind:'fade',duration:.4});
   const captionInput=useRef<HTMLTextAreaElement>(null);
   const playback = useMltPlayback(project);
@@ -121,6 +127,7 @@ export default function App() {
     if(added){setProject(next);setDirty(true);}setSources(prev=>({...prev,...prepared}));setSource(previous=>previous||Object.values(prepared)[0]||'');
     setMessage(`Dodano do biblioteki: ${added}. Dodaj wybrane pliki na oś przyciskiem +.${failed.length?' Niedodane: '+failed.join('; '):''}`);
   });
+  const registerAudio=(item:LibraryAudio)=>{const next=registerMedia(latestProject.current,{path:item.path,name:item.name,duration:item.duration,provenance:item.provenance},'audio');if(next!==latestProject.current){latestProject.current=next;changeProject(next);}setSources(prev=>({...prev,[item.path]:convertFileSrc(item.path)}));return libraryItems(next).find(a=>a.path===item.path)!.id;};
   const importVideo=()=>importMedia('video');
   const open = () =>
     run(async () => {
@@ -302,9 +309,10 @@ export default function App() {
           <div className="panelhead">
             <div className="library-tabs" role="tablist" aria-label="Zasoby projektu">
               <button id="files-tab" role="tab" aria-selected={leftTab==='files'} aria-controls="files-panel" onClick={()=>setLeftTab('files')}><Icon name="files" size={16}/>Pliki <small>{libraryItems(project).length}</small></button>
-              <button id="captions-tab" role="tab" aria-selected={leftTab==='captions'} aria-controls="captions-panel" onClick={()=>setLeftTab('captions')}><Icon name="captions" size={16}/>Napisy</button><button role="tab" aria-selected={leftTab==='effects'} onClick={()=>setLeftTab('effects')}>Efekty</button>
+              <button id="captions-tab" role="tab" aria-selected={leftTab==='captions'} aria-controls="captions-panel" onClick={()=>setLeftTab('captions')}><Icon name="captions" size={16}/>Napisy</button><button id="audio-tab" role="tab" aria-selected={leftTab==='audio'} aria-controls="audio-panel" onClick={()=>setLeftTab('audio')}><Icon name="audio" size={15}/>Audio</button><button role="tab" aria-selected={leftTab==='effects'} onClick={()=>setLeftTab('effects')}>Efekty</button>
             </div>
           </div>
+          {leftTab==='audio'&&<AudioLibrary project={project} locked={locked} timelinePlaying={playing} onImport={()=>importMedia('audio')} onRegister={registerAudio} onPause={playback.pause} onAdd={id=>{try{playback.pause();changeProject(insertLibraryItem(latestProject.current,id,time));setMessage('Dodano audio na oś czasu.');}catch(e){setMessage(String(e));}}}/>}
           {leftTab==='effects'&&<EffectsLibrary chosen={effectChoice} onChoose={setEffectChoice}/>}
           {leftTab==='files'&&<MediaLibrary project={project} sources={sources} locked={locked} onImport={importVideo}
             onAdd={id=>{try{playback.pause();const next=insertLibraryItem(project,id,time);setProject(next);setDirty(true);setMessage('Dodano plik z biblioteki na oś czasu.');}catch(e){setMessage(String(e));}}}/>}
@@ -379,12 +387,14 @@ export default function App() {
             <h2>Podgląd wideo</h2>
             <span>{project.media?.name ?? "Brak filmu"}</span>
           </div>
+          <div className="preview-toolbar"><label>Format<select aria-label="Format obrazu" disabled={locked} value={project.canvas?`${project.canvas.width}x${project.canvas.height}`:'source'} onChange={e=>{playback.pause();const [width,height]=e.target.value.split('x').map(Number);changeProject({...project,canvas:e.target.value==='source'?null:{width,height}});}}><option value="source">Źródłowy</option><option value="1080x1920">9:16 · Rolka</option><option value="1920x1080">16:9 · Poziomo</option><option value="1080x1080">1:1 · Kwadrat</option></select></label><button aria-pressed={inspectorTab==='layers'} onClick={()=>setInspectorTab('layers')}>Warstwy</button></div>
           <div className="stage" ref={stage}>
             {libraryItems(project).length ? (
-              <div className="composition-surface" ref={captionSurface} style={{width:surfaceWidth,height:surfaceWidth/aspect}}>
+              <div className="composition-surface" ref={captionSurface} style={{width:surfaceWidth,height:surfaceWidth/canvasAspect}}>
                 <video ref={playback.video} className="mlt-video" preload="auto" playsInline/>
                 {playback.loading&&<span className="transition-preparing">Przygotowywanie podglądu MLT…</span>}
                 {playback.error&&<div className="preview-error" role="alert"><strong>Podgląd niedostępny</strong><p>{playback.error}</p><button onClick={playback.retry}>Ponów podgląd</button></div>}
+                <FrameEditor project={project} time={Math.min(time,Math.max(0,duration-1/30))} playing={playing} locked={locked} selectedId={selected?.id??''} onSelect={id=>{setSelectedClip(id);setSelectedTransition('');setInspectorTab('layers');}} onPause={playback.pause} onChange={changeProject} onAspects={setFrameAspects}/>
                 <CaptionOverlay video={captionSurface} project={displayed} time={time} compositionCanvas />
                 {gap && <span className="gap-label">{duration?'Przerwa między ujęciami':'Dodaj film z biblioteki na oś czasu'}</span>}
               </div>
@@ -432,7 +442,9 @@ export default function App() {
             <h2>Właściwości</h2>
           </div>
           <div className="panelbody">
-            <div className="inspector-tabs"><button aria-pressed={inspectorTab==='video'} onClick={()=>setInspectorTab('video')}>Film / audio</button><button aria-pressed={inspectorTab==='captions'} onClick={()=>setInspectorTab('captions')}>Napisy</button></div>
+            <div className="inspector-tabs"><button aria-pressed={inspectorTab==='video'} onClick={()=>setInspectorTab('video')}>Film / audio</button><button aria-pressed={inspectorTab==='captions'} onClick={()=>setInspectorTab('captions')}>Napisy</button><button aria-pressed={inspectorTab==='layers'} onClick={()=>setInspectorTab('layers')}>Warstwy</button></div>
+            {inspectorTab==='layers'&&<LayersPanel project={project} time={time} selectedId={selected?.id??''} locked={locked} onSelect={id=>{playback.pause();const c=projectClips(project).find(c=>c.id===id)!;if(time<c.start||time>=c.start+c.sourceOut-c.sourceIn)seek(c.start);setSelectedClip(id);setSelectedTransition('');}} onCaptions={()=>setInspectorTab('captions')} onChange={changeProject}/>}
+            {(inspectorTab==='video'||inspectorTab==='layers')&&<TransformControls project={project} clip={selected} sourceAspect={frameAspects[selected?.id??'']??0} canvasAspect={canvasAspect} locked={locked} onChange={changeProject}/>}
             {inspectorTab==='video'&&<VideoProperties project={project} clip={selected} locked={locked} transitionId={selectedTransition} onChange={changeProject}/>}
             <div hidden={inspectorTab!=='captions'}>
             {caption&&<div className="caption-editor"><h3>Edycja zaznaczonego napisu</h3><textarea ref={captionInput} aria-label="Tekst zaznaczonego napisu" value={caption.text} disabled={locked} onChange={e=>changeProject(editCaption(project,caption,{text:e.target.value}))}/><div><label>Początek<input aria-label="Początek napisu" type="number" step={.01} value={Number(caption.start.toFixed(3))} disabled={locked} onChange={e=>{if(Number.isFinite(e.target.valueAsNumber))changeProject(resizeCaption(project,caption,'left',e.target.valueAsNumber-caption.start));}}/></label><label>Koniec<input aria-label="Koniec napisu" type="number" step={.01} value={Number(caption.end.toFixed(3))} disabled={locked} onChange={e=>{if(Number.isFinite(e.target.valueAsNumber))changeProject(resizeCaption(project,caption,'right',e.target.valueAsNumber-caption.end));}}/></label></div></div>}

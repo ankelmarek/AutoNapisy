@@ -42,3 +42,13 @@ Microsoft Edge WebView2 jest składnikiem systemowym na warunkach Microsoft;
 jego licencja nie jest licencją MIT/GPL aplikacji ani pozostałych narzędzi.
 Instalator może doinstalować WebView2, jeśli brakuje go w systemie.
 https://developer.microsoft.com/microsoft-edge/webview2/
+
+Kenney Interface Sounds — 100 sound effects
+Creator: Kenney (https://kenney.nl/assets/interface-sounds)
+License: Creative Commons CC0 1.0 Universal
+https://creativecommons.org/publicdomain/zero/1.0/
+Original archive, license and conversion recipe are included in sources/ and licenses/.
+
+Openverse is a search service, not a blanket license for returned recordings.
+Each imported recording retains its creator, source, license URL and attribution.
+The user must follow the license of each selected recording.

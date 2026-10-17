@@ -1,6 +1,6 @@
 import type { Project } from './model';
 import {presentationClips} from './effects';
-export type Clip = { id: string; sourceIn: number; sourceOut: number; start: number; assetId?: string; track?: 0|1; kind?: "video"|"audio"; volume?: number; adjustments?: {brightness:number;contrast:number;saturation:number} };
+export type Clip = { id: string; sourceIn: number; sourceOut: number; start: number; assetId?: string; track?: 0|1; kind?: "video"|"audio"; volume?: number; transform?: {scale:number;x:number;y:number}; adjustments?: {brightness:number;contrast:number;saturation:number} };
 export const MIN_CLIP = 0.05;
 export const clipEnd = (c: Clip) => c.start + c.sourceOut - c.sourceIn;
 export const ordered = (clips: Clip[]) => [...clips].sort((a,b)=>a.start-b.start);

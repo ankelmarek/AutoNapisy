@@ -7,7 +7,7 @@ if ($env:GITHUB_ENV) { "ROLVIXA_INSTALLER=$($installer.FullName)" | Out-File -Fi
 $destination = Join-Path $env:RUNNER_TEMP 'RolVixa test Łódź'
 $process = Start-Process -FilePath $installer.FullName -ArgumentList '/S', "/D=$destination" -Wait -PassThru
 if ($process.ExitCode -ne 0) { throw "Instalator zwrócił $($process.ExitCode)" }
-foreach ($relative in @('rolvixa.exe', 'vendor/mlt/melt.exe', 'vendor/mlt/BUILD.txt', 'licenses/mlt/README.txt', 'sources/mlt.tar.gz', 'sources/libxml2.tar.gz', 'sources/libiconv.tar.gz', 'sources/dlfcn.tar.gz', 'vendor/ffmpeg.exe', 'vendor/ffprobe.exe', 'vendor/whisper-cli.exe', 'licenses/FFmpeg-GPL-2.0.txt', 'licenses/whisper.cpp-MIT.txt', 'licenses/zaleznosci-frontend.json', 'licenses/zaleznosci-rust.html', 'sources/ffmpeg.tar.gz', 'sources/x264.tar.gz', 'sources/zlib.tar.gz', 'licenses/zlib.txt', 'sources/whisper.cpp.tar.gz')) {
+foreach ($relative in @('vendor/audio/catalog.json', 'licenses/Kenney-Interface-Sounds-CC0.txt', 'sources/kenney-interface-sounds.zip', 'sources/prepare-audio.py', 'rolvixa.exe', 'vendor/mlt/melt.exe', 'vendor/mlt/BUILD.txt', 'licenses/mlt/README.txt', 'sources/mlt.tar.gz', 'sources/libxml2.tar.gz', 'sources/libiconv.tar.gz', 'sources/dlfcn.tar.gz', 'vendor/ffmpeg.exe', 'vendor/ffprobe.exe', 'vendor/whisper-cli.exe', 'licenses/FFmpeg-GPL-2.0.txt', 'licenses/whisper.cpp-MIT.txt', 'licenses/zaleznosci-frontend.json', 'licenses/zaleznosci-rust.html', 'sources/ffmpeg.tar.gz', 'sources/x264.tar.gz', 'sources/zlib.tar.gz', 'licenses/zlib.txt', 'sources/whisper.cpp.tar.gz')) {
   if (-not (Test-Path (Join-Path $destination $relative))) { throw "W instalacji brakuje $relative" }
 }
 $video = Join-Path $env:RUNNER_TEMP 'film Łódź.mp4'
@@ -39,3 +39,12 @@ $mltOutput = Join-Path $env:RUNNER_TEMP 'installed-mlt.mp4'
 & "$destination/vendor/mlt/melt.exe" $graph -consumer "avformat:$mltOutput" vcodec=libx264 acodec=aac real_time=-2 terminate_on_pause=1
 if ($LASTEXITCODE -or -not (Test-Path $mltOutput)) { throw 'Zainstalowany MLT nie renderuje po przeniesieniu do folderu Unicode' }
 Write-Output 'Installed, relocated MLT runtime and avformat decoder/encoder: OK'
+
+$catalog = Get-Content (Join-Path $destination 'vendor/audio/catalog.json') -Raw | ConvertFrom-Json
+if ($catalog.Count -ne 100) { throw 'Niepełna biblioteka Kenney' }
+foreach ($sound in $catalog) {
+  if (-not (Test-Path (Join-Path $destination "vendor/audio/$($sound.file)"))) { throw "Brakuje efektu: $($sound.file)" }
+}
+& "$destination/vendor/ffprobe.exe" -v error -show_entries format=duration (Join-Path $destination "vendor/audio/$($catalog[0].file)")
+if ($LASTEXITCODE) { throw 'Dźwięki Kenney nie dekodują się po instalacji' }
+Write-Output 'Installed Kenney: 100 local WAV sounds and CC0 license: OK'

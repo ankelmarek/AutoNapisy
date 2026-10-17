@@ -51,7 +51,7 @@ jobs:
         with:
           path: src-tauri/.bundled
           restore-keys: vendor-x64-v1-
-          key: vendor-x64-v1-${{ hashFiles('scripts/build-bundled-*', 'scripts/license-report.ps1', 'licenses/**', 'src-tauri/about.toml', 'package-lock.json', 'src-tauri/Cargo.lock') }}
+          key: vendor-x64-v1-${{ hashFiles('scripts/build-bundled-*', 'scripts/prepare-audio.py', 'scripts/license-report.ps1', 'licenses/**', 'src-tauri/about.toml', 'package-lock.json', 'src-tauri/Cargo.lock') }}
       - name: Inspect restored FFmpeg resources
         id: ffmpeg-ready
         run: |
@@ -136,6 +136,11 @@ jobs:
       - name: Build whisper.cpp and collect source licenses
         if: steps.tools-ready.outputs.ready != 'true'
         run: ./scripts/build-bundled-whisper.ps1
+      - name: Prepare offline Kenney audio library
+        run: |
+          $ready = (Test-Path src-tauri/.bundled/vendor/audio/catalog.json) -and (Test-Path src-tauri/.bundled/sources/prepare-audio.py)
+          if ($ready) { $ready = (Get-FileHash scripts/prepare-audio.py).Hash -eq (Get-FileHash src-tauri/.bundled/sources/prepare-audio.py).Hash }
+          if (-not $ready) { python scripts/prepare-audio.py; if ($LASTEXITCODE) { throw 'Nie udało się przygotować dźwięków Kenney' } }
       - uses: taiki-e/install-action@cargo-about
         if: steps.vendor-cache.outputs.cache-hit != 'true'
       - name: Generate dependency license reports
@@ -146,7 +151,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: src-tauri/.bundled
-          key: vendor-x64-v1-${{ hashFiles('scripts/build-bundled-*', 'scripts/license-report.ps1', 'licenses/**', 'src-tauri/about.toml', 'package-lock.json', 'src-tauri/Cargo.lock') }}
+          key: vendor-x64-v1-${{ hashFiles('scripts/build-bundled-*', 'scripts/prepare-audio.py', 'scripts/license-report.ps1', 'licenses/**', 'src-tauri/about.toml', 'package-lock.json', 'src-tauri/Cargo.lock') }}
       - name: Test real montage export with bundled FFmpeg
         env:
           AUTONAPISY_FFMPEG: ${{ github.workspace }}/src-tauri/.bundled/vendor/ffmpeg.exe
@@ -157,6 +162,11 @@ jobs:
           ROLVIXA_MLT: ${{ github.workspace }}/src-tauri/.bundled/vendor/mlt/melt.exe
           AUTONAPISY_FFMPEG: ${{ github.workspace }}/src-tauri/.bundled/vendor/ffmpeg.exe
         run: cargo test --locked --manifest-path .test-core/Cargo.toml --test mlt_engine -- --ignored --nocapture
+      - name: Test real framing with MLT and FFmpeg
+        env:
+          ROLVIXA_MLT: ${{ github.workspace }}/src-tauri/.bundled/vendor/mlt/melt.exe
+          AUTONAPISY_FFMPEG: ${{ github.workspace }}/src-tauri/.bundled/vendor/ffmpeg.exe
+        run: cargo test --locked --manifest-path .test-core/Cargo.toml --test framing -- --ignored --nocapture
       - run: npm run tauri -- build --target x86_64-pc-windows-msvc --config src-tauri/tauri.bundled.conf.json
       - name: Test actual installation and bundled tools
         id: installation

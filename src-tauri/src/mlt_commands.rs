@@ -162,6 +162,7 @@ pub fn start_mlt_preview(
                         has_audio: true,
                     }
                 };
+                crate::framing::apply_canvas(&p, &mut meta);
                 *aspect.lock().unwrap() = Some(meta.width as f64 / meta.height as f64);
                 let scale = (540.0 / meta.width.max(meta.height) as f64).min(1.0);
                 meta.width = ((meta.width as f64 * scale / 2.).round() as u32 * 2).max(2);

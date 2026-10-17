@@ -191,6 +191,7 @@ pub async fn begin_video_export(
                             failed(&running, "Ujęcie wychodzi poza rzeczywisty film".into());
                             return;
                         }
+                        crate::framing::apply_canvas(&session.project, &mut meta);
                         meta.duration = project::composition_duration(&session.project);
                         session.metadata = Some(meta.clone());
                         let mut status = running.status.lock().unwrap();
