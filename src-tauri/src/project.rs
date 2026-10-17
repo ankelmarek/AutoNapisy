@@ -396,8 +396,12 @@ pub fn parse(json: &str) -> Result<Project, String> {
         validation.segments = segments.clone();
         if let Some(media) = &mut validation.media {
             media.duration = Some(86400.0);
-        } else if !segments.is_empty() {
-            return Err("Brak montażu dla napisów".into());
+        } else {
+            validation.media = Some(Media {
+                path: "timeline".into(),
+                name: "Montaż audio".into(),
+                duration: Some(86400.0),
+            });
         }
         parse(&serde_json::to_string(&validation).map_err(|e| e.to_string())?)?;
     }
@@ -476,6 +480,21 @@ mod tests {
         let mut value = serde_json::to_value(project).unwrap();
         value["styles"]["default"]["maxLines"] = serde_json::json!(4);
         assert!(parse(&value.to_string()).is_err());
+    }
+    #[test]
+    fn timeline_captions_support_audio_only_projects() {
+        let mut v: serde_json::Value = serde_json::from_str(&json()).unwrap();
+        v["schemaVersion"] = serde_json::json!(6);
+        v["clips"] = serde_json::json!([]);
+        v["timelineSegments"] = serde_json::json!([{"id":"t","text":"Mowa","start":1,"end":2,"words":[],"styleId":"default"}]);
+        assert_eq!(
+            parse(&v.to_string())
+                .unwrap()
+                .timeline_segments
+                .unwrap()
+                .len(),
+            1
+        );
     }
     #[test]
     fn unicode_roundtrip() {
