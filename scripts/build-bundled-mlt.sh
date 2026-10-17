@@ -9,9 +9,11 @@ prefix="$work/prefix"
 install="$out/vendor/mlt"
 mkdir -p "$work" "$prefix" "$install" "$out/sources" "$out/licenses/mlt"
 jobs=$(nproc); if [ "$jobs" -gt 4 ]; then jobs=4; fi
-if [ ! -f "$ffprefix/lib/pkgconfig/libavformat.pc" ]; then
+ffmpeg_recipe=$(sha256sum "$root/scripts/build-bundled-ffmpeg.sh" | cut -d' ' -f1)
+if [ ! -f "$ffprefix/lib/pkgconfig/libavformat.pc" ] || [ "$(cat "$ffprefix/lib/pkgconfig/.rolvixa-recipe" 2>/dev/null || true)" != "$ffmpeg_recipe" ]; then
   "$root/scripts/build-bundled-ffmpeg.sh"
   make -C "$root/.tools/vendor-build/ffmpeg" -j"$jobs" install-libs install-headers install-pkgconfig
+  printf '%s' "$ffmpeg_recipe" > "$ffprefix/lib/pkgconfig/.rolvixa-recipe"
 fi
 fetch() {
  local name="$1" url="$2" sum="$3"
@@ -36,6 +38,15 @@ for pc in "$ffprefix"/lib/pkgconfig/*.pc "$prefix"/lib/pkgconfig/*.pc; do
  sed -i "s|^prefix=$ffprefix$|prefix=$ffprefix_win|;s|^prefix=$prefix$|prefix=$prefix_win|" "$pc"
 done
 export PKG_CONFIG_PATH="$prefix/lib/pkgconfig:$ffprefix/lib/pkgconfig"
+# dlfcn upstream uses LoadLibraryExA. MLT paths are UTF-8, including Unicode install folders.
+python - "$work/dlfcn/src/dlfcn.c" <<'PYCODE'
+from pathlib import Path
+import sys
+p=Path(sys.argv[1]);s=p.read_text();old='hModule = LoadLibraryExA( lpFileName, NULL, LOAD_WITH_ALTERED_SEARCH_PATH );'
+new='{\n                int count = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, lpFileName, -1, NULL, 0);\n                WCHAR *wide = count > 0 ? (WCHAR *) malloc(count * sizeof(WCHAR)) : NULL;\n                if (wide) {\n                    MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, lpFileName, -1, wide, count);\n                    hModule = LoadLibraryExW(wide, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);\n                    free(wide);\n                } else { hModule = NULL; }\n            }'
+if old not in s: raise SystemExit('Unexpected dlfcn source; review the Unicode patch')
+p.write_text(s.replace(old,new))
+PYCODE
 cmake -S "$work/dlfcn" -B "$work/dlfcn-out" -G 'MinGW Makefiles' -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_INSTALL_PREFIX="$prefix_win" -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTS=OFF
 cmake --build "$work/dlfcn-out" -j "$jobs"
 cmake --install "$work/dlfcn-out"

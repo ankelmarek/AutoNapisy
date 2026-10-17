@@ -70,6 +70,16 @@ jobs:
           path: .tools/vendor-build
           key: ffmpeg-objects-v1-${{ hashFiles('scripts/build-bundled-ffmpeg.sh') }}
           restore-keys: ffmpeg-objects-v1-
+      - name: Restore MLT compilation intermediates
+        id: mlt-objects
+        if: steps.vendor-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            .tools/mlt-build
+            .tools/vendor-build/prefix
+          key: mlt-objects-v1-${{ hashFiles('scripts/build-bundled-ffmpeg.sh') }}-${{ hashFiles('scripts/build-bundled-mlt.sh') }}
+          restore-keys: mlt-objects-v1-${{ hashFiles('scripts/build-bundled-ffmpeg.sh') }}-
       - uses: msys2/setup-msys2@v2
         if: steps.vendor-cache.outputs.cache-hit != 'true'
         with:
@@ -80,6 +90,14 @@ jobs:
         if: steps.vendor-cache.outputs.cache-hit != 'true'
         shell: msys2 {0}
         run: ./scripts/build-bundled-mlt.sh
+      - name: Preserve MLT compilation intermediates
+        if: always() && steps.vendor-cache.outputs.cache-hit != 'true' && steps.mlt-objects.outputs.cache-hit != 'true' && hashFiles('.tools/vendor-build/prefix/lib/libavformat.a') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            .tools/mlt-build
+            .tools/vendor-build/prefix
+          key: mlt-objects-v1-${{ hashFiles('scripts/build-bundled-ffmpeg.sh') }}-${{ hashFiles('scripts/build-bundled-mlt.sh') }}
       - name: Build whisper.cpp and collect source licenses
         if: steps.vendor-cache.outputs.cache-hit != 'true'
         run: ./scripts/build-bundled-whisper.ps1
