@@ -1,5 +1,13 @@
 # Kolejne etapy RolVixa
 
+## 0.16 — fade i automatyka głośności (weryfikacja)
+
+- [x] Obwiednia w schemacie v9, źródłowe czasy i zachowanie po trim/split/copy/Undo.
+- [x] Łagodne fade in/out, nakładanie przez mnożenie, klawiatura i dokładne pola czasu.
+- [x] Alt+klik, romby czas/poziom, menu/Delete, edycja liczbowa i jeden krok historii na gest.
+- [x] Wspólny model MLT/FFmpeg/eksportu/transkrypcji; rzeczywiste testy RMS, przewijania, cięcia, miksu i mute.
+- [ ] Odbiór Windows/WebView2 i instalator.
+
 ## Wykonane w 0.15 — nagłówek i poprawny zapis projektu
 
 **Wdrożone zgodnie z zatwierdzonym zakresem** po 0.14/proxy, a przed zaawansowanym audio, SmartCut i Export Studio: nowy nagłówek oraz właściwe `Zapisz` / `Zapisz jako`. Pełne kryteria i testy: **[issue #2 - nowy nagłówek i zapis](https://github.com/ankelmarek/AutoNapisy/issues/2)**.

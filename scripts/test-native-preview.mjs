@@ -73,7 +73,7 @@ try{
  await page.locator('.project-menu summary').click();await page.locator('.project-menu-popup').getByRole('button',{name:'Zapisz',exact:true}).click();await page.waitForFunction(()=>document.querySelector('.header-save').dataset.saveStatus==='saved');
  await page.waitForFunction(()=>!document.querySelector('select[aria-label="Format obrazu"]').disabled);
  const saved=JSON.parse(fs.readFileSync(process.env.ROLVIXA_TEST_PROJECT,'utf8'));
- assert.equal(saved.schemaVersion,8);assert.deepEqual(saved.canvas,{width:1080,height:1080});assert.equal(saved.clips[0].transform.scale,1.5);assert(Math.abs(saved.clips[0].transform.x-.2)<.02);
+ assert.equal(saved.schemaVersion,9);assert.deepEqual(saved.canvas,{width:1080,height:1080});assert.equal(saved.clips[0].transform.scale,1.5);assert(Math.abs(saved.clips[0].transform.x-.2)<.02);
  await page.getByRole('tab',{name:'Audio',exact:true}).click();
  await page.getByRole('button',{name:'Dźwięki',exact:true}).click();
  await page.waitForFunction(()=>document.querySelectorAll('.audio-library-item').length===100);
@@ -89,11 +89,20 @@ try{
  await page.waitForSelector('.edit-clip.audio-clip');
  await page.locator('.project-menu summary').click();await page.locator('.project-menu-popup').getByRole('button',{name:'Zapisz',exact:true}).click();await page.waitForFunction(()=>document.querySelector('.header-save').dataset.saveStatus==='saved');
  await page.waitForFunction(()=>!document.querySelector('select[aria-label="Format obrazu"]').disabled);
+
+ // Real linked-audio automation: gesture -> native JSON -> MLT preview.
+ const linkedAudio=page.getByRole('slider',{name:'Głośność: Film pionowy Łódź.mp4',exact:true}).first().locator('..');
+ const linkedBox=await linkedAudio.boundingBox();await page.keyboard.down('Alt');await page.mouse.click(linkedBox.x+60,linkedBox.y+7);await page.keyboard.up('Alt');
+ const linkedPoint=linkedAudio.locator('.audio-volume-point').first();await linkedPoint.focus();await page.keyboard.press('Shift+ArrowDown');await page.keyboard.press('Shift+ArrowDown');
+ const nativeFade=linkedAudio.locator('.fade-in');await nativeFade.focus();for(let i=0;i<5;i++)await page.keyboard.press('Shift+ArrowRight');
+ await page.locator('.header-save').click();await page.waitForFunction(()=>document.querySelector('.header-save').dataset.saveStatus==='saved');
+ const nativeAudio=JSON.parse(fs.readFileSync(process.env.ROLVIXA_TEST_PROJECT,'utf8')).clips[0].audio;assert(Math.abs(nativeAudio.points[0].gain-.8)<.001);assert(Math.abs(nativeAudio.fadeIn.duration-.5)<.001);
+ await page.waitForFunction(()=>document.querySelector('video.mlt-video')?.readyState>=2);console.log('Real audio 0.16 linked point/fade controls, native v9 persistence and regenerated MLT preview: OK');
  const audioSaved=JSON.parse(fs.readFileSync(process.env.ROLVIXA_TEST_PROJECT,'utf8'));
  const asset=audioSaved.assets.find(a=>a.provenance?.provider==='kenney');assert(asset,'Audio drag must persist source and CC0 attribution');
  assert(audioSaved.clips.some(c=>c.assetId===asset.id&&c.kind==='audio'&&c.track===1),'Audio must land on A2');
  assert.equal(asset.provenance.license,'CC0 1.0');
- console.log('Real native framing, pointer drag, v8 persistence, 100 Kenney sounds, audition and A2 drag: OK');
+ console.log('Real native framing, pointer drag, v9 persistence, 100 Kenney sounds, audition and A2 drag: OK');
  // Verify the real Openverse UI and Jamendo MP3 variants. External outages
  // remain visible diagnostics, while a successful search must retain results.
  await page.getByRole('button',{name:'Muzyka',exact:true}).click();

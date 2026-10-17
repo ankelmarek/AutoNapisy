@@ -40,6 +40,8 @@ pub fn active_transition<'a>(p: &'a Project, time: f64, track: u8) -> Option<&'a
     })
 }
 pub fn audio_gain(p: &Project, c: &Clip, start: f64) -> String {
+    let base =
+        crate::audio_envelope::expression(c, &format!("t+{}", c.source_in + start - c.start));
     for t in &p.transitions {
         let Some(to) = p
             .clips
@@ -55,13 +57,13 @@ pub fn audio_gain(p: &Project, c: &Clip, start: f64) -> String {
         }
         let offset = start - (to.start - t.duration);
         if t.from_id == c.id {
-            return format!("{}*max(0,1-(t+{offset})/{})", c.volume, t.duration);
+            return format!("({base})*max(0,1-(t+{offset})/{})", t.duration);
         }
         if t.to_id == c.id {
-            return format!("{}*min(1,(t+{offset})/{})", c.volume, t.duration);
+            return format!("({base})*min(1,(t+{offset})/{})", t.duration);
         }
     }
-    c.volume.to_string()
+    base
 }
 
 pub const KINDS: &[&str] = &[

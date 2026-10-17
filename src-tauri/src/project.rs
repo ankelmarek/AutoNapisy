@@ -110,9 +110,33 @@ pub struct Clip {
     #[serde(default = "unit_volume")]
     pub volume: f64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub audio: Option<AudioEnvelope>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub transform: Option<Transform>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub adjustments: Option<Adjustments>,
+}
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AudioEnvelope {
+    pub points: Vec<VolumePoint>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fade_in: Option<Fade>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fade_out: Option<Fade>,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct VolumePoint {
+    pub id: String,
+    pub time: f64,
+    pub gain: f64,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Fade {
+    pub anchor: f64,
+    pub duration: f64,
 }
 fn video_kind() -> String {
     "video".into()
@@ -267,7 +291,7 @@ pub fn parse(json: &str) -> Result<Project, String> {
     }
     let mut p: Project =
         serde_json::from_value(raw).map_err(|e| format!("Niepoprawny JSON projektu: {e}"))?;
-    if ![1, 2, 3, 4, 5, 6, 7, 8].contains(&p.schema_version) {
+    if ![1, 2, 3, 4, 5, 6, 7, 8, 9].contains(&p.schema_version) {
         return Err("Nieobsługiwana wersja projektu".into());
     }
     if p.schema_version < 3 {
@@ -299,7 +323,7 @@ pub fn parse(json: &str) -> Result<Project, String> {
             .into();
         }
     }
-    p.schema_version = 8;
+    p.schema_version = 9;
     if p.canvas.as_ref().is_some_and(|v| {
         v.width < 128
             || v.height < 128
@@ -386,6 +410,7 @@ pub fn parse(json: &str) -> Result<Project, String> {
             {
                 return Err("Nieprawidłowe ujęcie".into());
             }
+            crate::audio_envelope::validate(c, duration)?;
             if c.kind == "video"
                 && (p
                     .assets
@@ -590,7 +615,7 @@ mod tests {
     #[test]
     fn migrate_v1_and_validate_layout() {
         let project = parse(&json()).unwrap();
-        assert_eq!(project.schema_version, 8);
+        assert_eq!(project.schema_version, 9);
         assert!(!project.styles["default"].uppercase);
         assert_eq!(project.styles["default"].max_lines, 2);
         let mut value = serde_json::to_value(project).unwrap();

@@ -1,7 +1,7 @@
 import {useRef,useState,useMemo,useEffect,type PointerEvent} from 'react';
 import type {Project} from './model';
 import Icon from './Icons';
-import VolumeLine from './VolumeLine';
+import AudioAutomation from './AudioAutomation';
 import {resizeCaption,editCaption} from './captionEditing';
 import type {EditedSegment} from './editing';
 import {timelineClips} from './effects';
@@ -12,7 +12,7 @@ import {toggleTrack,clipMuted,videoHidden,type TrackId} from './trackControls';
 const VIDEO_LANE=40,AUDIO_LANE=56;
 import {clipAt,clipEnd,closeGaps,compositionSegments,editDuration,moveClip,projectClips,splitClip,trimClip,clipMedia,changeTrack,type Clip} from './editing';
 const stamp=(s:number)=>`${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toFixed(2).padStart(5,'0')}`;
-type Props={project:Project;time:number;locked:boolean;onSeek:(t:number)=>void;onChange:(clips:Clip[],mode?:'volume')=>void;onPreviewVolume:(id:string,gain:number)=>void;undo:()=>void;redo:()=>void;canUndo:boolean;canRedo:boolean;onSelect:(id:string)=>void;onCaptionSelect:(id:string)=>void;onCaptionChange:(p:Project)=>void;effectChoice:EffectChoice;onTransition:(from:string,to:string,choice:EffectChoice)=>void;onTransitionSelect:(id:string)=>void;onMediaDrop:(id:string,at:number,track:0|1)=>void};
+type Props={project:Project;time:number;locked:boolean;onSeek:(t:number)=>void;onChange:(clips:Clip[],mode?:'volume')=>void;onPreviewVolume:(id:string,gain:number)=>void;onBeginAudio:()=>void;undo:()=>void;redo:()=>void;canUndo:boolean;canRedo:boolean;onSelect:(id:string)=>void;onCaptionSelect:(id:string)=>void;onCaptionChange:(p:Project)=>void;effectChoice:EffectChoice;onTransition:(from:string,to:string,choice:EffectChoice)=>void;onTransitionSelect:(id:string)=>void;onMediaDrop:(id:string,at:number,track:0|1)=>void};
 export default function Timeline(p:Props){
  const clips=projectClips(p.project),duration=editDuration(p.project);
  const [tool,setTool]=useState<'select'|'razor'>('select'),[snap,setSnap]=useState(true),[zoom,setZoom]=useState(30),[selected,setSelected]=useState(''),[draft,setDraft]=useState<Clip[]|null>(null);
@@ -90,7 +90,7 @@ export default function Timeline(p:Props){
    })}
   </div>
   <div className="timeline-scroll" ref={scroller}
-   onPointerDownCapture={e=>{if(!e.altKey&&e.button!==1)return;e.preventDefault();e.stopPropagation();pan.current={x:e.clientX,left:e.currentTarget.scrollLeft};e.currentTarget.setPointerCapture(e.pointerId);}}
+   onPointerDownCapture={e=>{if((!e.altKey&&e.button!==1)||(e.button===0&&(e.target as Element).closest('[data-audio-automation]')))return;e.preventDefault();e.stopPropagation();pan.current={x:e.clientX,left:e.currentTarget.scrollLeft};e.currentTarget.setPointerCapture(e.pointerId);}}
    onPointerMoveCapture={e=>{if(!pan.current)return;e.preventDefault();e.stopPropagation();e.currentTarget.scrollLeft=pan.current.left-(e.clientX-pan.current.x);}}
    onPointerUpCapture={e=>{if(pan.current){e.stopPropagation();pan.current=null;}}} onPointerCancelCapture={()=>pan.current=null} onScroll={e=>setScroll(e.currentTarget.scrollLeft)}>
    <div ref={canvas} className={`edit-canvas ${tool}`} style={{width}} onDragOver={e=>{if(p.locked||!e.dataTransfer.types.includes('application/x-rolvixa-media'))return;e.preventDefault();e.dataTransfer.dropEffect='copy';const rect=e.currentTarget.getBoundingClientRect(),y=e.clientY-rect.top;setMediaDrop({at:Math.max(0,(e.clientX-rect.left)/zoom),track:y>=144?(y>=200?1:0):(y<104?1:0),audio:y>=144});}} onDragLeave={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node))setMediaDrop(null);}} onDrop={e=>{if(p.locked||!e.dataTransfer.types.includes('application/x-rolvixa-media'))return;e.preventDefault();const rect=e.currentTarget.getBoundingClientRect(),y=e.clientY-rect.top;const track:0|1=y>=144?(y>=200?1:0):(y<104?1:0);p.onMediaDrop(e.dataTransfer.getData('application/x-rolvixa-media'),Math.max(0,(e.clientX-rect.left)/zoom),track);setMediaDrop(null);}} onPointerDown={e=>{if(!p.locked){scrubbing.current=true;e.currentTarget.setPointerCapture(e.pointerId);p.onSeek(point(e));}}} onPointerMove={e=>{if(scrubbing.current&&!p.locked)p.onSeek(point(e));}} onPointerUp={()=>{scrubbing.current=false;}} onPointerCancel={()=>{scrubbing.current=false;}}>
@@ -100,8 +100,8 @@ export default function Timeline(p:Props){
      <div className="trim-handle left" role="separator" aria-label={`Lewy brzeg ujęcia ${i+1}`} onPointerDown={e=>start(e,c.id,'left',mirror)}/>
      <span>{mirror&&<Icon name="link" size={10}/>} {clipMedia(p.project,c)?.name}</span><small>{stamp(c.sourceIn)} → {stamp(c.sourceOut)}</small>
      {(mirror||c.kind==='audio')&&<AudioWaveform path={clipMedia(p.project,c)?.path} duration={clipMedia(p.project,c)?.duration??0} sourceIn={c.sourceIn} sourceOut={c.sourceOut}/>}
-     {(mirror||c.kind==='audio')&&<VolumeLine value={c.volume??1} name={clipMedia(p.project,c)?.name??'audio'} disabled={p.locked}
-       onPreview={gain=>p.onPreviewVolume(c.id,gain)} onCommit={gain=>p.onChange(clips.map(x=>x.id===c.id?{...x,volume:gain}:x),'volume')}/>}
+     {(mirror||c.kind==='audio')&&<AudioAutomation clip={c} zoom={zoom} name={clipMedia(p.project,c)?.name??'audio'} disabled={p.locked} onBegin={p.onBeginAudio}
+       onCommit={next=>p.onChange(clips.map(x=>x.id===c.id?{...x,volume:next.volume,audio:next.audio}:x),'volume')}/>}
      <div className="trim-handle right" role="separator" aria-label={`Prawy brzeg ujęcia ${i+1}`} onPointerDown={e=>start(e,c.id,'right',mirror)}/>
     </div>)}
 
