@@ -1,7 +1,7 @@
 import {useEffect,useRef,useState,useMemo,useId,type PointerEvent} from 'react';
 import {createPortal} from 'react-dom';
 import type {Clip} from './editing';
-import {addVolumePoint,audioGain,clamp,editVolumePoint,envelopeGain,fadeGain,removeVolumePoint,setFade,visibleFade} from './audioEnvelope';
+import {addVolumePoint,audioGain,clamp,curveSamples,editVolumePoint,envelopeGain,fadeGain,removeVolumePoint,setFade,visibleFade} from './audioEnvelope';
 import {dragVolume} from './VolumeLine';
 type Gesture={kind:'volume'|'in'|'out'|'point';id?:string;x:number;y:number;initial:Clip;next:Clip};
 export default function AudioAutomation({clip,zoom,name,disabled,onBegin,onCommit}:{clip:Clip;zoom:number;name:string;disabled:boolean;onBegin:()=>void;onCommit:(c:Clip)=>void}){
@@ -30,9 +30,8 @@ export default function AudioAutomation({clip,zoom,name,disabled,onBegin,onCommi
  };
  const finish=(e:PointerEvent,cancel=false)=>{e.stopPropagation();const g=drag.current;drag.current=null;setDraft(null);if(g&&!cancel)commit(g.next);};
  const points=(c.audio?.points??[]).filter(p=>p.time>=c.sourceIn&&p.time<=c.sourceOut);
- // Sample only the visible clip width, bounded independently of project duration.
- const samples=Math.max(2,Math.min(512,Math.ceil(width/3)));
- const line=useMemo(()=>Array.from({length:samples+1},(_,i)=>{const t=c.sourceIn+(c.sourceOut-c.sourceIn)*i/samples;return `${i?'L':'M'}${x(t).toFixed(2)},${y(audioGain(c,t)).toFixed(2)}`;}).join(' '),[c.audio,c.volume,c.sourceIn,c.sourceOut,width,height]);
+ // Curve complexity, rather than source duration, bounds work and SVG size.
+ const line=useMemo(()=>curveSamples(c,zoom).map((p,i)=>`${i?'L':'M'}${x(p.time).toFixed(2)},${y(p.gain).toFixed(2)}`).join(' '),[c.audio,c.volume,c.sourceIn,c.sourceOut,width,height]);
  const remove=(id:string)=>{onBegin();commit(removeVolumePoint(clip,id));setMenu(null);baseControl.current?.focus();};
  const activePoint=drag.current?.id?c.audio?.points.find(p=>p.id===drag.current!.id):undefined;
  const text=activePoint?`${(c.start+activePoint.time-c.sourceIn).toFixed(2)} s · ${Math.round(audioGain(c,activePoint.time)*100)}% (punkt ${Math.round(activePoint.gain*100)}%)`:drag.current?.kind==='in'||drag.current?.kind==='out'?`Fade ${drag.current.kind==='in'?'in':'out'}: ${visibleFade(c,drag.current.kind).toFixed(2)} s`:`Głośność ${Math.round((c.volume??1)*100)}%`;

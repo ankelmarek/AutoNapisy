@@ -1,5 +1,5 @@
 import {describe,it,expect} from 'vitest';
-import {addVolumePoint,audioGain,editVolumePoint,envelopeGain,removeVolumePoint,setFade,visibleFade} from '../src/audioEnvelope';
+import {addVolumePoint,audioGain,curveSamples,editVolumePoint,envelopeGain,removeVolumePoint,setFade,visibleFade} from '../src/audioEnvelope';
 import {moveClip,splitClip,trimClip,type Clip} from '../src/editing';
 import {newProject,parseProject,serializeProject} from '../src/model';
 import {historyReducer} from '../src/useHistory';
@@ -15,4 +15,6 @@ describe('obwiednia audio 0.16',()=>{
  it('migracja v8, zapis v9 i Undo/Redo zachowują ustawienia',()=>{const p=project(c),old={...p,schemaVersion:8};expect(parseProject(JSON.stringify(old)).schemaVersion).toBe(9);expect(parseProject(JSON.stringify(old)).clips![0].audio).toBeUndefined();const next=project(shaped());expect(parseProject(serializeProject(next)).clips![0].audio).toEqual(next.clips[0].audio);const h=historyReducer({present:p,past:[],future:[]},{type:'edit',value:next}),undo=historyReducer(h,{type:'undo'}),redo=historyReducer(undo,{type:'redo'});expect(undo.present).toBe(p);expect(redo.present).toBe(next);});
  it('odrzuca nieuporządkowane, zdublowane i nieograniczone dane',()=>{const p=project(shaped());for(const points of [[{id:'x',time:3,gain:1},{id:'x',time:4,gain:1}],[{id:'a',time:4,gain:1},{id:'b',time:3,gain:1}],[{id:'a',time:11,gain:1}],[{id:'a',time:3,gain:2}]])expect(()=>parseProject(JSON.stringify({...p,clips:[{...p.clips[0],audio:{points}}]}))).toThrow();expect(()=>parseProject(JSON.stringify({...p,clips:[{...p.clips[0],audio:{points:[],fadeIn:{anchor:9,duration:2}}}]}))).toThrow();});
  it('nowy fade jest ograniczony długością widocznego fragmentu; reset nie zmienia bazy',()=>{const v=setFade(c,'in',50);expect(v.audio!.fadeIn!.duration).toBe(6);expect(setFade(v,'in',0).audio!.fadeIn).toBeUndefined();expect(setFade(v,'in',0).volume).toBe(.8);expect(envelopeGain(c,4)).toBe(1);});
+ it('wykres zachowuje krótki fade na wielogodzinnym klipie bez milionów próbek',()=>{const long=setFade({...c,sourceIn:0,sourceOut:86400},'in',.1),samples=curveSamples(long,30);expect(samples.length).toBeLessThan(100);expect(samples.some(p=>p.time===.1)).toBe(true);expect(samples.filter(p=>p.time<.1).length).toBeGreaterThan(2);for(const p of samples)expect(p.gain).toBeCloseTo(audioGain(long,p.time));for(const t of [.01,.025,.05,.075,.09]){const i=samples.findIndex(p=>p.time>=t),a=samples[i-1],b=samples[i],approx=a.gain+(b.gain-a.gain)*(t-a.time)/(b.time-a.time);expect(Math.abs(approx-audioGain(long,t))).toBeLessThan(.02);}});
+
 });

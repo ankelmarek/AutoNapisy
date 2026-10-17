@@ -33,3 +33,14 @@ export function editVolumePoint(c:Clip,id:string,time:number,gain:number):Clip {
 }
 export function removeVolumePoint(c:Clip,id:string):Clip{return {...c,audio:{...c.audio,points:(c.audio?.points??[]).filter(p=>p.id!==id)}};}
 export function visibleFade(c:Clip,edge:'in'|'out'):number {const f=edge==='in'?c.audio?.fadeIn:c.audio?.fadeOut;if(!f)return 0;return edge==='in'?clamp(f.anchor+f.duration-c.sourceIn,0,c.sourceOut-c.sourceIn):clamp(c.sourceOut-f.anchor+f.duration,0,c.sourceOut-c.sourceIn);}
+/** Adaptive gain polyline: short fades remain visible even on hours of source audio. */
+export function curveSamples(c:Clip,zoom:number):{time:number;gain:number}[]{
+ const a=c.audio;
+ const bounds=[c.sourceIn,c.sourceOut,...(a?.points??[]).map(p=>p.time),...(a?.fadeIn?[a.fadeIn.anchor,a.fadeIn.anchor+a.fadeIn.duration]:[]),...(a?.fadeOut?[a.fadeOut.anchor-a.fadeOut.duration,a.fadeOut.anchor]:[])].filter(t=>t>=c.sourceIn&&t<=c.sourceOut).sort((a,b)=>a-b).filter((t,i,all)=>!i||t-all[i-1]>1e-9);
+ const out=[{time:c.sourceIn,gain:audioGain(c,c.sourceIn)}];
+ const split=(lo:number,hi:number,depth=0)=>{const g0=audioGain(c,lo),g1=audioGain(c,hi);const bad=[.25,.5,.75].some(r=>Math.abs(audioGain(c,lo+(hi-lo)*r)-(g0+(g1-g0)*r))>.002);
+  if(bad&&(hi-lo)*zoom>.25&&depth<24){const mid=(lo+hi)/2;split(lo,mid,depth+1);split(mid,hi,depth+1);}else out.push({time:hi,gain:g1});
+ };
+ for(let i=1;i<bounds.length;i++)split(bounds[i-1],bounds[i]);
+ return out;
+}
