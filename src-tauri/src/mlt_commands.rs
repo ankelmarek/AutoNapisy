@@ -108,6 +108,7 @@ pub fn start_mlt_preview(
     access: State<'_, Access>,
     tools: State<'_, ToolState>,
     state: State<'_, MltState>,
+    proxies: State<'_, crate::proxy_commands::ProxyState>,
 ) -> Result<Start, String> {
     let p = authorized(&json, &access)?;
     let duration = project::composition_duration(&p);
@@ -141,12 +142,14 @@ pub fn start_mlt_preview(
     let running = job.clone();
     let gate = state.gate.clone();
     let cache = state.cache.clone();
+    let proxies = proxies.view();
     let worker = std::thread::Builder::new()
         .name("rolvixa-mlt-preview".into())
         .spawn(move || {
             let result = (|| {
                 let _guard = gate.lock().map_err(|_| "Błąd kolejki MLT")?;
                 running.check()?;
+                let _proxy_lease = proxies.lease.read().map_err(|_| "Błąd cache proxy")?;
                 let mut meta = if let Some(media) = &p.media {
                     crate::rendering::inspect(
                         &running,
@@ -167,7 +170,8 @@ pub fn start_mlt_preview(
                 let scale = (540.0 / meta.width.max(meta.height) as f64).min(1.0);
                 meta.width = ((meta.width as f64 * scale / 2.).round() as u32 * 2).max(2);
                 meta.height = ((meta.height as f64 * scale / 2.).round() as u32 * 2).max(2);
-                mlt::prepare_cached(&running, &ffmpeg, &p, &meta, dir.path(), &cache)?;
+                let preview_project = proxies.project(&p);
+                mlt::prepare_cached(&running, &ffmpeg, &preview_project, &meta, dir.path(), &cache)?;
                 mlt::run(
                     &running,
                     &melt,

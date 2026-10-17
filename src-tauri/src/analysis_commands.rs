@@ -45,6 +45,7 @@ pub async fn layer_frames(
     access: State<'_, Access>,
     tools: State<'_, ToolState>,
     analysis: State<'_, AnalysisState>,
+    proxies: State<'_, crate::proxy_commands::ProxyState>,
 ) -> Result<LayerFrames, String> {
     let p = crate::mlt_commands::authorized(&json, &access)?;
     if !time.is_finite() || time < 0. || time > 86400. {
@@ -67,20 +68,23 @@ pub async fn layer_frames(
         jobs.push(job.clone());
     }
     let gate = analysis.frame_gate.clone();
+    let proxies = proxies.view();
     tauri::async_runtime::spawn_blocking(move||{
       let result=(||{
        let _guard=gate.lock().map_err(|_|"Błąd kolejki podglądu")?;
        job.check()?;
+       let _proxy_lease=proxies.lease.read().map_err(|_|"Błąd cache proxy")?;
        let dir=tempfile::tempdir().map_err(|e|e.to_string())?;
        let mut meta=if let Some(m)=&p.media{crate::rendering::inspect(&job,&ffmpeg,Path::new(&m.path),dir.path())?}else{crate::rendering::Metadata{width:1280,height:720,duration:1.,has_audio:false}};
        crate::framing::apply_canvas(&p,&mut meta);
+       let original=p.clone();let p=proxies.project(&p);
        let scale=(540./meta.width.max(meta.height) as f64).min(1.);
        let width=((meta.width as f64*scale/2.).round() as u32*2).max(2);let height=((meta.height as f64*scale/2.).round() as u32*2).max(2);
        if (0..2).any(|track|crate::effects::active_transition(&p,time,track).is_some()){return Err("Ustaw głowicę poza przejściem, aby kadrować film".into());}
        let mut layers=vec![];
        for c in crate::effects::effective_clips(&p).iter().filter(|c|c.kind=="video"&&c.start<=time&&time<c.end()&&!p.tracks.video_hidden(c)){
         let path=Path::new(p.clip_path(c).ok_or("Brak filmu warstwy")?);
-        let source=crate::rendering::inspect(&job,&ffmpeg,path,dir.path())?;
+        let source=crate::rendering::inspect(&job,&ffmpeg,Path::new(original.clip_path(c).ok_or("Brak źródła")?),dir.path())?;
         let output=dir.path().join(format!("frame-{}.png",layers.len()));
         let filter=format!("{}scale={width}:{height}:force_original_aspect_ratio=decrease,format=rgba,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=black@0,setsar=1",crate::effects::color_filter(c));
         let mut args:Vec<std::ffi::OsString>=["-v","error","-nostdin","-y","-ss",&(c.source_in+time-c.start).to_string(),"-protocol_whitelist","file,pipe","-i"].iter().map(Into::into).collect();args.push(path.as_os_str().to_owned());

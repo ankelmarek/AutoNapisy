@@ -5,7 +5,7 @@ import {clipMedia,editDuration,projectClips} from './editing';
 type Started={id:number;start:number;duration:number};
 type Chunk={data:string;offset:number;done:boolean;error:string|null;aspect?:number|null};
 const MIME='video/mp4; codecs="avc1.42E01F, mp4a.40.2"';
-export function useMltPlayback(project:Project){
+export function useMltPlayback(project:Project,proxyRevision=''){
  const video=useRef<HTMLVideoElement>(null),latest=useRef(project);latest.current=project;
  const [time,setTime]=useState(0),[playing,setPlaying]=useState(false),[loading,setLoading]=useState(false),[error,setError]=useState(''),[revision,setRevision]=useState(0),[aspect,setAspect]=useState(16/9);
  const cursor=useRef(0),wanted=useRef(false),base=useRef(0),session=useRef(0);
@@ -31,8 +31,8 @@ export function useMltPlayback(project:Project){
   const decodeError=()=>{if(v.error)fail(Error(`Nie można odtworzyć podglądu MLT (${v.error.code}): ${v.error.message||'błąd dekodowania w WebView2'}`));};
   v.addEventListener('canplay',ready);v.addEventListener('ended',ended);v.addEventListener('waiting',waiting);v.addEventListener('error',decodeError);
   return()=>{alive=false;clearTimeout(timer);v.pause();v.removeEventListener('canplay',ready);v.removeEventListener('ended',ended);v.removeEventListener('waiting',waiting);v.removeEventListener('error',decodeError);if(id)void invoke('cancel_mlt_preview',{id}).catch(()=>{});v.removeAttribute('src');v.load();if(url)URL.revokeObjectURL(url);};
- },[key,revision,duration]);
+ },[key,revision,duration,proxyRevision]);
  useEffect(()=>{if(!playing)return;let frame=0;const tick=()=>{const v=video.current;if(v&&!v.seeking&&v.readyState>=2){cursor.current=Math.min(editDuration(latest.current),base.current+v.currentTime);setTime(cursor.current);}frame=requestAnimationFrame(tick);};frame=requestAnimationFrame(tick);return()=>cancelAnimationFrame(frame);},[playing]);
  useEffect(()=>{const hide=()=>{if(document.hidden)pause();};document.addEventListener('visibilitychange',hide);return()=>document.removeEventListener('visibilitychange',hide);},[]);
- return {video,time,playing,loading,error,aspect,pause,seek,retry:()=>setRevision(n=>n+1),reset:()=>{pause();seek(0);},previewVolume:(_id:string,_gain:number)=>{},toggle:()=>{if(wanted.current)pause();else if(editDuration(latest.current)>0){if(cursor.current>=editDuration(latest.current))seek(0);wanted.current=true;setPlaying(true);const v=video.current;if(v&&v.readyState>=2)void v.play().catch(e=>{setError(String(e));pause();});}}};
+ return {video,time,playing,loading,error,aspect,pause,seek,suspend:async()=>{pause();if(session.current)await invoke('cancel_mlt_preview',{id:session.current});},retry:()=>setRevision(n=>n+1),reset:()=>{pause();seek(0);},previewVolume:(_id:string,_gain:number)=>{},toggle:()=>{if(wanted.current)pause();else if(editDuration(latest.current)>0){if(cursor.current>=editDuration(latest.current))seek(0);wanted.current=true;setPlaying(true);const v=video.current;if(v&&v.readyState>=2)void v.play().catch(e=>{setError(String(e));pause();});}}};
 }

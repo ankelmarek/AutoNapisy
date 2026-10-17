@@ -132,6 +132,18 @@ try{
    console.log('Live Openverse search, download, FFprobe, local audition and attribution persistence: OK',JSON.stringify({results,duration:music.duration,license:music.provenance.license}));
   }
  }
+ // Real persistent proxy generation and MLT source switching through the UI.
+ const beforeProxy=JSON.parse(fs.readFileSync(process.env.ROLVIXA_TEST_PROJECT,'utf8'));
+ await page.getByRole('tab',{name:/Pliki/}).click();const card=page.locator('.library-file').first();
+ await card.locator('.media-proxy summary').click();await card.getByRole('button',{name:'Przygotuj proxy 540p'}).click();
+ await page.waitForFunction(()=>document.querySelector('.proxy-state.ready')?.textContent.includes('Proxy 540p'),{},{timeout:60000});
+ await page.waitForFunction(()=>document.querySelector('video.mlt-video')?.readyState>=2);
+ await page.getByRole('button',{name:'Odtwórz film',exact:true}).click();await page.waitForFunction(()=>document.querySelector('video.mlt-video')?.currentTime>.2);await page.getByRole('button',{name:'Wstrzymaj odtwarzanie',exact:true}).click();
+ await card.getByRole('button',{name:'Używaj oryginału'}).click();await page.waitForFunction(()=>document.querySelector('.proxy-state.ready')?.textContent.includes('Oryginał'));
+ await page.waitForFunction(()=>document.querySelector('video.mlt-video')?.readyState>=2);
+ await page.locator('.project-menu summary').click();await page.locator('.project-menu-popup').getByRole('button',{name:'Zapisz',exact:true}).click();await page.waitForFunction(()=>!document.querySelector('select[aria-label="Format obrazu"]').disabled);
+ const afterProxy=JSON.parse(fs.readFileSync(process.env.ROLVIXA_TEST_PROJECT,'utf8'));assert.deepEqual(afterProxy.media,beforeProxy.media);assert.deepEqual(afterProxy.assets,beforeProxy.assets);assert.deepEqual(afterProxy.clips,beforeProxy.clips);assert(!JSON.stringify(afterProxy).includes('video-proxy-v1'),'Cache paths must never enter the project');
+ console.log('Real proxy generation, play through MLT, original/proxy switch and unchanged persisted original sources: OK');
  console.log('Real native preview (portrait, Unicode paths, decoded pixels, play, pause, seek):',JSON.stringify(await state()));
  assert.deepEqual(errors,[]);
 }catch(e){

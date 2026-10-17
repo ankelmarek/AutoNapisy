@@ -34,3 +34,6 @@ pub mod framing;
 
 #[path = "../../src-tauri/src/audio_library.rs"]
 pub mod audio_library;
+
+#[path = "../../src-tauri/src/proxy.rs"]
+pub mod proxy;

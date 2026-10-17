@@ -7,6 +7,8 @@ mod commands;
 mod effects;
 mod export_commands;
 mod framing;
+mod proxy;
+mod proxy_commands;
 mod mlt_commands;
 mod montage;
 mod preview_commands;
@@ -265,6 +267,7 @@ fn diagnostics(
 fn main() {
     let app = tauri::Builder::default()
         .manage(Access::default())
+        .manage(proxy_commands::ProxyState::default())
         .manage(audio_commands::AudioLibraryState::default())
         .manage(mlt_commands::MltState::default())
         .manage(preview_commands::PreviewState::default())
@@ -273,6 +276,9 @@ fn main() {
         .manage(commands::Tasks::default())
         .manage(export_commands::ExportState::default())
         .setup(|app| {
+            if let Err(error)=app.state::<proxy_commands::ProxyState>().initialize(app.handle()){
+                app.state::<proxy_commands::ProxyState>().record_error(error);
+            }
             *app.state::<commands::ToolState>().0.lock().unwrap() =
                 commands::load_tools(app.handle());
             *app.state::<mlt_commands::MltState>().engine.lock().unwrap() = app
@@ -284,6 +290,13 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             import_video,
+            proxy_commands::proxy_info,
+            proxy_commands::proxy_status,
+            proxy_commands::start_proxy,
+            proxy_commands::cancel_proxy,
+            proxy_commands::set_proxy_enabled,
+            proxy_commands::proxy_cache_info,
+            proxy_commands::clear_proxy_cache,
             audio_commands::builtin_audio,
             audio_commands::search_audio,
             audio_commands::download_audio,
@@ -317,6 +330,7 @@ fn main() {
         .expect("Nie można uruchomić RolVixa");
     app.run(|handle, event| {
         if let tauri::RunEvent::ExitRequested { .. } = event {
+            handle.state::<proxy_commands::ProxyState>().shutdown();
             handle
                 .state::<analysis_commands::AnalysisState>()
                 .shutdown();
