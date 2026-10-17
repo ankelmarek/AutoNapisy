@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo, useReducer } from "react";
 import { invoke,convertFileSrc } from "@tauri-apps/api/core";
 import AudioLibrary,{type LibraryAudio} from "./AudioLibrary";
 import { backend, preview, type Diagnostics } from "./adapters";
@@ -18,6 +18,8 @@ import {
 } from "./model";
 import Timeline from "./Timeline";
 import ProjectMenu from './ProjectMenu';
+import ProjectTitle,{type TitleEditor} from './ProjectTitle';
+import {ProjectSaver,projectRevision,saveStatus} from './projectSaving';
 import EffectsLibrary,{type EffectChoice} from './EffectsLibrary';
 import VideoProperties from './VideoProperties';
 import {visuals,videoFilter,reconcileTransitions,applyTransition} from './effects';
@@ -49,8 +51,7 @@ export default function App() {
       "Gotowy.",
     ),
     [settings, setSettings] = useState(false),
-    [diagnostics, setDiagnostics] = useState<Diagnostics | null>(null),
-    [dirty, setDirty] = useState(false);
+    [diagnostics, setDiagnostics] = useState<Diagnostics | null>(null);
   const [transcribing, setTranscribing] = useState(false),
     [task, setTask] = useState<TaskStatus | null>(null),
     [tools, setTools] = useState<Tools | null>(null);
@@ -61,6 +62,17 @@ export default function App() {
     [exportStatus, setExportStatus] = useState<ExportStatus | null>(null);
   const latestProject = useRef(project);
   latestProject.current = project;
+  const [,refreshSave]=useReducer((n:number)=>n+1,0);
+  const saverRef=useRef<ProjectSaver|null>(null);
+  if(!saverRef.current)saverRef.current=new ProjectSaver(backend.save,refreshSave);
+  const saver=saverRef.current,saveState=saver.state;
+  const saving=saveState.phase==='saving';
+  const revision=useMemo(()=>projectRevision(project),[project]);
+  const pristineRevision=useRef(revision);
+  const dirty=saveState.baseline===null||saveState.baseline!==revision;
+  const status=useMemo(()=>saveStatus(saveState,project),[saveState,project]);
+  const statusText=status==='saved'?'Zapisano':status==='saving'?'Zapisywanie…':status==='error'?`Błąd zapisu: ${saveState.error}`:saveState.path?'Niezapisane zmiany':'Projekt niezapisany';
+  const titleEditor=useRef<TitleEditor>(null);
   useEffect(
     () => () => {
       controller.current?.abort();
@@ -96,10 +108,10 @@ export default function App() {
   const caption=displayedSegments.find(s=>s.id===selectedCaption);
   const picture=visuals(project,Math.min(time,Math.max(0,duration-1e-7)));
   const selectCaption=(id:string)=>{setSelectedCaption(id);setInspectorTab('captions');requestAnimationFrame(()=>{captionInput.current?.focus();captionInput.current?.scrollIntoView({block:'nearest'});});};
-  const changeProject=(p:Project)=>{setProject(p);setDirty(true);};
+  const changeProject=(p:Project)=>{setProject(p);};
   const gap = !visuals(project,Math.min(time,Math.max(0,duration-1e-7))).length;
-  const undo = () => {playback.pause();history.undo();setDirty(true);};
-  const redo = () => {playback.pause();history.redo();setDirty(true);};
+  const undo = () => {playback.pause();history.undo();};
+  const redo = () => {playback.pause();history.redo();};
   useEffect(()=>{
     const key=(e:KeyboardEvent)=>{
       if(locked || !(e.ctrlKey||e.metaKey) || (e.target instanceof HTMLElement && (e.target.isContentEditable || ['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))))return;
@@ -120,7 +132,7 @@ export default function App() {
   };
   const resetPlayback = playback.reset;
   const replace = () =>
-    !dirty || window.confirm("Projekt ma niezapisane zmiany. Kontynuować?");
+    !(saveState.baseline===null?revision!==pristineRevision.current:dirty) || window.confirm("Projekt ma niezapisane zmiany. Kontynuować?");
   const importMedia = (kind:'video'|'audio') => run(async()=>{
     const files=await preview.import(kind);if(!files?.length)return;
     let next=latestProject.current;const prepared:Record<string,string>={},failed:string[]=[];let added=0;
@@ -129,14 +141,14 @@ export default function App() {
       const info=await invoke<{duration:number}>('media_info',{path:media.path,kind});const metadata=info.duration;
       const updated=registerMedia(next,{...media,duration:metadata},kind);if(updated!==next)added++;next=updated;prepared[media.path]=url;
     }catch(e){failed.push(`${media.name}: ${String(e)}`);}}
-    if(added){setProject(next);setDirty(true);}setSources(prev=>({...prev,...prepared}));setSource(previous=>previous||Object.values(prepared)[0]||'');
+    if(added){setProject(next);}setSources(prev=>({...prev,...prepared}));setSource(previous=>previous||Object.values(prepared)[0]||'');
     setMessage(`Dodano do biblioteki: ${added}. Dodaj wybrane pliki na oś przyciskiem +.${failed.length?' Niedodane: '+failed.join('; '):''}`);
   });
   const registerAudio=(item:LibraryAudio)=>{const next=registerMedia(latestProject.current,{path:item.path,name:item.name,duration:item.duration,provenance:item.provenance},'audio');if(next!==latestProject.current){latestProject.current=next;changeProject(next);}setSources(prev=>({...prev,[item.path]:convertFileSrc(item.path)}));return libraryItems(next).find(a=>a.path===item.path)!.id;};
   const importVideo=()=>importMedia('video');
   const open = () =>
     run(async () => {
-      if (!replace()) return;
+      if (saver.saving || !replace()) return;
       const result = await backend.open();
       if (!result) return;
       const p = parseProject(result.json);
@@ -147,18 +159,22 @@ export default function App() {
       setSources(prepared);
       resetPlayback();
       history.reset(p);
+      saver.accept(p,result.path,result.session);
       setSource(url);
-      setDirty(false);
+      
       setMessage(missing.length?`Projekt otwarty. Niedostępne pliki: ${missing.join(", ")}`:"Projekt otwarty.");
     });
-  const save = () =>
-    run(async () => {
-      const path = await backend.save(serializeProject(project));
-      if (path) {
-        setDirty(false);
-        setMessage(`Zapisano projekt: ${path}`);
-      }
-    });
+  const createNew=()=>run(async()=>{
+    if(saver.saving||!replace())return;
+    const session=await backend.newProject();const p=newProject();
+    resetPlayback();history.reset(p);pristineRevision.current=projectRevision(p);saver.accept(p,'',session);setSource('');setSources({});
+  });
+  const save=async(saveAs=false)=>{
+    if(saver.saving)return;
+    if(titleEditor.current&&!titleEditor.current.commit())return;
+    try{const path=await saver.save(latestProject.current,saveAs);if(path)setMessage(`Zapisano projekt: ${path}`);}
+    catch(e){setMessage(`Błąd zapisu: ${e instanceof Error?e.message:String(e)} Użyj „Zapisz jako”, aby zapisać kopię.`);}
+  };
   const loadSettings = async () => {
     const [d, t, l] = await Promise.all([
       backend.diagnostics(),
@@ -196,7 +212,7 @@ export default function App() {
       const current=latestProject.current;
       const updated=applyTimelineTranscript(current,segments);
       setProject(updated);
-      setDirty(true);
+      
       setMessage(
         segments.length
           ? `Gotowe: ${segments.length} segmentów. Sprawdź tekst i zapisz projekt.`
@@ -250,18 +266,18 @@ export default function App() {
     const handler=(e:KeyboardEvent)=>{
       if(locked)return;const el=e.target as HTMLElement,text=el?.isContentEditable||el?.tagName==='TEXTAREA'||(el?.tagName==='INPUT'&&['text','search',''].includes((el as HTMLInputElement).type));
       if(e.code==='Space'&&(!text||e.ctrlKey)){e.preventDefault();toggle();return;}
-      if(e.ctrlKey||e.metaKey){if(e.key.toLowerCase()==='s'){e.preventDefault();void save();return;}if(e.key.toLowerCase()==='o'){e.preventDefault();void open();return;}if(e.key.toLowerCase()==='i'){e.preventDefault();if(e.shiftKey)void importMedia('audio');else void importVideo();return;}if(e.key.toLowerCase()==='n'){e.preventDefault();if(replace()){resetPlayback();history.reset(newProject());setSource('');setSources({});setDirty(false);}return;}}
+      if(e.ctrlKey||e.metaKey){if(e.key.toLowerCase()==='s'){e.preventDefault();void save(e.shiftKey);return;}if(e.key.toLowerCase()==='o'){e.preventDefault();void open();return;}if(e.key.toLowerCase()==='i'){e.preventDefault();if(e.shiftKey)void importMedia('audio');else void importVideo();return;}if(e.key.toLowerCase()==='n'){e.preventDefault();void createNew();return;}}
       if(text||['INPUT','SELECT'].includes(el?.tagName))return;
       if(e.key==='Home'){e.preventDefault();seek(0);}else if(e.key==='End'){e.preventDefault();seek(duration);}else if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();seek(time+(e.key==='ArrowLeft'?-1:1)*(e.shiftKey?1:1/30));}
     };window.addEventListener('keydown',handler);return()=>window.removeEventListener('keydown',handler);
-  },[locked,project,time,playing]);
+  },[locked,project,time,playing,saveState]);
   const style = project.styles.default;
   const updateStyle = (patch: Partial<typeof style>) => {
     setProject((p) => ({
       ...p,
       styles: { ...p.styles, default: { ...p.styles.default, ...patch } },
     }));
-    setDirty(true);
+    
   };
   return (
     <div className="app">
@@ -272,18 +288,23 @@ export default function App() {
             RolVixa
           </div>
         </div>
-        <input className="header-project-name" aria-label="Nazwa projektu" value={project.name} maxLength={200} disabled={locked} onChange={e=>{setProject(p=>({...p,name:e.target.value}));setDirty(true);}}/>
-        <span className="dirty-indicator">{dirty?'●':''}</span>
         <ProjectMenu actions={[
-          {label:'Nowy',keys:'Ctrl+N',disabled:locked,run:()=>{if(replace()){resetPlayback();history.reset(newProject());setSource('');setSources({});setDirty(false);}}},
-          {label:'Otwórz',keys:'Ctrl+O',disabled:locked,run:open},
-          {label:'Zapisz',keys:'Ctrl+S',disabled:locked,run:save},
+          {label:'Nowy',keys:'Ctrl+N',disabled:locked||saving,run:()=>void createNew()},
+          {label:'Otwórz',keys:'Ctrl+O',disabled:locked||saving,run:open},
+          {label:'Zapisz',keys:'Ctrl+S',disabled:locked||saving,run:()=>void save()},
+          {label:'Zapisz jako…',keys:'Ctrl+Shift+S',disabled:locked||saving,run:()=>void save(true)},
           {label:'Importuj filmy',keys:'Ctrl+I',disabled:locked,run:importVideo},
           {label:'Importuj audio',keys:'Ctrl+Shift+I',disabled:locked,run:()=>importMedia('audio')},
           {label:'Eksport MP4',disabled:locked||!project.media||!duration,run:()=>void exportMp4()},
           {label:'Eksport SRT',disabled:locked||!displayedSegments.length,run:exportSrt},
           {label:'Ustawienia',disabled:locked,run:()=>{playback.pause();setSettings(true);void run(loadSettings);}},
         ]}/>
+        <ProjectTitle key={saveState.session} ref={titleEditor} name={project.name} disabled={locked} onChange={name=>{const p={...latestProject.current,name};latestProject.current=p;setProject(p);}}/>
+        <span className={`save-status status-${status}`} role="status" title={saveState.error||saveState.path||statusText}>{statusText}</span>
+        <div className="header-actions">
+          <button className={`header-save status-${status}`} data-save-status={status} aria-label="Zapisz projekt" aria-keyshortcuts="Control+S" title={`Zapisz projekt (Ctrl+S) · ${statusText}${saveState.path?' · '+saveState.path:''}`} disabled={locked||saving} onClick={()=>void save()}><Icon name={status==='saving'?'saveLoading':status==='error'?'saveError':'save'} size={22}/>{status==='saved'&&<Icon name="check" size={11}/>}</button>
+          <button className="header-export" aria-label="Eksportuj MP4" title={locked?'Eksport niedostępny podczas operacji':!project.media||!duration?'Dodaj film na oś czasu, aby eksportować MP4':'Eksportuj MP4'} disabled={locked||!project.media||!duration} onClick={()=>void exportMp4()}><Icon name="export" size={25}/></button>
+        </div>
       </header>
       {exporting && (
         <section className="export-progress" role="status">
@@ -320,7 +341,7 @@ export default function App() {
           {leftTab==='audio'&&<AudioLibrary project={project} locked={locked} timelinePlaying={playing} onImport={()=>importMedia('audio')} onRegister={registerAudio} onPause={playback.pause} onAdd={id=>{try{playback.pause();changeProject(insertLibraryItem(latestProject.current,id,time));setMessage('Dodano audio na oś czasu.');}catch(e){setMessage(String(e));}}}/>}
           {leftTab==='effects'&&<EffectsLibrary chosen={effectChoice} onChoose={setEffectChoice}/>}
           {leftTab==='files'&&<MediaLibrary project={project} sources={sources} locked={locked} onImport={importVideo} proxies={proxies} onClearCache={()=>{if(window.confirm('Usunąć wszystkie kopie proxy z cache? Oryginalne nagrania i projekt zostaną zachowane.'))void playback.suspend().then(()=>new Promise(r=>setTimeout(r,200))).then(()=>proxies.clear()).then(()=>playback.retry()).catch(e=>setMessage(String(e)));}}
-            onAdd={id=>{try{playback.pause();const next=insertLibraryItem(project,id,time);setProject(next);setDirty(true);setMessage('Dodano plik z biblioteki na oś czasu.');}catch(e){setMessage(String(e));}}}/>}
+            onAdd={id=>{try{playback.pause();const next=insertLibraryItem(project,id,time);setProject(next);setMessage('Dodano plik z biblioteki na oś czasu.');}catch(e){setMessage(String(e));}}}/>}
           <div className="captions-tab-content" role="tabpanel" id="captions-panel" aria-labelledby="captions-tab" hidden={leftTab!=='captions'}>
           <div className="transcription-controls">
             <span className="transcription-scope">Napisy z montażu · tylko fragmenty na osi</span>
@@ -631,7 +652,7 @@ export default function App() {
         </section>
       </main>
       <Timeline project={project} time={time} locked={locked} onSeek={seek}
-        onChange={(clips,mode)=>{if(mode!=='volume')playback.pause();setProject(p=>({...p,clips,transitions:reconcileTransitions(p,clips)}));setDirty(true);}} onPreviewVolume={playback.previewVolume} onSelect={id=>{setSelectedClip(id);setSelectedTransition('');setInspectorTab('video');}} onCaptionSelect={selectCaption}
+        onChange={(clips,mode)=>{if(mode!=='volume')playback.pause();setProject(p=>({...p,clips,transitions:reconcileTransitions(p,clips)}));}} onPreviewVolume={playback.previewVolume} onSelect={id=>{setSelectedClip(id);setSelectedTransition('');setInspectorTab('video');}} onCaptionSelect={selectCaption}
         onMediaDrop={(id,at,track)=>{try{playback.pause();changeProject(insertLibraryItem(project,id,at,track));setMessage('Dodano plik na oś czasu.');}catch(e){setMessage(String(e));}}}
         onCaptionChange={p=>changeProject(p)} effectChoice={effectChoice} onTransition={(a,b,choice)=>{try{playback.pause();const next=applyTransition(project,a,b,choice.kind,choice.duration);changeProject(next);setSelectedTransition(next.transitions.find(t=>t.toId===b)!.id);setInspectorTab('video');}catch(e){setMessage(String(e));}}} onTransitionSelect={id=>{setSelectedTransition(id);setInspectorTab('video');}}
         undo={undo} redo={redo} canUndo={history.canUndo} canRedo={history.canRedo}/>

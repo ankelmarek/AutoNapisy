@@ -13,6 +13,8 @@ mod mlt_commands;
 mod montage;
 mod preview_commands;
 mod project;
+mod project_file;
+mod project_commands;
 mod rendering;
 mod subtitles;
 mod transcription;
@@ -22,7 +24,6 @@ use serde::Serialize;
 use std::{
     collections::HashSet,
     fs,
-    io::{Read, Write},
     path::{Path, PathBuf},
     sync::Mutex,
 };
@@ -111,86 +112,6 @@ fn prepare_preview(
     path_string(&p)
 }
 #[derive(Serialize)]
-struct Opened {
-    json: String,
-    path: String,
-}
-#[tauri::command]
-async fn open_project(access: State<'_, Access>) -> Result<Option<Opened>, String> {
-    #[cfg(feature = "ui-tests")]
-    let fixture = std::env::var_os("ROLVIXA_TEST_PROJECT").map(PathBuf::from);
-    #[cfg(not(feature = "ui-tests"))]
-    let fixture: Option<PathBuf> = None;
-    let path = if let Some(path) = fixture {
-        path
-    } else {
-        let Some(file) = rfd::AsyncFileDialog::new()
-            .add_filter("Projekt RolVixa", &["json"])
-            .pick_file()
-            .await
-        else {
-            return Ok(None);
-        };
-        file.path().to_path_buf()
-    };
-    let mut json = String::new();
-    fs::File::open(&path)
-        .map_err(|e| e.to_string())?
-        .take(16 * 1024 * 1024 + 1)
-        .read_to_string(&mut json)
-        .map_err(|e| e.to_string())?;
-    if json.len() > 16 * 1024 * 1024 {
-        return Err("Projekt przekracza limit 16 MB".into());
-    }
-    let p = project::parse(&json)?;
-    for path in p
-        .media
-        .iter()
-        .map(|m| m.path.as_str())
-        .chain(p.assets.iter().map(|a| a.path.as_str()))
-    {
-        if let Ok(path) = media_path(Path::new(path)) {
-            access.0.lock().map_err(|_| "Błąd uprawnień")?.insert(path);
-        }
-    }
-    Ok(Some(Opened {
-        json,
-        path: path_string(&path)?,
-    }))
-}
-#[tauri::command]
-async fn save_project(json: String) -> Result<Option<String>, String> {
-    if json.len() > 16 * 1024 * 1024 {
-        return Err("Projekt przekracza limit 16 MB".into());
-    }
-    project::parse(&json)?;
-    #[cfg(feature = "ui-tests")]
-    let fixture = std::env::var_os("ROLVIXA_TEST_PROJECT").map(PathBuf::from);
-    #[cfg(not(feature = "ui-tests"))]
-    let fixture: Option<PathBuf> = None;
-    let chosen = if let Some(path) = fixture {
-        path
-    } else {
-        let Some(file) = rfd::AsyncFileDialog::new()
-            .add_filter("Projekt RolVixa", &["json"])
-            .set_file_name("projekt.rolvixa.json")
-            .save_file()
-            .await
-        else {
-            return Ok(None);
-        };
-        file.path().to_path_buf()
-    };
-    let path = chosen.as_path();
-    let dir = path.parent().ok_or("Niepoprawna ścieżka zapisu")?;
-    let mut temp = tempfile::NamedTempFile::new_in(dir).map_err(|e| e.to_string())?;
-    temp.write_all(json.as_bytes()).map_err(|e| e.to_string())?;
-    temp.as_file().sync_all().map_err(|e| e.to_string())?;
-    temp.persist(path)
-        .map_err(|e| format!("Nie można zapisać projektu: {e}"))?;
-    Ok(Some(path_string(path)?))
-}
-#[derive(Serialize)]
 struct Component {
     name: String,
     status: String,
@@ -267,6 +188,7 @@ fn diagnostics(
 fn main() {
     let app = tauri::Builder::default()
         .manage(Access::default())
+        .manage(project_commands::ProjectState::default())
         .manage(proxy_commands::ProxyState::default())
         .manage(audio_commands::AudioLibraryState::default())
         .manage(mlt_commands::MltState::default())
@@ -311,8 +233,9 @@ fn main() {
             analysis_commands::layer_frames,
             prepare_preview,
             preview_commands::prepare_transition_preview,
-            open_project,
-            save_project,
+            project_commands::new_project,
+            project_commands::open_project,
+            project_commands::save_project,
             diagnostics,
             commands::tool_settings,
             commands::component_licenses,

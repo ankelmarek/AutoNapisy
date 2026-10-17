@@ -1,10 +1,10 @@
-# RolVixa 0.14 — polska mowa → polskie napisy
+# RolVixa 0.15 — polska mowa → polskie napisy
 
 RolVixa (wcześniej AutoNapisy) to lokalna aplikacja Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Rozpoznaje polską mowę przez whisper.cpp, bez tłumaczenia. Transkrypcja i montaż działają na komputerze. Opcjonalna biblioteka muzyki łączy się z Openverse po wpisaniu frazy wyszukiwania; nie wysyła nagrań użytkownika.
 
 ## Aktualizacja i uruchomienie ze źródeł
 
-Zachowaj projekty i nagrania. Pobierz ZIP z GitHuba i rozpakuj do nowego folderu, np. `C:\RolVixa-0.14`. Nie kopiuj starych `node_modules`, `dist` i `src-tauri/target`. Aplikacja otwiera projekty v1–v8 i zapisuje format v8. Przed zapisaniem zachowaj kopię JSON, jeśli chcesz wrócić do starszej wersji aplikacji.
+Zachowaj projekty i nagrania. Pobierz ZIP z GitHuba i rozpakuj do nowego folderu, np. `C:\RolVixa-0.15`. Nie kopiuj starych `node_modules`, `dist` i `src-tauri/target`. Aplikacja otwiera projekty v1–v8 i zapisuje format v8. Przed zapisaniem zachowaj kopię JSON, jeśli chcesz wrócić do starszej wersji aplikacji.
 
 Wymagania: Node.js 22 lub 24, aktualny Rust stable x64 MSVC, Visual Studio Build Tools z „Desktop development with C++” i Windows SDK oraz WebView2 Runtime.
 
@@ -334,3 +334,22 @@ cargo test --locked --manifest-path .test-core/Cargo.toml --test proxy_video -- 
 ```
 
 Testy z prawdziwymi FFmpeg/MLT obejmują obrót, 60 FPS, synchronizację dźwięku, przycięcie, ponowne odczytanie cache i eksport w rozdzielczości oryginału po usunięciu proxy; dodatkowo HEVC/MOV, VP9/WebM, VFR, 4K i brak audio. Syntetyczne próbki są wyłącznie fixtures testowymi, bez nagrań użytkowników. Windows CI sprawdza rzeczywistą instalację, tworzenie i przełączanie proxy w MLT oraz WebView2: siatkę, znaczniki użycia, nakładkę bez zmiany JSON, czas całej muzyki i okno ustawień. Widoki testowe: 1366×700 i 1920×1080.
+
+
+## RolVixa 0.15 — nagłówek i zapis projektu
+
+- Menu **Projekt** znajduje się obok logo. Tytuł projektu jest tekstem z ołówkiem; kliknij, aby zmienić nazwę. Enter lub wyjście z pola zatwierdza, Esc anuluje. Nazwa musi mieć 1–200 znaków; nadmiarowe odstępy są usuwane. Zmiana tytułu nie zmienia nazwy pliku na dysku.
+- Prawa belka zawsze pokazuje ikonę zapisu oraz większą żółtą ikonę eksportu MP4. Eksport wymaga materiału na osi czasu. Obie akcje mają podpowiedzi i etykiety dla czytników ekranu.
+- **Ctrl+S / Zapisz:** pierwszy zapis otwiera dialog z nazwą opartą na tytule; kolejne aktualizują ten sam plik bez dialogu. Otwarty projekt zapamiętuje własny plik.
+- **Ctrl+Shift+S / Zapisz jako…:** wybiera nową lokalizację. Po sukcesie kolejne zapisy trafiają do niej. Anulowanie lub błąd zachowuje poprzednią lokalizację i stan zmian.
+- Kolory zapisu: **zielony** — zapisano bieżącą wersję, **żółty** — projekt nowy lub zmieniony, **niebieski** — trwa zapis, **czerwony** — błąd. Tooltip i komunikat opisują stan także tekstowo. Zmiany wykonane w czasie zapisywania pozostają niezapisane; cofnięcie do zapisanej wersji przywraca zielony stan.
+- Backend pamięta ścieżkę zatwierdzoną przez natywny dialog; frontend przekazuje wyłącznie projekt i identyfikator sesji. Zapis jest walidowany i atomowy, przez plik tymczasowy w tym samym katalogu. Błąd dostępu lub konflikt z zewnętrzną modyfikacją nie przełącza aktywnego pliku. Przy konflikcie wybierz **Zapisz jako…** i inną nazwę, aby zachować kopię, albo ponownie otwórz aktualny plik.
+- Kontrola konfliktów porównuje zawartość i datę modyfikacji przed zapisem i bezpośrednio przed podmianą. Nie jest to blokada innych programów: nie należy równocześnie zapisywać tego samego JSON w dwóch aplikacjach. Zapis asynchroniczny nie blokuje edycji; Nowy/Otwórz są na ten czas niedostępne.
+- Schemat projektu pozostaje v8, z migracją v1–v7. Ścieżka aktywnego projektu i stan zapisu są stanem sesji, poza JSON montażu. Eksport nadal korzysta z dotychczasowego mechanizmu MP4; Export Studio nie jest częścią 0.15.
+
+Testy 0.15: jednostkowe scenariusze rewizji/anulowania/błędów/sesji i atomowego zapisu Unicode, testy nagłówka w WebView2 (1366×700, 1920×1080 oraz belka przy 600 px), rzeczywisty zapis Windows, konflikt pliku, zapis kopii i przełączenie aktywnego celu. Wynik kompilacji Windows oraz instalator są w GitHub Actions dla tej zmiany.
+
+
+Weryfikacja wydania 0.15: [pełny przebieg Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39066339364) zakończony sukcesem: **106 testów TypeScript, 50 testów Rust oraz 8 testów integracyjnych FFmpeg/MLT/proxy/audio**, kompilacja NSIS, rzeczywista instalacja i testy WebView2. Testy potwierdziły także poprawkę Ctrl+O po zapisie. [Pobierz ZIP instalatora](https://github.com/ankelmarek/AutoNapisy/actions/runs/39066339364/artifacts/12113219339), rozpakuj i uruchom `RolVixa_0.15.0_x64-setup.exe`. Paczka zawiera standardową wersję aplikacji bez narzędzi deweloperskich.
+
+Nowe pliki 0.15: `src/ProjectTitle.tsx`, `src/projectSaving.ts`, `src-tauri/src/project_file.rs`, `src-tauri/src/project_commands.rs`, `tests/projectSaving.test.ts`. Zmieniono również nagłówek App, menu, adapter IPC, style, oficjalny podzbiór Tabler Icons, testy WebView2 i metadane wersji. Uruchamianie deweloperskie pozostaje bez zmian: `npm ci`, `npm test`, `npm run tauri -- dev`; pakiet Windows: `./scripts/build-windows.ps1`.
