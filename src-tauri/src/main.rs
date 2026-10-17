@@ -162,15 +162,24 @@ async fn save_project(json: String) -> Result<Option<String>, String> {
         return Err("Projekt przekracza limit 16 MB".into());
     }
     project::parse(&json)?;
-    let Some(file) = rfd::AsyncFileDialog::new()
-        .add_filter("Projekt RolVixa", &["json"])
-        .set_file_name("projekt.rolvixa.json")
-        .save_file()
-        .await
-    else {
-        return Ok(None);
+    #[cfg(feature = "ui-tests")]
+    let fixture = std::env::var_os("ROLVIXA_TEST_PROJECT").map(PathBuf::from);
+    #[cfg(not(feature = "ui-tests"))]
+    let fixture: Option<PathBuf> = None;
+    let chosen = if let Some(path) = fixture {
+        path
+    } else {
+        let Some(file) = rfd::AsyncFileDialog::new()
+            .add_filter("Projekt RolVixa", &["json"])
+            .set_file_name("projekt.rolvixa.json")
+            .save_file()
+            .await
+        else {
+            return Ok(None);
+        };
+        file.path().to_path_buf()
     };
-    let path = file.path();
+    let path = chosen.as_path();
     let dir = path.parent().ok_or("Niepoprawna ścieżka zapisu")?;
     let mut temp = tempfile::NamedTempFile::new_in(dir).map_err(|e| e.to_string())?;
     temp.write_all(json.as_bytes()).map_err(|e| e.to_string())?;
