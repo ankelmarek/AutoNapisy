@@ -41,3 +41,38 @@ Cel: przyspieszyć precyzyjny montaż bez zastępowania decyzji użytkownika. Sm
 5. Nie pogarszać działania istniejących narzędzi cięcia. W razie niedostępności analizy przycisk zwykłego, dokładnego cięcia pozostaje dostępny.
 
 Status: **do zaplanowania i implementacji**, bez zmiany priorytetów bieżących prac nad stabilizacją RolVixa.
+
+## Proxy wideo: inteligentny import i płynny montaż (wysoki priorytet, TODO)
+
+**Cel:** płynny montaż popularnych formatów (MOV, MP4, MKV, WEBM, AVI, M4V), w szczególności wymagających kodeków HEVC/H.265, ProRes, rozdzielczości 4K i nagrań 50/60 FPS. Praca na lekkich kopiach lokalnych, a finalny eksport z **oryginalnych źródeł**. Samo rozszerzenie pliku nie gwarantuje poprawnego dekodowania.
+
+### Etap 1: inteligentna diagnostyka importu
+
+1. Odczyt metadanych przez FFprobe: kontener, kodek i profil, rozdzielczość, nominalny/średni FPS, czas trwania, orientacja, ścieżki audio, informacje HDR i kolorystyczne oraz możliwe VFR (bez zgadywania).
+2. Program proponuje przygotowanie proxy po wykryciu wymagającego materiału, braku obsługi w podglądzie albo na żądanie użytkownika; możliwość pracy na oryginale.
+3. W bibliotece media mają status: Oryginał, Proxy w przygotowaniu, Proxy gotowe, Błąd proxy. Pokazać postęp, anulowanie, ponowienie oraz zarządzanie przełączaniem źródła.
+4. Generowanie nie blokuje montażu innych klipów; nie wysyłamy plików do sieci.
+
+### Etap 2: generator i cache proxy
+
+1. Pierwszy profil proxy: lokalne MP4 H.264 SDR w 540p lub 720p (z zachowaniem proporcji i poprawnym audio), dobrane pod obsługiwane dekodery MLT/WebView2; profile porównać na testowych nagraniach.
+2. Zachować deterministyczne powiązanie oryginał ↔ proxy, na podstawie stabilnego identyfikatora, cech pliku i profilu. Wykrywać zmienione/usunięte oryginały i nie używać nieaktualnej kopii.
+3. Stosować spójne mapowanie czasu, orientacji i numerów klatek; szczególnie sprawdzić źródła VFR, 60 FPS, obrót i synchronizację audio/napisów. Proxy nie może zmieniać długości czy kolejności zdarzeń w projekcie.
+4. Ustalić limit miejsca cache, wykrywać brak miejsca, usuwać osierocone kopie za potwierdzeniem i chronić pliki aktualnie wykorzystywane przez projekty. Oryginały pozostają nietknięte.
+
+### Etap 3: podgląd z proxy, eksport z oryginału
+
+1. Podgląd MLT i miniatury wykorzystują wybrane proxy, a cięcia, przejścia, keyframes i napisy odnoszą się do oryginalnej osi czasu.
+2. Eksport MP4 i transkrypcja mają korzystać z oryginalnego audio/wideo (nie degradować wyniku przez proxy). Jeśli oryginał zniknął, program zgłasza brak źródła zamiast eksportować z proxy bez zgody.
+3. Automatycznie wracać do oryginału lub zgłaszać błąd przy brakującym/uszkodzonym proxy; bez utraty stanu projektu, ręcznych cięć, warstw i licencji audio.
+4. W przyszłości dodać profile konwersji SDR/HDR i świadome zarządzanie barwami, bez deklarowania zachowania HDR dopóki nie ma wdrożonych testów.
+
+### Testy i kryteria odbioru
+
+1. Próbki: MOV H.264, MOV HEVC z iPhone'a, MP4 H.264/H.265, MKV, WEBM i AVI, ProRes, 4K, 60 FPS, VFR, pionowe filmy z obrotem, pliki bez audio i ścieżki Unicode.
+2. Porównać wynik eksportu (z oryginału) i podglądu (proxy) pod kątem synchronizacji, kadrowania, długości, pozycji cięć, przejść i napisów.
+3. Sprawdzić tworzenie, przerwanie, ponawianie, regenerację po zmianie źródła, otwieranie zapisanego projektu, brak miejsca oraz czyszczenie pamięci.
+4. Nie zmieniać źródeł i nie blokować dotychczasowego importu w razie awarii generatora.
+5. Dodać testy integracyjne FFmpeg/MLT i testy UI do CI, bez zmuszania użytkownika do ręcznej konwersji.
+
+Status: **do implementacji po ustabilizowaniu bieżącego wydania**. Wysoki priorytet ze względu na płynność pracy oraz obsługę nagrań z telefonów.
