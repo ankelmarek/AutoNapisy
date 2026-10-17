@@ -15,10 +15,15 @@ if(process.argv.includes('--prepare')){
  process.exit(0);
 }
 const browser=await chromium.connectOverCDP(process.env.ROLVIXA_WEBVIEW_CDP);
-const page=browser.contexts()[0].pages()[0];
+const page=browser.contexts()[0].pages().find(p=>!p.url().startsWith('devtools:'))??await browser.contexts()[0].waitForEvent('page');
+console.log('Initial WebView pages:',browser.contexts()[0].pages().map(p=>p.url()));
 page.setDefaultTimeout(45000);
-const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(['error','warning'].includes(m.type()))console.log('WebView2:',m.type(),m.text());});
+const errors=[];page.on('pageerror',e=>{errors.push(e.message);console.log('Page error:',e.stack??e.message);});page.on('console',m=>{if(['error','warning'].includes(m.type()))console.log('WebView2:',m.type(),m.text());});
 try{
+ // CDP can be ready before Tauri performs its first navigation. Reloading
+ // about:blank here cancels startup, leaving a healthy app with an empty test page.
+ await page.waitForURL(/tauri\.localhost|^tauri:/,{timeout:45000});
+ await page.waitForSelector('.project-menu summary');
  await page.reload();
  await page.locator('.project-menu summary').click();
  await page.locator('.project-menu-popup').getByRole('button',{name:'Otwórz',exact:true}).click();
@@ -92,6 +97,8 @@ try{
  console.log('Live Openverse API:',JSON.stringify(openverse));
  console.log('Real native preview (portrait, Unicode paths, decoded pixels, play, pause, seek):',JSON.stringify(await state()));
  assert.deepEqual(errors,[]);
+}catch(e){
+ console.log('Native UI failure:',{url:page.url(),errors,body:(await page.locator('body').innerText().catch(()=>'' )).slice(0,6000)});throw e;
 }finally{
  await page.screenshot({path:'.tools/native-preview.png'}).catch(()=>{});
  await browser.close();
