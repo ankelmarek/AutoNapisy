@@ -1,5 +1,17 @@
 # Kolejne etapy RolVixa
 
+## NAJBLIŻSZY PRIORYTET P1 - nagłówek i poprawny zapis projektu
+
+**Zatwierdzone przez użytkownika.** Po odbiorze gałęzi 0.14/proxy, a **przed** zaawansowanym audio, SmartCut i Export Studio, wdrożyć nowy nagłówek oraz właściwe `Zapisz` / `Zapisz jako`. Pełne kryteria i testy: **[issue #2 - nowy nagłówek i zapis](https://github.com/ankelmarek/AutoNapisy/issues/2)**.
+
+- [ ] Przenieść menu **Projekt ▼** bezpośrednio obok logo RolVixa; tekstowe pozycje `Zapisz` / `Zapisz jako...` pozostają w menu.
+- [ ] Na prawym końcu belki: dwie **ikonowe**, zawsze widoczne akcje: **Zapisz** (dyskietka; kolor statusu) i **Eksportuj** (większy żółty przycisk z ikoną; na początek obecny eksport MP4). Używać Tabler Icons, czytelnych tooltipów, aria-label i skrótów.
+- [ ] Status zapisu: **zielony** - zapisano; **żółty** - niezapisany / są zmiany; **niebieski** - trwa zapis; **czerwony** - błąd. Stan wynika ze skutku rzeczywistej operacji i rewizji projektu, nie tylko z timera.
+- [ ] **Ctrl+S**: pierwszy zapis pyta o plik; wszystkie następne zapisują do zapamiętanej ścieżki bez dialogu. **Ctrl+Shift+S**: `Zapisz jako` zawsze pyta o nazwę i po sukcesie ustawia nową aktywną ścieżkę. Wybrać zabezpieczony, atomowy zapis i ochronę przed konfliktem z modyfikacją zewnętrzną; żadnych dowolnych ścieżek zapisu z frontendu.
+- [ ] Nazwa projektu jako wyraźny tytuł z **ołówkiem**. Kliknięcie tytułu/ołówka włącza edycję (Enter/zatwierdź, Esc/anuluj), zmiana nazwy nie zmienia nazwy istniejącego pliku na dysku.
+- [ ] Testy 1366×768, Full HD, skrótów, menu i edycji tytułu, projektu świeżego i otwartego, anulowania i błędów zapisu, danych niezapisanych podczas zapisywania; zachować kompatybilność starszych projektów.
+- [ ] Ukończyć jako osobną, przetestowaną zmianę/PR, **nie doklejać do trwającego proxy**. Docelowy panel z presetami eksportu to **[odłożone issue #1](https://github.com/ankelmarek/AutoNapisy/issues/1)**, bez zmiany zakresu tego zadania.
+
 ## Biblioteka audio — wykonane w 0.12, rozszerzone w 0.13
 
 - [x] Muzyka Openverse: wyszukiwanie frazą, pobieranie i dane autora/licencji.
