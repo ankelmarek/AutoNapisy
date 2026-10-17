@@ -289,6 +289,7 @@ pub fn component_licenses(app: tauri::AppHandle) -> Result<Vec<LicenseNotice>, S
     }];
     for file in [
         "Kenney-Interface-Sounds-CC0.txt",
+        "Tabler-Icons-MIT.txt",
         "FFmpeg-GPL-2.0.txt",
         "x264-COPYING.txt",
         "zlib.txt",

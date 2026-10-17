@@ -309,7 +309,7 @@ export default function App() {
           <div className="panelhead">
             <div className="library-tabs" role="tablist" aria-label="Zasoby projektu">
               <button id="files-tab" role="tab" aria-selected={leftTab==='files'} aria-controls="files-panel" onClick={()=>setLeftTab('files')}><Icon name="files" size={16}/>Pliki <small>{libraryItems(project).length}</small></button>
-              <button id="captions-tab" role="tab" aria-selected={leftTab==='captions'} aria-controls="captions-panel" onClick={()=>setLeftTab('captions')}><Icon name="captions" size={16}/>Napisy</button><button id="audio-tab" role="tab" aria-selected={leftTab==='audio'} aria-controls="audio-panel" onClick={()=>setLeftTab('audio')}><Icon name="audio" size={15}/>Audio</button><button role="tab" aria-selected={leftTab==='effects'} onClick={()=>setLeftTab('effects')}>Efekty</button>
+              <button id="captions-tab" role="tab" aria-selected={leftTab==='captions'} aria-controls="captions-panel" onClick={()=>setLeftTab('captions')}><Icon name="captions" size={16}/>Napisy</button><button id="audio-tab" role="tab" aria-selected={leftTab==='audio'} aria-controls="audio-panel" onClick={()=>setLeftTab('audio')}><Icon name="audio" size={15}/>Audio</button><button role="tab" aria-selected={leftTab==='effects'} onClick={()=>setLeftTab('effects')}><Icon name="effects" size={15}/>Efekty</button>
             </div>
           </div>
           {leftTab==='audio'&&<AudioLibrary project={project} locked={locked} timelinePlaying={playing} onImport={()=>importMedia('audio')} onRegister={registerAudio} onPause={playback.pause} onAdd={id=>{try{playback.pause();changeProject(insertLibraryItem(latestProject.current,id,time));setMessage('Dodano audio na oś czasu.');}catch(e){setMessage(String(e));}}}/>}
@@ -387,7 +387,7 @@ export default function App() {
             <h2>Podgląd wideo</h2>
             <span>{project.media?.name ?? "Brak filmu"}</span>
           </div>
-          <div className="preview-toolbar"><label>Format<select aria-label="Format obrazu" disabled={locked} value={project.canvas?`${project.canvas.width}x${project.canvas.height}`:'source'} onChange={e=>{playback.pause();const [width,height]=e.target.value.split('x').map(Number);changeProject({...project,canvas:e.target.value==='source'?null:{width,height}});}}><option value="source">Źródłowy</option><option value="1080x1920">9:16 · Rolka</option><option value="1920x1080">16:9 · Poziomo</option><option value="1080x1080">1:1 · Kwadrat</option></select></label><button aria-pressed={inspectorTab==='layers'} onClick={()=>setInspectorTab('layers')}>Warstwy</button></div>
+          <div className="preview-toolbar"><label>Format<select aria-label="Format obrazu" disabled={locked} value={project.canvas?`${project.canvas.width}x${project.canvas.height}`:'source'} onChange={e=>{playback.pause();const [width,height]=e.target.value.split('x').map(Number);changeProject({...project,canvas:e.target.value==='source'?null:{width,height}});}}><option value="source">Źródłowy</option><option value="1080x1920">9:16 · Rolka</option><option value="1920x1080">16:9 · Poziomo</option><option value="1080x1080">1:1 · Kwadrat</option></select></label><button aria-pressed={inspectorTab==='layers'} onClick={()=>setInspectorTab('layers')}><Icon name="layers" size={13}/>Warstwy</button></div>
           <div className="stage" ref={stage}>
             {libraryItems(project).length ? (
               <div className="composition-surface" ref={captionSurface} style={{width:surfaceWidth,height:surfaceWidth/canvasAspect}}>
@@ -400,7 +400,7 @@ export default function App() {
               </div>
             ) : (
               <div className="empty">
-                <div className="symbol">▷</div>
+                <div className="symbol"><Icon name="video" size={40}/></div>
                 <h3>Twój film, w centrum uwagi</h3>
                 <p>Wybierz film, aby rozpocząć.</p>
                 <button disabled={locked} onClick={importVideo}>
@@ -416,21 +416,22 @@ export default function App() {
               disabled={!duration || busy}
               onClick={() => seek(time - 5)}
             >
-              −5 s
+              <Icon name="back5" size={19}/>
             </button>
             <button
+              aria-label={playing?"Wstrzymaj odtwarzanie":"Odtwórz film"}
               className="play"
               disabled={!duration || busy}
               onClick={toggle}
             >
-              {playing ? "Ⅱ" : "▶"}
+              <Icon name={playing?"pause":"play"} size={20}/>
             </button>
             <button
               aria-label="Przewiń 5 sekund"
               disabled={!duration || busy}
               onClick={() => seek(time + 5)}
             >
-              +5 s
+              <Icon name="forward5" size={19}/>
             </button>
             <code>
               {formatTime(time)} <span>/ {formatTime(duration)}</span>

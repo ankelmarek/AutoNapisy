@@ -34,16 +34,16 @@ try{
  // A decoded frame must contain actual video pixels, not only a moving timer.
  const pixels=await page.locator('video.mlt-video').evaluate(v=>{const c=document.createElement('canvas');c.width=16;c.height=16;const x=c.getContext('2d');x.drawImage(v,0,0,16,16);return [...x.getImageData(0,0,16,16).data].filter((_,i)=>i%4!==3).some(v=>v>35);});
  assert(pixels,'Real MLT frame is black');
- await page.getByRole('button',{name:'▶',exact:true}).click();
+ await page.getByRole('button',{name:'Odtwórz film',exact:true}).click();
  await page.waitForFunction(()=>document.querySelector('video.mlt-video')?.currentTime>.3);
  const seek=page.getByRole('slider',{name:'Pozycja odtwarzania',exact:true});
  await page.waitForFunction(()=>Number(document.querySelector('input[aria-label="Pozycja odtwarzania"]').value)>.3);
- await page.getByRole('button',{name:'Ⅱ',exact:true}).click();
+ await page.getByRole('button',{name:'Wstrzymaj odtwarzanie',exact:true}).click();
  await seek.fill('6');
  await page.waitForFunction(()=>document.querySelector('video.mlt-video')?.readyState>=2);
- await page.getByRole('button',{name:'▶',exact:true}).click();
+ await page.getByRole('button',{name:'Odtwórz film',exact:true}).click();
  await page.waitForFunction(()=>Number(document.querySelector('input[aria-label="Pozycja odtwarzania"]').value)>6.3);
- await page.getByRole('button',{name:'Ⅱ',exact:true}).click();
+ await page.getByRole('button',{name:'Wstrzymaj odtwarzanie',exact:true}).click();
  const sourceBefore=await page.locator('video.mlt-video').evaluate(v=>v.currentSrc);
  await page.getByRole('button',{name:'Ukryj V1',exact:true}).click();
  await page.waitForFunction(before=>{const v=document.querySelector('video.mlt-video');return v?.currentSrc!==before&&v?.readyState>=2;},sourceBefore);
@@ -77,6 +77,8 @@ try{
  await page.getByRole('tab',{name:'Audio',exact:true}).click();
  await page.getByRole('button',{name:'Dźwięki',exact:true}).click();
  await page.waitForFunction(()=>document.querySelectorAll('.audio-library-item').length===100);
+ await page.getByRole('combobox',{name:'Kategoria dźwięków'}).selectOption('Kliknięcia');
+ assert((await page.locator('.audio-library-item').count())<100);
  await page.getByRole('textbox',{name:'Szukaj efektu dźwiękowego'}).fill('Wybór 6');
  const sound=page.locator('.audio-library-item').first();
  await sound.getByRole('button',{name:/Odsłuchaj:/}).click();
@@ -101,6 +103,20 @@ try{
  if(await page.locator('.audio-library-error').count())console.log('Live Openverse unavailable:',await page.locator('.audio-library-error').textContent());
  else{
   const results=await page.locator('.remote-audio').count();assert(results>0,'Openverse piano search must retain valid music files');
+  const remote=page.locator('.remote-audio').first();
+  await remote.getByRole('button',{name:/Odsłuchaj:/}).click();
+  await page.waitForFunction(()=>{const a=document.querySelector('.audio-library audio');return (a&&!a.paused&&a.currentTime>.05)||document.querySelector('.audio-library-error');},{},{timeout:45000});
+  assert.equal(await page.locator('.audio-library-error').count(),0,'Available music source must support its temporary audition');
+  const previewDuration=await page.locator('.audio-library audio').evaluate(a=>a.duration);assert(previewDuration>0&&previewDuration<=30.05);
+  await page.getByRole('slider',{name:'Głośność odsłuchu'}).fill('.35');assert(Math.abs(await page.locator('.audio-library audio').evaluate(a=>a.volume)-.35)<.01);
+  await page.getByRole('button',{name:'Wstrzymaj odsłuch',exact:true}).click();assert(await page.locator('.audio-library audio').evaluate(a=>a.paused));
+  await page.getByRole('slider',{name:'Pozycja odsłuchu'}).fill('5');await page.getByRole('button',{name:'Wznów odsłuch',exact:true}).click();
+  await page.waitForFunction(()=>document.querySelector('.audio-library audio').currentTime>5);
+  await page.getByRole('button',{name:'Zatrzymaj odsłuch',exact:true}).click();
+  await page.locator('.project-menu summary').click();await page.locator('.project-menu-popup').getByRole('button',{name:'Zapisz',exact:true}).click();
+  await page.waitForFunction(()=>!document.querySelector('select[aria-label="Format obrazu"]').disabled);
+  const untouched=JSON.parse(fs.readFileSync(process.env.ROLVIXA_TEST_PROJECT,'utf8'));assert.deepEqual(untouched.assets,audioSaved.assets,'Audition must not import files');assert.deepEqual(untouched.clips,audioSaved.clips,'Audition must not alter timeline');
+  console.log('Real Openverse audition BEFORE import, volume, pause/seek/resume and unchanged project: OK');
   await page.locator('.remote-audio').first().getByRole('button',{name:'Pobierz do projektu'}).click();
   await page.waitForFunction(()=>document.querySelector('.audio-library-item')||document.querySelector('.audio-library-error'),{},{timeout:75000});
   if(await page.locator('.audio-library-error').count())console.log('Live Openverse provider unavailable:',await page.locator('.audio-library-error').textContent());

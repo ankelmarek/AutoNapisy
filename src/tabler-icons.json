@@ -1,0 +1,837 @@
+{
+  "eye": {
+    "name": "eye",
+    "parts": [
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6"
+        }
+      }
+    ]
+  },
+  "eyeOff": {
+    "name": "eye-off",
+    "parts": [
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M10.585 10.587a2 2 0 0 0 2.829 2.828"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M16.681 16.673a8.717 8.717 0 0 1 -4.681 1.327c-3.6 0 -6.6 -2 -9 -6c1.272 -2.12 2.712 -3.678 4.32 -4.674m2.86 -1.146a9.055 9.055 0 0 1 1.82 -.18c3.6 0 6.6 2 9 6c-.666 1.11 -1.379 2.067 -2.138 2.87"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M3 3l18 18"
+        }
+      }
+    ]
+  },
+  "speakerOff": {
+    "name": "volume-off",
+    "parts": [
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M15 8a5 5 0 0 1 1.912 4.934m-1.377 2.602a5 5 0 0 1 -.535 .464"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M17.7 5a9 9 0 0 1 2.362 11.086m-1.676 2.299a9 9 0 0 1 -.686 .615"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M9.069 5.054l.431 -.554a.8 .8 0 0 1 1.5 .5v2m0 4v8a.8 .8 0 0 1 -1.5 .5l-3.5 -4.5h-2a1 1 0 0 1 -1 -1v-4a1 1 0 0 1 1 -1h2l1.294 -1.664"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M3 3l18 18"
+        }
+      }
+    ]
+  },
+  "cursor": {
+    "name": "pointer",
+    "parts": [
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M7.904 17.563a1.2 1.2 0 0 0 2.228 .308l2.09 -3.093l4.907 4.907a1.067 1.067 0 0 0 1.509 0l1.047 -1.047a1.067 1.067 0 0 0 0 -1.509l-4.907 -4.907l3.113 -2.09a1.2 1.2 0 0 0 -.309 -2.228l-13.582 -3.904l3.904 13.563z"
+        }
+      }
+    ]
+  },
+  "razor": {
+    "name": "razor",
+    "parts": [
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M7 3h10v4h-10z"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M12 7v4"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M12 11a2 2 0 0 1 2 2v6a2 2 0 1 1 -4 0v-6a2 2 0 0 1 2 -2z"
+        }
+      }
+    ]
+  },
+  "cut": {
+    "name": "cut",
+    "parts": [
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M7 17m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M17 17m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M9.15 14.85l8.85 -10.85"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M6 4l8.85 10.85"
+        }
+      }
+    ]
+  },
+  "trash": {
+    "name": "trash",
+    "parts": [
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M4 7l16 0"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M10 11l0 6"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M14 11l0 6"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"
+        }
+      }
+    ]
+  },
+  "pack": {
+    "name": "arrows-join",
+    "parts": [
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M3 7h5l3.5 5h9.5"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M3 17h5l3.495 -5"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M18 15l3 -3l-3 -3"
+        }
+      }
+    ]
+  },
+  "magnet": {
+    "name": "magnet",
+    "parts": [
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M4 13v-8a2 2 0 0 1 2 -2h1a2 2 0 0 1 2 2v8a2 2 0 0 0 6 0v-8a2 2 0 0 1 2 -2h1a2 2 0 0 1 2 2v8a8 8 0 0 1 -16 0"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M4 8l5 0"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M15 8l4 0"
+        }
+      }
+    ]
+  },
+  "undo": {
+    "name": "arrow-back-up",
+    "parts": [
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M9 14l-4 -4l4 -4"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M5 10h11a4 4 0 1 1 0 8h-1"
+        }
+      }
+    ]
+  },
+  "redo": {
+    "name": "arrow-forward-up",
+    "parts": [
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M15 14l4 -4l-4 -4"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M19 10h-11a4 4 0 1 0 0 8h1"
+        }
+      }
+    ]
+  },
+  "restore": {
+    "name": "restore",
+    "parts": [
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M3.06 13a9 9 0 1 0 .49 -4.087"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M3 4.001v5h5"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M12 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"
+        }
+      }
+    ]
+  },
+  "video": {
+    "name": "movie",
+    "parts": [
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M4 4m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M8 4l0 16"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M16 4l0 16"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M4 8l4 0"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M4 16l4 0"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M4 12l16 0"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M16 8l4 0"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M16 16l4 0"
+        }
+      }
+    ]
+  },
+  "audio": {
+    "name": "music",
+    "parts": [
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M3 17a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M13 17a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M9 17v-13h10v13"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M9 8h10"
+        }
+      }
+    ]
+  },
+  "add": {
+    "name": "plus",
+    "parts": [
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M12 5l0 14"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M5 12l14 0"
+        }
+      }
+    ]
+  },
+  "captions": {
+    "name": "badge-cc",
+    "parts": [
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M3 5m0 2a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2z"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M10 10.5a1.5 1.5 0 0 0 -3 0v3a1.5 1.5 0 0 0 3 0"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M17 10.5a1.5 1.5 0 0 0 -3 0v3a1.5 1.5 0 0 0 3 0"
+        }
+      }
+    ]
+  },
+  "files": {
+    "name": "folder",
+    "parts": [
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M5 4h4l3 3h7a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2"
+        }
+      }
+    ]
+  },
+  "search": {
+    "name": "search",
+    "parts": [
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M21 21l-6 -6"
+        }
+      }
+    ]
+  },
+  "speaker": {
+    "name": "volume",
+    "parts": [
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M15 8a5 5 0 0 1 0 8"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M17.7 5a9 9 0 0 1 0 14"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M6 15h-2a1 1 0 0 1 -1 -1v-4a1 1 0 0 1 1 -1h2l3.5 -4.5a.8 .8 0 0 1 1.5 .5v14a.8 .8 0 0 1 -1.5 .5l-3.5 -4.5"
+        }
+      }
+    ]
+  },
+  "zoom": {
+    "name": "zoom-in",
+    "parts": [
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M7 10l6 0"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M10 7l0 6"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M21 21l-6 -6"
+        }
+      }
+    ]
+  },
+  "link": {
+    "name": "link",
+    "parts": [
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M9 15l6 -6"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M11 6l.463 -.536a5 5 0 0 1 7.071 7.072l-.534 .464"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M13 18l-.397 .534a5.068 5.068 0 0 1 -7.127 0a4.972 4.972 0 0 1 0 -7.071l.524 -.463"
+        }
+      }
+    ]
+  },
+  "play": {
+    "name": "player-play",
+    "parts": [
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M7 4v16l13 -8z"
+        }
+      }
+    ]
+  },
+  "pause": {
+    "name": "player-pause",
+    "parts": [
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M6 5m0 1a1 1 0 0 1 1 -1h2a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1z"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M14 5m0 1a1 1 0 0 1 1 -1h2a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1z"
+        }
+      }
+    ]
+  },
+  "stop": {
+    "name": "player-stop",
+    "parts": [
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M5 5m0 2a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2z"
+        }
+      }
+    ]
+  },
+  "chevronDown": {
+    "name": "chevron-down",
+    "parts": [
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M6 9l6 6l6 -6"
+        }
+      }
+    ]
+  },
+  "chevronLeft": {
+    "name": "chevron-left",
+    "parts": [
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M15 6l-6 6l6 6"
+        }
+      }
+    ]
+  },
+  "chevronRight": {
+    "name": "chevron-right",
+    "parts": [
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M9 6l6 6l-6 6"
+        }
+      }
+    ]
+  },
+  "download": {
+    "name": "download",
+    "parts": [
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M7 11l5 5l5 -5"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M12 4l0 12"
+        }
+      }
+    ]
+  },
+  "x": {
+    "name": "x",
+    "parts": [
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M18 6l-12 12"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M6 6l12 12"
+        }
+      }
+    ]
+  },
+  "loader": {
+    "name": "loader-2",
+    "parts": [
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M12 3a9 9 0 1 0 9 9"
+        }
+      }
+    ]
+  },
+  "settings": {
+    "name": "settings",
+    "parts": [
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"
+        }
+      }
+    ]
+  },
+  "save": {
+    "name": "device-floppy",
+    "parts": [
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M6 4h10l4 4v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M12 14m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M14 4l0 4l-6 0l0 -4"
+        }
+      }
+    ]
+  },
+  "import": {
+    "name": "file-import",
+    "parts": [
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M14 3v4a1 1 0 0 0 1 1h4"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M5 13v-8a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2h-5.5m-9.5 -2h7m-3 -3l3 3l-3 3"
+        }
+      }
+    ]
+  },
+  "export": {
+    "name": "file-export",
+    "parts": [
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M14 3v4a1 1 0 0 0 1 1h4"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M11.5 21h-4.5a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v5m-5 6h7m-3 -3l3 3l-3 3"
+        }
+      }
+    ]
+  },
+  "new": {
+    "name": "file-plus",
+    "parts": [
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M14 3v4a1 1 0 0 0 1 1h4"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M12 11l0 6"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M9 14l6 0"
+        }
+      }
+    ]
+  },
+  "open": {
+    "name": "folder-open",
+    "parts": [
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M5 19l2.757 -7.351a1 1 0 0 1 .936 -.649h12.307a1 1 0 0 1 .986 1.164l-.996 5.211a2 2 0 0 1 -1.964 1.625h-14.026a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2h4l3 3h7a2 2 0 0 1 2 2v2"
+        }
+      }
+    ]
+  },
+  "layers": {
+    "name": "layers-intersect",
+    "parts": [
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M8 4m0 2a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2z"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M4 8m0 2a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2z"
+        }
+      }
+    ]
+  },
+  "effects": {
+    "name": "transition-right",
+    "parts": [
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M18 3a3 3 0 0 1 3 3v12a3 3 0 0 1 -3 3"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M3 18v-12a3 3 0 1 1 6 0v12a3 3 0 0 1 -6 0z"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M9 12h8"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M14 15l3 -3l-3 -3"
+        }
+      }
+    ]
+  },
+  "back5": {
+    "name": "rewind-backward-5",
+    "parts": [
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M15 18a6 6 0 1 0 0 -12h-11"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M7 9l-3 -3l3 -3"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M8 20h2a1 1 0 0 0 1 -1v-1a1 1 0 0 0 -1 -1h-2v-3h3"
+        }
+      }
+    ]
+  },
+  "forward5": {
+    "name": "rewind-forward-5",
+    "parts": [
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M9 18a6 6 0 1 1 0 -12h11"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M13 20h2a1 1 0 0 0 1 -1v-1a1 1 0 0 0 -1 -1h-2v-3h3"
+        }
+      },
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M17 9l3 -3l-3 -3"
+        }
+      }
+    ]
+  },
+  "playhead": {
+    "name": "caret-down",
+    "parts": [
+      {
+        "tag": "path",
+        "attrs": {
+          "d": "M6 10l6 6l6 -6h-12"
+        }
+      }
+    ]
+  }
+}

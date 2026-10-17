@@ -155,7 +155,7 @@ jobs:
       - name: Test real montage export with bundled FFmpeg
         env:
           AUTONAPISY_FFMPEG: ${{ github.workspace }}/src-tauri/.bundled/vendor/ffmpeg.exe
-        run: cargo test --locked --manifest-path .test-core/Cargo.toml --test montage_export -- --ignored --nocapture
+        run: cargo test --locked --manifest-path .test-core/Cargo.toml --test montage_export --test remote_audio -- --ignored --nocapture
       - name: Test real MLT timeline engine
         env:
           ROLVIXA_CAPTURE_PREVIEW: ${{ github.workspace }}/.tools/mock-stream.mp4

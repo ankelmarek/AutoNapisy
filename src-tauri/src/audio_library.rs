@@ -167,6 +167,78 @@ pub fn probe(job: &Arc<Job>, ffmpeg: &Path, path: &Path, dir: &Path) -> Result<f
     }
     Ok(duration)
 }
+/// A preview is a bounded temporary input, never an imported project asset.
+pub const PREVIEW_BYTES: usize = 4 * 1024 * 1024;
+pub fn preview_fragment(
+    input: &mut impl std::io::Read,
+    output: &mut impl std::io::Write,
+    mut check: impl FnMut() -> Result<(), String>,
+) -> Result<usize, String> {
+    let mut count = 0;
+    let mut buffer = [0u8; 65536];
+    while count < PREVIEW_BYTES {
+        check()?;
+        let available = buffer.len().min(PREVIEW_BYTES - count);
+        let n = input
+            .read(&mut buffer[..available])
+            .map_err(|e| format!("Odsłuch: {e}"))?;
+        if n == 0 {
+            break;
+        }
+        output.write_all(&buffer[..n]).map_err(|e| e.to_string())?;
+        count += n;
+    }
+    check()?;
+    if count == 0 {
+        return Err("Źródło zwróciło pusty plik audio".into());
+    }
+    Ok(count)
+}
+pub fn preview_wav(
+    job: &Arc<Job>,
+    ffmpeg: &Path,
+    input: &Path,
+    output: &Path,
+    dir: &Path,
+) -> Result<f64, String> {
+    let mut args: Vec<std::ffi::OsString> = [
+        "-v",
+        "error",
+        "-nostdin",
+        "-y",
+        "-protocol_whitelist",
+        "file,pipe",
+        "-i",
+    ]
+    .iter()
+    .map(Into::into)
+    .collect();
+    args.push(input.as_os_str().to_owned());
+    args.extend(
+        [
+            "-t",
+            "30",
+            "-vn",
+            "-ar",
+            "48000",
+            "-ac",
+            "2",
+            "-c:a",
+            "pcm_s16le",
+        ]
+        .iter()
+        .map(std::ffi::OsString::from),
+    );
+    args.push(output.as_os_str().to_owned());
+    crate::transcription::run_process(job, ffmpeg, &args, false, dir)?;
+    let wav =
+        hound::WavReader::open(output).map_err(|e| format!("Nieprawidłowy podgląd audio: {e}"))?;
+    let duration = wav.duration() as f64 / wav.spec().sample_rate as f64;
+    if !(0.05..=30.05).contains(&duration) {
+        return Err("Nieprawidłowa długość odsłuchu".into());
+    }
+    Ok(duration)
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -188,6 +260,34 @@ mod tests {
             assert!(page.results[0].url.ends_with("format=mp32"));
             assert_eq!(page.results[0].duration, 129.);
         }
+    }
+    #[test]
+    fn preview_is_bounded_and_cancellable() {
+        use std::io::{Cursor, Read};
+        let mut input = Cursor::new(vec![17u8; PREVIEW_BYTES + 1024]);
+        let mut output = vec![];
+        assert_eq!(
+            preview_fragment(&mut input, &mut output, || Ok(())).unwrap(),
+            PREVIEW_BYTES
+        );
+        assert_eq!(input.position(), PREVIEW_BYTES as u64);
+        let mut remaining = vec![];
+        input.read_to_end(&mut remaining).unwrap();
+        assert_eq!(remaining.len(), 1024);
+        let mut calls = 0;
+        let mut input = Cursor::new(vec![2u8; 200000]);
+        let mut output = vec![];
+        assert!(preview_fragment(&mut input, &mut output, || {
+            calls += 1;
+            if calls > 1 {
+                Err("Anulowano".into())
+            } else {
+                Ok(())
+            }
+        })
+        .is_err());
+        assert!(output.len() <= 65536);
+        assert!(preview_fragment(&mut Cursor::new(vec![]), &mut vec![], || Ok(())).is_err());
     }
     #[test]
     fn rejects_non_audio_and_missing_fields() {

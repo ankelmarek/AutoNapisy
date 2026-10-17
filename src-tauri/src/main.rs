@@ -288,6 +288,8 @@ fn main() {
             audio_commands::search_audio,
             audio_commands::download_audio,
             audio_commands::audition_audio,
+            audio_commands::preview_remote_audio,
+            audio_commands::cancel_remote_audio,
             mlt_commands::start_mlt_preview,
             mlt_commands::read_mlt_preview,
             mlt_commands::cancel_mlt_preview,

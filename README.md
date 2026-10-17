@@ -1,4 +1,4 @@
-# RolVixa 0.12 — polska mowa → polskie napisy
+# RolVixa 0.13 — polska mowa → polskie napisy
 
 RolVixa (wcześniej AutoNapisy) to lokalna aplikacja Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Rozpoznaje polską mowę przez whisper.cpp, bez tłumaczenia. Transkrypcja i montaż działają na komputerze. Opcjonalna biblioteka muzyki łączy się z Openverse po wpisaniu frazy wyszukiwania; nie wysyła nagrań użytkownika.
 
@@ -281,3 +281,15 @@ Ze źródeł: pełne komponenty buduje `scripts/prepare-bundle.ps1`; MLT można 
 Połączenia sieciowe biblioteki wykonuje wyłącznie Rust przez kontrolowane komendy. Wyszukiwanie wysyła frazę i filtry do `https://api.openverse.org/v1/audio/`; pobranie wykonuje żądanie HTTPS do dostawcy wybranego utworu. Nie wysyłamy filmów, ścieżek lokalnych ani projektów. Frontend nadal nie ma dostępu do dowolnych komend ani sieci. Wbudowany FFmpeg zachowuje wyłączoną obsługę sieci. Kenney i własne audio nie wymagają internetu.
 
 Test kadrowania rzeczywistymi silnikami: `ROLVIXA_MLT=/ścieżka/melt AUTONAPISY_FFMPEG=/ścieżka/ffmpeg cargo test --manifest-path .test-core/Cargo.toml --test framing -- --ignored --nocapture`. Test sprawdza rozmiar pionowego MP4, dopasowanie, powiększenie, przesunięcie i kolory po przejściu.
+
+
+## RolVixa 0.13 — odsłuch przed importem i czytelniejsze audio
+
+- Wyniki Openverse mają przycisk odsłuchu. Odsłuch nie dodaje pliku do biblioteki ani klipu do montażu; osobne „Pobierz do projektu” importuje pełny utwór z licencją i autorem.
+- Odtwarzacz odsłuchu pokazuje pozycję, pauzę/wznowienie i głośność. Jego głośność nie zmienia ustawień klipów. Zmiana zakładki, zamknięcie biblioteki lub start filmu zatrzymują odsłuch. Ładowanie można anulować albo wybrać inny utwór; spóźniona odpowiedź nie rozpoczyna poprzedniego odsłuchu.
+- Rust pobiera do 4 MiB początku nagrania i tworzy maksymalnie 30-sekundowy stereo WAV w tymczasowym cache sesji (do ośmiu gotowych podglądów). Dane są pobierane również wtedy, gdy serwer ignoruje HTTP Range, ale limit odczytu nadal obowiązuje. Cache odsłuchu nie jest biblioteką projektu i znika przy zamknięciu aplikacji. Niektóre formaty lub serwery wymagają pełnego pliku; wówczas dostępne pozostaje zwykłe pobranie do projektu. Nie jest to jeszcze proxy wideo.
+- Dźwięki Kenney można filtrować kategorią i frazą. Przebieg audio na osi wypełnia wysokość klipu: skala rysunku jest normalizowana względem maksimum nagrania, pauzy i proporcje sygnału są zachowane. Nie zmienia to głośności materiału.
+- Cały zestaw ikon interfejsu pochodzi z Tabler Icons v3.35.0 (MIT). Statyczny podzbiór jest dołączony do aplikacji; ikony nie wymagają internetu. Licencja: `licenses/Tabler-Icons-MIT.txt`.
+- Format projektu pozostaje v8, zgodny z 0.12. Kolejny priorytet z ROADMAP.md: proxy wideo; SmartCut jest planowany oddzielnie.
+
+Test ograniczonego wejścia i rzeczywistego odsłuchu: `AUTONAPISY_FFMPEG=/ścieżka/ffmpeg cargo test --manifest-path .test-core/Cargo.toml --test remote_audio -- --ignored --nocapture`. Windows CI sprawdza także podgląd utworu Openverse przed importem, pozycję, głośność i niezmienność projektu oraz oddzielne pobranie i zapis autorstwa.

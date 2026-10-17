@@ -1,16 +1,22 @@
 # Kolejne etapy RolVixa
 
-## Audio w panelu multimediów — po wdrożeniu MLT 0.11
+## Biblioteka audio — wykonane w 0.12, rozszerzone w 0.13
 
-Nowa zakładka Audio w zasobach multimedialnych, z trzema sekcjami:
+- [x] Muzyka Openverse: wyszukiwanie frazą, pobieranie i dane autora/licencji.
+- [x] Kenney Interface Sounds: 100 efektów CC0, odsłuch i przeciąganie na A1/A2.
+- [x] Moje audio: ręczny import wielu plików bez automatycznego dodawania na oś.
+- [x] 0.13: odsłuch wyniku Openverse przed importem; tymczasowy, ograniczony cache, anulowanie i szybkie przełączanie.
+- [x] 0.13: pozycja i głośność odsłuchu oraz kategorie Kenney.
+- [x] 0.13: przebieg audio dopasowany do pełnej wysokości klipu, bez zmiany głośności.
+- [x] 0.13: Tabler Icons jako wspólny zestaw ikon całego interfejsu.
+- [ ] Miniatury przebiegu w samej bibliotece własnego audio.
+- [ ] Rozbudowane filtrowanie i ulubione nagrania.
 
-- Muzyka: wyszukiwarka frazą korzystająca z API Openverse, odsłuch, pobieranie do biblioteki projektu, zachowane dane autora, adres źródła, typ i adres licencji oraz wymagane przypisanie autorstwa. Wyniki API nie powinny sugerować, że każda pozycja jest dozwolona do każdego zastosowania.
-- Dźwięki: wbudowana paczka efektów Kenney, wyszukiwanie i grupowanie według kategorii, odsłuch i przeciąganie na oś. Konkretny zestaw oraz jego licencję trzeba potwierdzić przed dołączeniem; użytkownik odwołał się do innej rozmowy, której treść nie jest dostępna w tej sesji.
-- Moje audio: ręczny import własnych plików, miniatury/przebieg, odsłuch, przeciąganie na A1/A2 i dotychczasowe przycinanie oraz głośność.
+Openverse łączy się z internetem po wyszukaniu frazy; dostęp realizują kontrolowane komendy Rust. Odsłuch nie dodaje pliku ani klipu do projektu. Kenney i własne pliki działają offline.
 
-Katalog Openverse jest świadomie dodawaną funkcją online. Dostęp do API i pobieranie plików przez kontrolowany adapter Rust, bez dowolnych URL/komend z projektu JSON. Ta funkcja nie wymaga wysyłania materiałów montażowych. Efekty Kenney i zaimportowane pliki działają bez połączenia. Biblioteka nie pobiera wszystkiego automatycznie podczas uruchamiania.
+## Następny priorytet wydajnościowy
 
-Nie implementować tej zakładki w trakcie kończenia i weryfikacji instalatora MLT 0.11.
+Proxy wideo ma pierwszeństwo przed SmartCut; szczegółowy zakres znajduje się poniżej.
 
 ## SmartCut: inteligentny podgląd i propozycje cięcia (planowane)
 

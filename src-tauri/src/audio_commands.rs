@@ -20,6 +20,39 @@ pub struct AudioLibraryState {
     last_search: Mutex<Option<Instant>>,
     jobs: Arc<Mutex<Vec<Arc<Job>>>>,
     gate: Arc<Mutex<()>>,
+    preview: Mutex<PreviewControl>,
+    preview_cache: Arc<Mutex<Option<tempfile::TempDir>>>,
+}
+#[derive(Default)]
+struct PreviewControl {
+    latest: u64,
+    job: Option<Arc<Job>>,
+}
+impl PreviewControl {
+    fn begin(&mut self, id: u64, job: Arc<Job>) -> Result<(), String> {
+        if id <= self.latest {
+            job.status.lock().unwrap().state = "cancelled".into();
+            return Err("Anulowano odsłuch".into());
+        }
+        self.latest = id;
+        if let Some(old) = self.job.replace(job) {
+            old.cancel();
+        }
+        Ok(())
+    }
+    fn cancel(&mut self, id: u64) {
+        if id >= self.latest {
+            self.latest = id;
+            if let Some(job) = self.job.take() {
+                job.cancel();
+            }
+        }
+    }
+}
+#[derive(serde::Serialize)]
+pub struct AudioPreview {
+    path: String,
+    duration: f64,
 }
 impl AudioLibraryState {
     pub fn shutdown(&self) {
@@ -30,7 +63,7 @@ impl AudioLibraryState {
     fn job(&self) -> Result<Arc<Job>, String> {
         let mut jobs = self.jobs.lock().unwrap();
         jobs.retain(|j| j.active());
-        if jobs.len() > 8 {
+        if jobs.len() >= 8 {
             return Err("Biblioteka audio jest zajęta".into());
         }
         let job = Arc::new(Job::new(0));
@@ -40,7 +73,7 @@ impl AudioLibraryState {
 }
 fn client() -> Result<reqwest::blocking::Client, String> {
     reqwest::blocking::Client::builder()
-        .user_agent("RolVixa/0.12 (+https://github.com/ankelmarek/AutoNapisy)")
+        .user_agent("RolVixa/0.13 (+https://github.com/ankelmarek/AutoNapisy)")
         .connect_timeout(Duration::from_secs(10))
         .timeout(Duration::from_secs(60))
         .redirect(reqwest::redirect::Policy::custom(|attempt| {
@@ -407,4 +440,118 @@ pub async fn audition_audio(
         .allow_file(&file)
         .map_err(|e| e.to_string())?;
     path_string(&file)
+}
+
+// The frontend supplies only a cached search ID and a monotonic cancellation
+// token. Remote URLs and temporary preview files never enter project Access.
+#[tauri::command]
+pub fn cancel_remote_audio(request_id: u64, state: State<'_, AudioLibraryState>) {
+    state.preview.lock().unwrap().cancel(request_id);
+}
+#[tauri::command]
+pub async fn preview_remote_audio(
+    id: String,
+    request_id: u64,
+    app: tauri::AppHandle,
+    state: State<'_, AudioLibraryState>,
+    tools: State<'_, ToolState>,
+) -> Result<AudioPreview, String> {
+    if request_id == 0 || request_id > 9_007_199_254_740_991 {
+        return Err("Nieprawidłowe żądanie odsłuchu".into());
+    }
+    let item = state
+        .entries
+        .lock()
+        .unwrap()
+        .get(&id)
+        .cloned()
+        .ok_or("Wyszukaj utwór ponownie przed odsłuchem")?;
+    let ffmpeg = {
+        let t = tools.0.lock().unwrap();
+        validate_tool("ffmpeg", t.ffmpeg.as_deref().ok_or("Wskaż FFmpeg")?)?
+    };
+    let job = state.job()?;
+    state
+        .preview
+        .lock()
+        .unwrap()
+        .begin(request_id, job.clone())?;
+    let cache = state.preview_cache.clone();
+    let gate = state.gate.clone();
+    let preview=tauri::async_runtime::spawn_blocking(move || {
+        let result:Result<AudioPreview,String>=(|| {
+            job.check()?;
+            let root={
+                let mut folder=cache.lock().map_err(|_|"Błąd pamięci odsłuchu")?;
+                if folder.is_none(){*folder=Some(tempfile::Builder::new().prefix("rolvixa-remote-audio-").tempdir().map_err(|e|e.to_string())?);}
+                folder.as_ref().unwrap().path().to_path_buf()
+            };
+            let target=root.join(format!("{}.wav",item.id));
+            let cached_duration=||->Result<f64,String>{let wav=hound::WavReader::open(&target).map_err(|e|e.to_string())?;Ok(wav.duration() as f64/wav.spec().sample_rate as f64)};
+            {
+                let _guard=gate.lock().map_err(|_|"Błąd kolejki odsłuchu")?;
+                job.check()?;
+                if target.is_file(){return Ok(AudioPreview{path:path_string(&target)?,duration:cached_duration()?});}
+            }
+            let mut url=reqwest::Url::parse(&item.url).map_err(|_|"Nieprawidłowy adres utworu")?;
+            if url.scheme()=="http"{url.set_scheme("https").map_err(|_|"Nieprawidłowy protokół")?;}
+            public_url(&url)?;
+            // Network reads do not hold the decoding gate: switching away from
+            // an unavailable provider must not block a newer/local audition.
+            let mut response=client()?.get(url)
+                .header(reqwest::header::RANGE,format!("bytes=0-{}",audio_library::PREVIEW_BYTES-1))
+                .header(reqwest::header::ACCEPT_ENCODING,"identity")
+                .timeout(Duration::from_secs(20)).send().map_err(|e|format!("Odsłuch: {e}"))?;
+            if ![200,206].contains(&response.status().as_u16()){return Err(format!("Źródło odsłuchu zwróciło błąd {}",response.status()));}
+            if response.status().as_u16()==206&&!response.headers().get(reqwest::header::CONTENT_RANGE).and_then(|v|v.to_str().ok()).is_some_and(|v|v.starts_with("bytes 0-")){return Err("Źródło zwróciło nieprawidłowy fragment audio".into());}
+            let staging=tempfile::tempdir_in(&root).map_err(|e|e.to_string())?;
+            let input=staging.path().join(format!("fragment.{}",item.extension));
+            {let mut file=std::fs::File::create(&input).map_err(|e|e.to_string())?;audio_library::preview_fragment(&mut response,&mut file,||job.check())?;}
+            drop(response);
+            let _guard=gate.lock().map_err(|_|"Błąd kolejki odsłuchu")?;
+            job.check()?;
+            let duration=if target.is_file(){cached_duration()?}else{
+                let wav=staging.path().join("preview.wav");
+                let duration=audio_library::preview_wav(&job,&ffmpeg,&input,&wav,staging.path()).map_err(|e|format!("Nie można odsłuchać fragmentu tego źródła. Możesz pobrać cały utwór do projektu. {e}"))?;
+                job.check()?;
+                std::fs::rename(wav,&target).map_err(|e|e.to_string())?;
+                duration
+            };
+            // At most eight stereo previews (~46 MB); removed with this session.
+            let mut files:Vec<_>=std::fs::read_dir(&root).map_err(|e|e.to_string())?.flatten().filter(|e|e.path().extension().is_some_and(|e|e=="wav")&&e.path()!=target).collect();
+            files.sort_by_key(|f|f.metadata().and_then(|m|m.modified()).ok());
+            let excess=files.len().saturating_sub(7);
+            for file in files.into_iter().take(excess){job.check()?;let _=std::fs::remove_file(file.path());}
+            job.check()?;
+            Ok(AudioPreview{path:path_string(&target)?,duration})
+        })();
+        job.status.lock().unwrap().state=if result.is_ok(){"completed"}else{"failed"}.into();
+        result
+    }).await.map_err(|e|e.to_string())??;
+    app.asset_protocol_scope()
+        .allow_file(&preview.path)
+        .map_err(|e| e.to_string())?;
+    Ok(preview)
+}
+
+#[cfg(test)]
+mod preview_tests {
+    use super::*;
+    #[test]
+    fn late_preview_and_cancel_do_not_replace_newer_choice() {
+        let mut c = PreviewControl::default();
+        c.cancel(10);
+        let old = Arc::new(Job::new(1));
+        assert!(c.begin(10, old).is_err());
+        let first = Arc::new(Job::new(2));
+        c.begin(11, first.clone()).unwrap();
+        let second = Arc::new(Job::new(3));
+        c.begin(12, second.clone()).unwrap();
+        assert!(first.check().is_err());
+        c.cancel(11);
+        assert!(second.check().is_ok());
+        c.cancel(12);
+        assert!(second.check().is_err());
+        assert!(c.begin(11, Arc::new(Job::new(4))).is_err());
+    }
 }

@@ -7,3 +7,5 @@ if (-not (Get-Command cargo-about -ErrorAction SilentlyContinue)) {
 }
 & cargo about generate -m src-tauri/Cargo.toml --all-features --target x86_64-pc-windows-msvc -o src-tauri/.bundled/licenses/zaleznosci-rust.html licenses/about.hbs
 if ($LASTEXITCODE) { throw 'Nie można przygotować licencji Rust' }
+
+Copy-Item licenses/Tabler-Icons-MIT.txt src-tauri/.bundled/licenses/Tabler-Icons-MIT.txt -Force
