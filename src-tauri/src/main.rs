@@ -120,9 +120,9 @@ async fn open_project(access: State<'_, Access>) -> Result<Option<Opened>, Strin
         path
     } else {
         let Some(file) = rfd::AsyncFileDialog::new()
-        .add_filter("Projekt RolVixa", &["json"])
-        .pick_file()
-        .await
+            .add_filter("Projekt RolVixa", &["json"])
+            .pick_file()
+            .await
         else {
             return Ok(None);
         };

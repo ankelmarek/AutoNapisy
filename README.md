@@ -1,10 +1,10 @@
-# RolVixa 0.11 — polska mowa → polskie napisy
+# RolVixa 0.11.1 — polska mowa → polskie napisy
 
 RolVixa (wcześniej AutoNapisy) to lokalna aplikacja Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Rozpoznaje polską mowę przez whisper.cpp, bez tłumaczenia. Nie wysyła nagrań, nie zawiera klienta HTTP ani telemetrii.
 
 ## Aktualizacja i uruchomienie ze źródeł
 
-Zachowaj projekty i nagrania. Pobierz ZIP z GitHuba i rozpakuj do nowego folderu, np. `C:\RolVixa-0.10`. Nie kopiuj starych `node_modules`, `dist` i `src-tauri/target`. Aplikacja otwiera projekty v1–v5 i zapisuje format v6. Przed zapisaniem zachowaj kopię JSON, jeśli chcesz wrócić do starszej wersji aplikacji.
+Zachowaj projekty i nagrania. Pobierz ZIP z GitHuba i rozpakuj do nowego folderu, np. `C:\RolVixa-0.11.1`. Nie kopiuj starych `node_modules`, `dist` i `src-tauri/target`. Aplikacja otwiera projekty v1–v6 i zapisuje format v7. Przed zapisaniem zachowaj kopię JSON, jeśli chcesz wrócić do starszej wersji aplikacji.
 
 Wymagania: Node.js 22 lub 24, aktualny Rust stable x64 MSVC, Visual Studio Build Tools z „Desktop development with C++” i Windows SDK oraz WebView2 Runtime.
 
@@ -255,4 +255,13 @@ Podgląd jest jednym strumieniem H.264/AAC z MLT, odbieranym przez kontrolowane 
 
 Napisy: **klik** zaznacza bez otwierania edycji, **Delete** ukrywa zaznaczony napis, **dwuklik / Enter** otwiera edycję po prawej. **Ctrl+Z** cofa usunięcie. Importowane filmy i efekty można przeciągać z galerii na oś. Wyłączono natywne Tauri drag-and-drop, które na Windows przechwytuje zdarzenia HTML5. Windows CI sprawdza przeciąganie w WebView2 przez CDP, używając osobno skompilowanego programu testowego z włączonymi DevTools i zasobami z instalacji; fixture IPC zastępuje dialogi na czas testu. Instalator użytkownika zachowuje wyłączone DevTools. Błąd automatyzacji UI nie usuwa artefaktu poprawnie zbudowanego i przetestowanego instalatora, ale pozostawia workflow ze statusem błędu. Osobne testy Rust sprawdzają rzeczywisty MLT, kodeki, warstwy, audio, cięcia, przejścia, korekcję i Unicode.
 
-Ze źródeł: pełne komponenty buduje `scripts/prepare-bundle.ps1`; MLT można zbudować oddzielnie w MSYS2 MINGW64 przez `scripts/build-bundled-mlt.sh`. W trybie deweloperskim `ROLVIXA_MLT` może wskazywać lokalny `melt`/`melt.exe`. W wydaniu instalacyjnym używany jest wyłącznie silnik z zasobów aplikacji. Dla testów: `ROLVIXA_MLT=/ścieżka/melt AUTONAPISY_FFMPEG=/ścieżka/ffmpeg cargo test --manifest-path .test-core/Cargo.toml --test mlt_engine -- --ignored --nocapture`. Projekt pozostaje w formacie v6.
+Ze źródeł: pełne komponenty buduje `scripts/prepare-bundle.ps1`; MLT można zbudować oddzielnie w MSYS2 MINGW64 przez `scripts/build-bundled-mlt.sh`. W trybie deweloperskim `ROLVIXA_MLT` może wskazywać lokalny `melt`/`melt.exe`. W wydaniu instalacyjnym używany jest wyłącznie silnik z zasobów aplikacji. Dla testów: `ROLVIXA_MLT=/ścieżka/melt AUTONAPISY_FFMPEG=/ścieżka/ffmpeg cargo test --manifest-path .test-core/Cargo.toml --test mlt_engine -- --ignored --nocapture`. Projekt zapisuje format v7.
+
+
+## Poprawka 0.11.1 — podgląd Windows i sterowanie ścieżkami
+
+- Poprawiono przekazywanie kanonicznych ścieżek Windows z prefiksem `\\?\` do MLT. Ten prefiks w połączeniu ze ścieżkami pomocniczymi silnika powodował błąd odczytu plików MLT i czarny podgląd. Uprawnienia nadal sprawdzane są na ścieżkach kanonicznych; przekształcenie dotyczy granicy adaptera MLT.
+- Stałe nagłówki **T, V2, V1, A1, A2** pozostają po lewej podczas przewijania osi. Głośnik V1/V2 wycisza dźwięk filmów na tej ścieżce; głośnik A1/A2 wycisza wszystkie fragmenty dźwięku w tym wierszu, również połączone z obrazem. Oczko V1/V2 ukrywa obraz, zachowując dźwięk. Oczko T wyłącza napisy w podglądzie i eksporcie bez usuwania danych.
+- Ustawienia ścieżek mają historię Ctrl+Z/Ctrl+Shift+Z i zapisują się w projekcie **v7** (`schemas/project-v7.schema.json`). Otwierane są wersje v1–v6; przed nadpisaniem starszego projektu zachowaj kopię, jeśli potrzebujesz wrócić do starszej aplikacji.
+- Błędy podglądu są widoczne również bezpośrednio nad filmem, z przyciskiem **Ponów podgląd**. Błąd odczytu bufora lub dekodowania WebView2 nie pozostawia pustego obrazu bez komunikatu.
+- `scripts/test-native-preview.mjs` sprawdza zainstalowaną aplikację Windows bez zastępowania IPC podglądu: otwarcie projektu, rzeczywisty MLT, odczyt rosnącego MP4, dekodowane piksele, odtwarzanie, pauzę, przewinięcie i oczko. Jedynie wybór pliku projektu jest zastępowany stałą fixture w oddzielnym programie testowym (`ui-tests`); instalator użytkownika nie zawiera tej funkcji. Dotychczasowy `test-editor9.mjs` pozostaje testem interakcji UI z zastępczymi danymi IPC.

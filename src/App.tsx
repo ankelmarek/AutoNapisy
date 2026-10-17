@@ -86,7 +86,7 @@ export default function App() {
   const picture=visuals(project,Math.min(time,Math.max(0,duration-1e-7)));
   const selectCaption=(id:string)=>{setSelectedCaption(id);setInspectorTab('captions');requestAnimationFrame(()=>{captionInput.current?.focus();captionInput.current?.scrollIntoView({block:'nearest'});});};
   const changeProject=(p:Project)=>{setProject(p);setDirty(true);};
-  const gap = !clipAt(projectClips(project),Math.min(time,Math.max(0,duration-1e-7)));
+  const gap = !visuals(project,Math.min(time,Math.max(0,duration-1e-7))).length;
   const undo = () => {playback.pause();history.undo();setDirty(true);};
   const redo = () => {playback.pause();history.redo();setDirty(true);};
   useEffect(()=>{
@@ -384,6 +384,7 @@ export default function App() {
               <div className="composition-surface" ref={captionSurface} style={{width:surfaceWidth,height:surfaceWidth/aspect}}>
                 <video ref={playback.video} className="mlt-video" preload="auto" playsInline/>
                 {playback.loading&&<span className="transition-preparing">Przygotowywanie podglądu MLT…</span>}
+                {playback.error&&<div className="preview-error" role="alert"><strong>Podgląd niedostępny</strong><p>{playback.error}</p><button onClick={playback.retry}>Ponów podgląd</button></div>}
                 <CaptionOverlay video={captionSurface} project={displayed} time={time} compositionCanvas />
                 {gap && <span className="gap-label">{duration?'Przerwa między ujęciami':'Dodaj film z biblioteki na oś czasu'}</span>}
               </div>

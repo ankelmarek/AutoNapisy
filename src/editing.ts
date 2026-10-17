@@ -84,5 +84,5 @@ export function compositionSegments(p: Project): EditedSegment[] {
 }
 
 export function compositionProject(p: Project): Project {
-  return {...p,segments:compositionSegments(p).map(({sourceId:_,clipId:__,assetId:___,...s})=>s)};
+  return {...p,segments:p.tracks.T?.hidden?[]:compositionSegments(p).map(({sourceId:_,clipId:__,assetId:___,...s})=>s)};
 }

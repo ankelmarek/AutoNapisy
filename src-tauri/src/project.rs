@@ -5,6 +5,8 @@ use std::collections::{HashMap, HashSet};
 pub struct Project {
     pub schema_version: u32,
     #[serde(default)]
+    pub tracks: TrackControls,
+    #[serde(default)]
     pub clips: Option<Vec<Clip>>,
     pub name: String,
     pub media: Option<Media>,
@@ -20,6 +22,50 @@ pub struct Project {
     pub styles: HashMap<String, Style>,
     pub created_at: String,
     pub updated_at: String,
+}
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TrackState {
+    #[serde(default)]
+    pub muted: bool,
+    #[serde(default)]
+    pub hidden: bool,
+}
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TrackControls {
+    #[serde(rename = "V1", default)]
+    pub v1: TrackState,
+    #[serde(rename = "V2", default)]
+    pub v2: TrackState,
+    #[serde(rename = "A1", default)]
+    pub a1: TrackState,
+    #[serde(rename = "A2", default)]
+    pub a2: TrackState,
+    #[serde(rename = "T", default)]
+    pub captions: TrackState,
+}
+impl TrackControls {
+    pub fn video_hidden(&self, c: &Clip) -> bool {
+        c.kind != "audio"
+            && if c.track == 0 {
+                self.v1.hidden
+            } else {
+                self.v2.hidden
+            }
+    }
+    pub fn audio_muted(&self, c: &Clip) -> bool {
+        (if c.track == 0 {
+            self.a1.muted
+        } else {
+            self.a2.muted
+        }) || (c.kind != "audio"
+            && if c.track == 0 {
+                self.v1.muted
+            } else {
+                self.v2.muted
+            })
+    }
 }
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -190,7 +236,7 @@ pub fn parse(json: &str) -> Result<Project, String> {
     }
     let mut p: Project =
         serde_json::from_value(raw).map_err(|e| format!("Niepoprawny JSON projektu: {e}"))?;
-    if ![1, 2, 3, 4, 5, 6].contains(&p.schema_version) {
+    if ![1, 2, 3, 4, 5, 6, 7].contains(&p.schema_version) {
         return Err("Nieobsługiwana wersja projektu".into());
     }
     if p.schema_version < 3 {
@@ -222,7 +268,7 @@ pub fn parse(json: &str) -> Result<Project, String> {
             .into();
         }
     }
-    p.schema_version = 6;
+    p.schema_version = 7;
     if p.assets.len() > 100 {
         return Err("Zbyt wiele źródeł".into());
     }
@@ -440,6 +486,9 @@ pub fn composition_duration(p: &Project) -> f64 {
 }
 /// Captions supplied for rendering use composition time; saved project captions use source time.
 pub fn export_captions(p: &Project, json: Option<&str>) -> Result<Vec<Segment>, String> {
+    if p.tracks.captions.hidden {
+        return Ok(vec![]);
+    }
     let Some(json) = json else {
         return Ok(p.segments.clone());
     };
@@ -474,11 +523,26 @@ mod tests {
     #[test]
     fn migrate_v1_and_validate_layout() {
         let project = parse(&json()).unwrap();
-        assert_eq!(project.schema_version, 6);
+        assert_eq!(project.schema_version, 7);
         assert!(!project.styles["default"].uppercase);
         assert_eq!(project.styles["default"].max_lines, 2);
         let mut value = serde_json::to_value(project).unwrap();
         value["styles"]["default"]["maxLines"] = serde_json::json!(4);
+        assert!(parse(&value.to_string()).is_err());
+    }
+    #[test]
+    fn track_controls_roundtrip_and_hidden_caption_export() {
+        let mut p = parse(&json()).unwrap();
+        assert!(!p.tracks.v1.muted && !p.tracks.v2.hidden);
+        p.tracks.v1.muted = true;
+        p.tracks.v2.hidden = true;
+        p.tracks.captions.hidden = true;
+        let encoded = serde_json::to_string(&p).unwrap();
+        let decoded = parse(&encoded).unwrap();
+        assert!(decoded.tracks.v1.muted && decoded.tracks.v2.hidden);
+        assert!(export_captions(&decoded, Some("[]")).unwrap().is_empty());
+        let mut value = serde_json::to_value(p).unwrap();
+        value["tracks"]["V3"] = serde_json::json!({"muted":true});
         assert!(parse(&value.to_string()).is_err());
     }
     #[test]

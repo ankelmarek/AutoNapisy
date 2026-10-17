@@ -1,6 +1,8 @@
 import { z } from "zod";
 import {transitionKinds,legacyTransition} from "./transitionCatalog";
 const time = z.number().finite().nonnegative();
+const trackState=z.object({muted:z.boolean().optional(),hidden:z.boolean().optional()}).strict();
+const tracksSchema=z.object({V1:trackState.optional(),V2:trackState.optional(),A1:trackState.optional(),A2:trackState.optional(),T:trackState.optional()}).strict();
 export const styleSchema = z
   .object({
     fontFamily: z.string().min(1).max(100),
@@ -43,7 +45,8 @@ const segment = z
   });
 const currentProjectSchema = z
   .object({
-    schemaVersion: z.literal(6),
+    schemaVersion: z.literal(7),
+    tracks:tracksSchema.default({}),
     timelineSegments:z.array(segment).nullable().default(null),
     captionEdits:z.record(z.object({trimStart:time,trimEnd:time,text:z.string().max(100000).optional(),hidden:z.boolean().optional()}).strict()).default({}),
     transitions:z.array(z.object({id:z.string().min(1),fromId:z.string().min(1),toId:z.string().min(1),kind:z.enum(transitionKinds),duration:z.number().min(.1).max(2)}).strict()).max(99).default([]),
@@ -98,15 +101,16 @@ const currentProjectSchema = z
       });
   });
 export const projectSchema = z.preprocess((value) => {
-  if(value&&typeof value==='object'&&'schemaVersion' in value&&[1,2,3,4,5].includes(Number(value.schemaVersion))){
+  if(value&&typeof value==='object'&&'schemaVersion' in value&&[1,2,3,4,5,6].includes(Number(value.schemaVersion))){
     const p=value as Project;
-    return {...p,assets:p.assets??[],captionEdits:p.captionEdits??{},timelineSegments:null,transitions:(p.transitions??[]).map(t=>({...t,kind:legacyTransition(t.kind)})),schemaVersion:6,clips:p.schemaVersion>=3?p.clips:p.media?.duration?[{id:'original',sourceIn:0,sourceOut:p.media.duration,start:0}]:null};
+    return {...p,assets:p.assets??[],captionEdits:p.captionEdits??{},timelineSegments:p.schemaVersion>=6?p.timelineSegments:null,transitions:(p.transitions??[]).map(t=>({...t,kind:legacyTransition(t.kind)})),schemaVersion:7,clips:p.schemaVersion>=3?p.clips:p.media?.duration?[{id:'original',sourceIn:0,sourceOut:p.media.duration,start:0}]:null};
   }
   return value;
 }, currentProjectSchema);
 export type Project = z.infer<typeof currentProjectSchema>;
 export const newProject = (): Project => ({
-  schemaVersion: 6,
+  schemaVersion: 7,
+  tracks:{},
   timelineSegments:null,
   captionEdits:{},
   transitions:[],

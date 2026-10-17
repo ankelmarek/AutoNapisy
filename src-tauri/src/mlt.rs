@@ -46,6 +46,38 @@ fn filter(
     s += "</filter>";
     s
 }
+// Rust/Tauri canonical paths can use the Windows verbatim namespace. MLT appends
+// slash-separated resource names, which Windows rejects after a \\?\ prefix.
+// Keep canonical paths for authorization; adapt only the MLT process boundary.
+#[cfg(any(windows, test))]
+fn windows_resource_path(path: &str) -> String {
+    if let Some(rest) = path.strip_prefix(r"\\?\UNC\") {
+        format!(r"\\{rest}")
+    } else if let Some(rest) = path.strip_prefix(r"\\?\") {
+        let bytes = rest.as_bytes();
+        if bytes.len() >= 3
+            && bytes[0].is_ascii_alphabetic()
+            && bytes[1] == b':'
+            && bytes[2] == b'\\'
+        {
+            rest.to_owned()
+        } else {
+            path.to_owned()
+        }
+    } else {
+        path.to_owned()
+    }
+}
+fn resource_path(path: &Path) -> String {
+    #[cfg(windows)]
+    {
+        windows_resource_path(&path.to_string_lossy())
+    }
+    #[cfg(not(windows))]
+    {
+        path.to_string_lossy().into_owned()
+    }
+}
 pub fn configure(command: &mut std::process::Command, program: &Path) {
     if ![Some("melt"), Some("melt.exe")].contains(&program.file_name().and_then(|s| s.to_str())) {
         return;
@@ -57,9 +89,14 @@ pub fn configure(command: &mut std::process::Command, program: &Path) {
     if let Some(root) = program.parent() {
         if root.join("lib/mlt").is_dir() {
             command
-                .env("MLT_REPOSITORY", root.join("lib/mlt"))
-                .env("MLT_DATA", root.join("share/mlt"))
-                .env("MLT_PROFILES_PATH", root.join("share/mlt/profiles"));
+                .env("MLT_REPOSITORY", resource_path(&root.join("lib/mlt")))
+                .env("MLT_DATA", resource_path(&root.join("share/mlt")));
+            // MLT reads this variable with narrow getenv on Windows. Its default
+            // uses the already UTF-8-safe MLT_DATA instead.
+            #[cfg(windows)]
+            command.env_remove("MLT_PROFILES_PATH");
+            #[cfg(not(windows))]
+            command.env("MLT_PROFILES_PATH", root.join("share/mlt/profiles"));
         }
     }
 }
@@ -89,7 +126,7 @@ pub fn xml(
     let last = total - 1;
     let mut s=format!("<?xml version=\"1.0\" encoding=\"utf-8\"?><mlt producer=\"output\"><profile description=\"RolVixa\" width=\"{}\" height=\"{}\" frame_rate_num=\"30\" frame_rate_den=\"1\" progressive=\"1\" sample_aspect_num=\"1\" sample_aspect_den=\"1\" display_aspect_num=\"{}\" display_aspect_den=\"{}\" colorspace=\"709\"/>",meta.width,meta.height,meta.width,meta.height);
     s+=&format!("<producer id=\"black\" in=\"0\" out=\"{last}\">{}{}{}<property name=\"length\">{total}</property></producer><playlist id=\"base\"><entry producer=\"black\" in=\"0\" out=\"{last}\"/></playlist>",prop("mlt_service","color"),prop("resource","0x000000ff"),prop("set.test_audio",1));
-    let mut tracks: Vec<(String, bool)> = vec![];
+    let mut tracks: Vec<(String, &'static str)> = vec![];
     for lane in 0..2 {
         for c in clips
             .iter()
@@ -111,7 +148,7 @@ pub fn xml(
                 .iter()
                 .find(|c| c.id == t.to_id)
                 .ok_or("Brak klipu przejścia")?;
-            if to.track != lane {
+            if to.track != lane || p.tracks.video_hidden(to) {
                 continue;
             }
             let n = tracks.len();
@@ -120,12 +157,12 @@ pub fn xml(
             s += &format!(
                 "<producer id=\"clip{n}\">{}{}{}{}</producer>",
                 prop("mlt_service", "avformat"),
-                prop("resource", path.to_string_lossy()),
+                prop("resource", resource_path(path)),
                 prop("audio_index", -1),
                 prop("set.test_audio", 1)
             );
             s+=&format!("<playlist id=\"track{n}\">{}<entry producer=\"clip{n}\" in=\"0\" out=\"{}\"/></playlist>",if start>0{format!("<blank length=\"{start}\"/>")}else{String::new()},length-1);
-            tracks.push((format!("track{n}"), true));
+            tracks.push((format!("track{n}"), "audio"));
         }
     }
     for c in clips.iter().filter(|c| c.kind == "audio") {
@@ -136,11 +173,15 @@ pub fn xml(
         append_clip(&mut s, p, &audio, &mut tracks, total)?;
     }
     s += &format!("<tractor id=\"timeline\" in=\"0\" out=\"{last}\"><track producer=\"base\"/>");
-    for (id, visual_only) in &tracks {
+    for (id, hide) in &tracks {
         s += &format!(
             "<track producer=\"{}\"{}/>",
             id,
-            if *visual_only { " hide=\"audio\"" } else { "" }
+            if hide.is_empty() {
+                String::new()
+            } else {
+                format!(" hide=\"{hide}\"")
+            }
         );
     }
     for (i, _) in tracks.iter().enumerate() {
@@ -186,7 +227,7 @@ fn append_clip(
     s: &mut String,
     p: &Project,
     c: &Clip,
-    tracks: &mut Vec<(String, bool)>,
+    tracks: &mut Vec<(String, &'static str)>,
     _total: i64,
 ) -> Result<(), String> {
     let n = tracks.len();
@@ -197,10 +238,13 @@ fn append_clip(
     *s += &format!(
         "<producer id=\"clip{n}\" in=\"0\" out=\"{out}\">{}{}{}",
         prop("mlt_service", "avformat"),
-        prop("resource", p.clip_path(c).ok_or("Brak źródła MLT")?),
+        prop(
+            "resource",
+            resource_path(Path::new(p.clip_path(c).ok_or("Brak źródła MLT")?))
+        ),
         prop("eof", "pause")
     );
-    if c.kind == "audio" {
+    if c.kind == "audio" || p.tracks.video_hidden(c) {
         *s += &prop("set.test_image", 1);
         *s += &prop("video_index", -1);
     }
@@ -272,7 +316,14 @@ fn append_clip(
     }
     *s += "</producer>";
     *s+=&format!("<playlist id=\"track{n}\">{}<entry producer=\"clip{n}\" in=\"{input}\" out=\"{out}\"/></playlist>",if start>0{format!("<blank length=\"{start}\"/>")}else{String::new()});
-    tracks.push((format!("track{n}"), false));
+    tracks.push((
+        format!("track{n}"),
+        if c.kind == "audio" || p.tracks.video_hidden(c) {
+            "video"
+        } else {
+            ""
+        },
+    ));
     Ok(())
 }
 pub fn prepare(
@@ -285,6 +336,9 @@ pub fn prepare(
 ) -> Result<PathBuf, String> {
     let mut overlays = vec![];
     for (i, t) in p.transitions.iter().enumerate() {
+        if hidden_transition(p, t) {
+            continue;
+        }
         job.check()?;
         let folder = dir.join(format!("transition-{i}"));
         fs::create_dir_all(&folder).map_err(|e| e.to_string())?;
@@ -396,6 +450,22 @@ mod tests {
         assert_eq!(esc("Łódź & <a>\""), "Łódź &amp; &lt;a&gt;&quot;");
         assert_eq!(frame(0.5), 15);
     }
+    #[test]
+    fn canonical_windows_paths_at_mlt_boundary() {
+        assert_eq!(
+            windows_resource_path(r"\\?\C:\Users\Łódź\RolVixa"),
+            r"C:\Users\Łódź\RolVixa"
+        );
+        assert_eq!(
+            windows_resource_path(r"\\?\UNC\serwer\filmy\Łódź.mp4"),
+            r"\\serwer\filmy\Łódź.mp4"
+        );
+        assert_eq!(windows_resource_path(r"C:\filmy\a.mp4"), r"C:\filmy\a.mp4");
+        assert_eq!(
+            windows_resource_path(r"\\?\Volume{123}\film.mp4"),
+            r"\\?\Volume{123}\film.mp4"
+        );
+    }
 }
 #[derive(Default)]
 pub struct TransitionCache {
@@ -414,6 +484,9 @@ pub fn prepare_cached(
     let mut used = std::collections::HashSet::new();
     let mut overlays = vec![];
     for t in &p.transitions {
+        if hidden_transition(p, t) {
+            continue;
+        }
         job.check()?;
         let mut h = std::collections::hash_map::DefaultHasher::new();
         ffmpeg.hash(&mut h);
@@ -470,4 +543,13 @@ pub fn prepare_cached(
     let path = dir.join("timeline.mlt");
     fs::write(&path, xml(p, meta, &overlays, None)?).map_err(|e| e.to_string())?;
     Ok(path)
+}
+
+fn hidden_transition(p: &Project, t: &crate::project::Transition) -> bool {
+    p.clips
+        .as_deref()
+        .unwrap_or(&[])
+        .iter()
+        .find(|c| c.id == t.to_id)
+        .is_some_and(|c| p.tracks.video_hidden(c))
 }

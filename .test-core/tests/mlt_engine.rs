@@ -32,7 +32,8 @@ fn pixel(ff: &Path, p: &Path, t: &str) -> Vec<u8> {
 #[test]
 #[ignore = "requires ROLVIXA_MLT and AUTONAPISY_FFMPEG"]
 fn actual_mlt_tracks() {
-    let melt = PathBuf::from(std::env::var("ROLVIXA_MLT").unwrap());
+    // Match canonical Tauri resource and import paths on Windows.
+    let melt = fs::canonicalize(std::env::var("ROLVIXA_MLT").unwrap()).unwrap();
     let ff = PathBuf::from(std::env::var("AUTONAPISY_FFMPEG").unwrap());
     let dir = tempfile::tempdir().unwrap();
     let red = dir.path().join("Czerwony Łódź.mp4");
@@ -62,6 +63,8 @@ fn actual_mlt_tracks() {
             ],
         );
     }
+    let red = fs::canonicalize(red).unwrap();
+    let blue = fs::canonicalize(blue).unwrap();
     let mut p=project::parse(&serde_json::json!({"schemaVersion":6,"name":"MLT","media":{"path":red,"name":"red","duration":2},"assets":[{"id":"b","path":blue,"name":"blue","duration":2,"kind":"video","segments":[]}],"clips":[{"id":"red","start":0,"sourceIn":0,"sourceOut":1},{"id":"red-cut","start":1,"sourceIn":1,"sourceOut":2},{"id":"blue","assetId":"b","track":1,"start":0.5,"sourceIn":0,"sourceOut":1},{"id":"after","assetId":"b","start":3,"sourceIn":1,"sourceOut":2}],"segments":[],"styles":{"default":{"fontFamily":"Arial","fontSize":42,"color":"#ffffff","background":"#000000","position":"bottom"}},"createdAt":"2026-10-17T00:00:00Z","updatedAt":"2026-10-17T00:00:00Z"}).to_string()).unwrap();
     let job = Arc::new(Job::new(1));
     let mut meta = rendering::inspect(&job, &ff, &red, dir.path()).unwrap();
@@ -81,6 +84,18 @@ fn actual_mlt_tracks() {
             .abs()
             < 0.1
     );
+    p.tracks.v2.hidden = true;
+    let hidden = dir.path().join("hidden-upper");
+    fs::create_dir(&hidden).unwrap();
+    let out = mlt::assemble(&job, &melt, &ff, &p, &meta, &hidden).unwrap();
+    let px = pixel(&ff, &out, "0.8");
+    assert!(px[0] > 180 && px[2] < 40, "hidden V2 must reveal V1: {px:?}");
+    p.tracks.v1.hidden = true;
+    let hidden_all = dir.path().join("hidden-all");
+    fs::create_dir(&hidden_all).unwrap();
+    let out = mlt::assemble(&job, &melt, &ff, &p, &meta, &hidden_all).unwrap();
+    assert!(pixel(&ff, &out, "0.8").iter().all(|v| *v < 20));
+    p.tracks = Default::default();
     p.clips = Some(vec![
         project::Clip {
             id: "a".into(),
@@ -167,8 +182,11 @@ fn actual_mlt_tracks() {
     p.clips.as_mut().unwrap()[0].adjustments = None;
     let mut levels = vec![];
     for (label, volume, independent) in
-        [("full", 1., false), ("half", 0.5, false), ("mix", 1., true)]
+        [("full", 1., false), ("half", 0.5, false), ("mix", 1., true), ("mute-video",1.,false), ("mute-a1",1.,true)]
     {
+        p.tracks = Default::default();
+        p.tracks.v1.muted = label == "mute-video";
+        p.tracks.a1.muted = label == "mute-a1";
         p.clips.as_mut().unwrap().truncate(1);
         p.clips.as_mut().unwrap()[0].volume = volume;
         if independent {
@@ -206,5 +224,7 @@ fn actual_mlt_tracks() {
         (mixed - 1.25_f64.sqrt()).abs() < 0.05,
         "audio mix RMS {levels:?}"
     );
+    assert!(levels[3] < 1., "V1 mute RMS {levels:?}");
+    assert!((levels[4]/levels[0]-0.5).abs()<0.05,"A1 mute must preserve independent A2 {levels:?}");
     println!("MLT actual layers, cuts, gap, Unicode, transitions, audio mixing and gain: OK");
 }

@@ -6,6 +6,9 @@ pub fn effective_clips(p: &Project) -> Vec<Clip> {
         .iter()
         .map(|c| {
             let mut c = c.clone();
+            if p.tracks.audio_muted(&c) {
+                c.volume = 0.;
+            }
             if let Some(t) = p.transitions.iter().find(|t| t.to_id == c.id) {
                 c.start = (c.start - t.duration).max(0.0);
                 c.source_in = (c.source_in - t.duration).max(0.0);

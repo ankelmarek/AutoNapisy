@@ -122,7 +122,7 @@ pub fn assemble(
             .collect();
         let top = active
             .iter()
-            .filter(|c| c.kind == "video")
+            .filter(|c| c.kind == "video" && !p.tracks.video_hidden(c))
             .map(|c| c.track)
             .max();
         let transition =
@@ -132,7 +132,7 @@ pub fn assemble(
         } else {
             active
                 .iter()
-                .filter(|c| c.kind == "video")
+                .filter(|c| c.kind == "video" && !p.tracks.video_hidden(c))
                 .max_by_key(|c| c.track)
                 .map(|c| vec![c.id.as_str()])
                 .unwrap_or_default()

@@ -224,15 +224,19 @@ pub fn read_mlt_preview(id: u64, offset: u64, state: State<'_, MltState>) -> Res
     }
     let mut bytes = vec![];
     let file = s.dir.path().join("preview.mp4");
-    if let Ok(mut f) = std::fs::File::open(file) {
-        let len = f.metadata().map_err(|e| e.to_string())?.len();
-        if offset > len {
-            return Err("Nieprawidłowy odczyt podglądu".into());
+    match std::fs::File::open(&file) {
+        Ok(mut f) => {
+            let len = f.metadata().map_err(|e| e.to_string())?.len();
+            if offset > len {
+                return Err("Nieprawidłowy odczyt podglądu".into());
+            }
+            f.seek(SeekFrom::Start(offset)).map_err(|e| e.to_string())?;
+            f.take(512 * 1024)
+                .read_to_end(&mut bytes)
+                .map_err(|e| e.to_string())?;
         }
-        f.seek(SeekFrom::Start(offset)).map_err(|e| e.to_string())?;
-        f.take(512 * 1024)
-            .read_to_end(&mut bytes)
-            .map_err(|e| e.to_string())?;
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        Err(e) => return Err(format!("Nie można odczytać bufora podglądu MLT: {e}")),
     }
     let status = s.job.status.lock().unwrap();
     let finished = ["completed", "failed", "cancelled"].contains(&status.state.as_str());

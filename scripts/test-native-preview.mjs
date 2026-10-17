@@ -11,7 +11,7 @@ if(process.argv.includes('--prepare')){
  assert(projectPath);fs.mkdirSync(path.dirname(projectPath),{recursive:true});
  const source=path.join(path.dirname(projectPath),'Film pionowy Łódź.mp4');
  execFileSync(process.env.AUTONAPISY_FFMPEG,['-v','error','-y','-f','lavfi','-i','testsrc2=s=360x640:r=30:d=8','-f','lavfi','-i','sine=frequency=440:duration=8','-c:v','libx264','-preset','ultrafast','-pix_fmt','yuv420p','-c:a','aac',source]);
- fs.writeFileSync(projectPath,JSON.stringify({schemaVersion:6,name:'Prawdziwy podgląd',media:{path:source,name:path.basename(source),duration:8},assets:[],clips:[{id:'first',sourceIn:0,sourceOut:4,start:0,kind:'video',volume:1},{id:'second',sourceIn:4,sourceOut:8,start:4,kind:'video',volume:1}],transitions:[],segments:[],styles:{default:{fontFamily:'Arial',fontSize:42,color:'#ffffff',background:'#000000',position:'bottom'}},createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()}));
+ fs.writeFileSync(projectPath,JSON.stringify({schemaVersion:6,name:'Prawdziwy podgląd',media:{path:path.toNamespacedPath(source),name:path.basename(source),duration:8},assets:[],clips:[{id:'first',sourceIn:0,sourceOut:4,start:0,kind:'video',volume:1},{id:'second',sourceIn:4,sourceOut:8,start:4,kind:'video',volume:1}],transitions:[],segments:[],styles:{default:{fontFamily:'Arial',fontSize:42,color:'#ffffff',background:'#000000',position:'bottom'}},createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()}));
  process.exit(0);
 }
 const browser=await chromium.connectOverCDP(process.env.ROLVIXA_WEBVIEW_CDP);
@@ -39,6 +39,17 @@ try{
  await page.getByRole('button',{name:'▶',exact:true}).click();
  await page.waitForFunction(()=>Number(document.querySelector('input[aria-label="Pozycja odtwarzania"]').value)>6.3);
  await page.getByRole('button',{name:'Ⅱ',exact:true}).click();
+ const sourceBefore=await page.locator('video.mlt-video').evaluate(v=>v.currentSrc);
+ await page.getByRole('button',{name:'Ukryj V1',exact:true}).click();
+ await page.waitForFunction(before=>{const v=document.querySelector('video.mlt-video');return v?.currentSrc!==before&&v?.readyState>=2;},sourceBefore);
+ const hiddenPixels=await page.locator('video.mlt-video').evaluate(v=>{const c=document.createElement('canvas');c.width=c.height=16;const x=c.getContext('2d');x.drawImage(v,0,0,16,16);return [...x.getImageData(0,0,16,16).data].filter((_,i)=>i%4!==3);});
+ assert(hiddenPixels.every(v=>v<25),'Eye must actually hide the MLT video, not only dim timeline clips');
+ await page.getByRole('button',{name:'Ukryj V1',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelector('video.mlt-video')?.readyState>=2);
+ await page.getByRole('button',{name:'Wycisz V1',exact:true}).click();
+ assert.equal(await page.getByRole('button',{name:'Wycisz V1',exact:true}).getAttribute('aria-pressed'),'true');
+ await page.keyboard.press('Control+z');
+ assert.equal(await page.getByRole('button',{name:'Wycisz V1',exact:true}).getAttribute('aria-pressed'),'false');
  console.log('Real native preview (portrait, Unicode paths, decoded pixels, play, pause, seek):',JSON.stringify(await state()));
  assert.deepEqual(errors,[]);
 }finally{

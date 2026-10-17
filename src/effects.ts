@@ -1,5 +1,6 @@
 import type {Project} from './model';
 import {clipEnd,projectClips,ordered,type Clip} from './editing';
+import {videoHidden} from './trackControls';
 export type Transition=Project['transitions'][number];
 export type {TransitionKind} from './transitionCatalog';
 import type {TransitionKind} from './transitionCatalog';
@@ -11,7 +12,7 @@ export function transitionGain(p:Project,c:Clip,time:number){
  let gain=1;for(const t of p.transitions){const to=projectClips(p).find(c=>c.id===t.toId);if(!to||time<to.start-t.duration||time>=to.start)continue;const progress=(time-to.start+t.duration)/t.duration;if(t.fromId===c.id)gain*=1-progress;if(t.toId===c.id)gain*=progress;}return gain;
 }
 export function visuals(p:Project,time:number){
- const clips=presentationClips(p),active=clips.filter(c=>c.kind!=='audio'&&c.start<=time&&time<clipEnd(c)),track=Math.max(-1,...active.map(c=>c.track??0));
+ const clips=presentationClips(p),active=clips.filter(c=>c.kind!=='audio'&&!videoHidden(p,c)&&c.start<=time&&time<clipEnd(c)),track=Math.max(-1,...active.map(c=>c.track??0));
  const t=p.transitions.find(t=>{const to=clips.find(c=>c.id===t.toId);return to&&(to.track??0)===track&&time>=to.start&&time<to.start+t.duration;});
  if(t)return [{id:clips.find(c=>c.id===t.toId)!.id,translate:0,opacity:1}];
  const c=ordered(active).find(c=>(c.track??0)===track);return c?[{id:c.id,translate:0,opacity:1}]:[];
