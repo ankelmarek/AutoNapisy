@@ -151,6 +151,6 @@ export MLT_REPOSITORY="$install/lib/mlt"
 export MLT_DATA="$install/share/mlt"
 export MLT_PROFILES_PATH="$install/share/mlt/profiles"
 "$install/melt.exe" --version
-"$install/melt.exe" -query consumer=avformat 2> "$work/mlt-services.txt"
+"$install/melt.exe" -query consumer=avformat > "$work/mlt-services.txt" 2>&1
 grep -q 'identifier: avformat' "$work/mlt-services.txt"
 printf 'MLT 7.42.0 built from verified sources\n' > "$install/BUILD.txt"
