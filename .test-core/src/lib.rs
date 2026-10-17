@@ -37,3 +37,6 @@ pub mod audio_library;
 
 #[path = "../../src-tauri/src/proxy.rs"]
 pub mod proxy;
+
+#[path = "../../src-tauri/src/project_file.rs"]
+pub mod project_file;

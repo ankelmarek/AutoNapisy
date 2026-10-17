@@ -1,6 +1,6 @@
 import {useRef,useEffect} from 'react';
 import Icon,{type IconName} from './Icons';
-const menuIcons:Record<string,IconName>={Nowy:'new','Otwórz':'open',Zapisz:'save','Importuj filmy':'import','Importuj audio':'audio','Eksport MP4':'export','Eksport SRT':'captions',Ustawienia:'settings'};
+const menuIcons:Record<string,IconName>={Nowy:'new','Otwórz':'open',Zapisz:'save','Zapisz jako…':'save','Importuj filmy':'import','Importuj audio':'audio','Eksport MP4':'export','Eksport SRT':'captions',Ustawienia:'settings'};
 export type MenuAction={label:string;keys?:string;run:()=>void;disabled?:boolean};
 export default function ProjectMenu({actions}:{actions:MenuAction[]}){
  const menu=useRef<HTMLDetailsElement>(null);

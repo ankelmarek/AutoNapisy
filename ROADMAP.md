@@ -1,6 +1,6 @@
 # Kolejne etapy RolVixa
 
-## NAJBLIŻSZY PRIORYTET P1 - nagłówek i poprawny zapis projektu
+## 0.15 — nagłówek i poprawny zapis projektu (implementacja, weryfikacja Windows)
 
 **Zatwierdzone przez użytkownika.** Po odbiorze gałęzi 0.14/proxy, a **przed** zaawansowanym audio, SmartCut i Export Studio, wdrożyć nowy nagłówek oraz właściwe `Zapisz` / `Zapisz jako`. Pełne kryteria i testy: **[issue #2 - nowy nagłówek i zapis](https://github.com/ankelmarek/AutoNapisy/issues/2)**.
 

@@ -70,7 +70,7 @@ try{
  const box=await page.locator('.composition-surface').boundingBox();
  await page.mouse.move(box.x+box.width*.55,box.y+box.height*.5);await page.mouse.down();await page.mouse.move(box.x+box.width*.65,box.y+box.height*.55,{steps:6});await page.mouse.up();
  assert(Math.abs(Number(await page.getByRole('spinbutton',{name:'Pozycja filmu X'}).inputValue())-20)<2,'Preview drag must update normalized X');
- await page.locator('.project-menu summary').click();await page.locator('.project-menu-popup').getByRole('button',{name:'Zapisz',exact:true}).click();
+ await page.locator('.project-menu summary').click();await page.locator('.project-menu-popup').getByRole('button',{name:'Zapisz',exact:true}).click();await page.waitForFunction(()=>document.querySelector('.header-save').dataset.saveStatus==='saved');
  await page.waitForFunction(()=>!document.querySelector('select[aria-label="Format obrazu"]').disabled);
  const saved=JSON.parse(fs.readFileSync(process.env.ROLVIXA_TEST_PROJECT,'utf8'));
  assert.equal(saved.schemaVersion,8);assert.deepEqual(saved.canvas,{width:1080,height:1080});assert.equal(saved.clips[0].transform.scale,1.5);assert(Math.abs(saved.clips[0].transform.x-.2)<.02);
@@ -87,7 +87,7 @@ try{
  // HTML5 drag uses the same project asset registration and A2 target as imported audio.
  await sound.dragTo(page.locator('.edit-canvas'),{targetPosition:{x:31,y:220}});
  await page.waitForSelector('.edit-clip.audio-clip');
- await page.locator('.project-menu summary').click();await page.locator('.project-menu-popup').getByRole('button',{name:'Zapisz',exact:true}).click();
+ await page.locator('.project-menu summary').click();await page.locator('.project-menu-popup').getByRole('button',{name:'Zapisz',exact:true}).click();await page.waitForFunction(()=>document.querySelector('.header-save').dataset.saveStatus==='saved');
  await page.waitForFunction(()=>!document.querySelector('select[aria-label="Format obrazu"]').disabled);
  const audioSaved=JSON.parse(fs.readFileSync(process.env.ROLVIXA_TEST_PROJECT,'utf8'));
  const asset=audioSaved.assets.find(a=>a.provenance?.provider==='kenney');assert(asset,'Audio drag must persist source and CC0 attribution');
@@ -113,7 +113,7 @@ try{
   await page.getByRole('slider',{name:'Pozycja odsłuchu'}).fill('5');await page.getByRole('button',{name:'Wznów odsłuch',exact:true}).click();
   await page.waitForFunction(()=>document.querySelector('.audio-library audio').currentTime>5);
   await page.getByRole('button',{name:'Zatrzymaj odsłuch',exact:true}).click();
-  await page.locator('.project-menu summary').click();await page.locator('.project-menu-popup').getByRole('button',{name:'Zapisz',exact:true}).click();
+  await page.locator('.project-menu summary').click();await page.locator('.project-menu-popup').getByRole('button',{name:'Zapisz',exact:true}).click();await page.waitForFunction(()=>document.querySelector('.header-save').dataset.saveStatus==='saved');
   await page.waitForFunction(()=>!document.querySelector('select[aria-label="Format obrazu"]').disabled);
   const untouched=JSON.parse(fs.readFileSync(process.env.ROLVIXA_TEST_PROJECT,'utf8'));assert.deepEqual(untouched.assets,audioSaved.assets,'Audition must not import files');assert.deepEqual(untouched.clips,audioSaved.clips,'Audition must not alter timeline');
   console.log('Real Openverse audition BEFORE import, volume, pause/seek/resume and unchanged project: OK');
@@ -125,7 +125,7 @@ try{
    await local.getByRole('button',{name:/Odsłuchaj:/}).click();
    await page.waitForFunction(()=>{const a=document.querySelector('.audio-library audio');return a&&!a.paused&&a.currentTime>.05;});
    await local.getByRole('button',{name:/Zatrzymaj:/}).click();
-   await page.locator('.project-menu summary').click();await page.locator('.project-menu-popup').getByRole('button',{name:'Zapisz',exact:true}).click();
+   await page.locator('.project-menu summary').click();await page.locator('.project-menu-popup').getByRole('button',{name:'Zapisz',exact:true}).click();await page.waitForFunction(()=>document.querySelector('.header-save').dataset.saveStatus==='saved');
    await page.waitForFunction(()=>!document.querySelector('select[aria-label="Format obrazu"]').disabled);
    const musicSaved=JSON.parse(fs.readFileSync(process.env.ROLVIXA_TEST_PROJECT,'utf8'));
    const music=musicSaved.assets.find(a=>a.provenance?.provider==='openverse');assert(music&&music.duration>0,'Downloaded track must be probed and persisted');assert(music.path.endsWith('.mp3'));assert(music.provenance.sourceUrl&&music.provenance.licenseUrl&&music.provenance.attribution);
@@ -141,9 +141,20 @@ try{
  await page.getByRole('button',{name:'Odtwórz film',exact:true}).click();await page.waitForFunction(()=>document.querySelector('video.mlt-video')?.currentTime>.2);await page.getByRole('button',{name:'Wstrzymaj odtwarzanie',exact:true}).click();
  await card.getByRole('button',{name:'Używaj oryginału'}).click();await page.waitForFunction(()=>document.querySelector('.proxy-state.ready')?.textContent.includes('Oryginał'));
  await page.waitForFunction(()=>document.querySelector('video.mlt-video')?.readyState>=2);
- await page.locator('.project-menu summary').click();await page.locator('.project-menu-popup').getByRole('button',{name:'Zapisz',exact:true}).click();await page.waitForFunction(()=>!document.querySelector('select[aria-label="Format obrazu"]').disabled);
+ await page.locator('.project-menu summary').click();await page.locator('.project-menu-popup').getByRole('button',{name:'Zapisz',exact:true}).click();await page.waitForFunction(()=>document.querySelector('.header-save').dataset.saveStatus==='saved');await page.waitForFunction(()=>!document.querySelector('select[aria-label="Format obrazu"]').disabled);
  const afterProxy=JSON.parse(fs.readFileSync(process.env.ROLVIXA_TEST_PROJECT,'utf8'));assert.deepEqual(afterProxy.media,beforeProxy.media);assert.deepEqual(afterProxy.assets,beforeProxy.assets);assert.deepEqual(afterProxy.clips,beforeProxy.clips);assert(!JSON.stringify(afterProxy).includes('video-proxy-v1'),'Cache paths must never enter the project');
  console.log('Real proxy generation, play through MLT, original/proxy switch and unchanged persisted original sources: OK');
+ // Real filesystem conflict + Save As + direct-save target switching.
+ const projectPath=process.env.ROLVIXA_TEST_PROJECT,copyPath=projectPath.replace(/\.json$/i,'-copy.json');
+ const external={...afterProxy,name:'Zmiana spoza RolVixa'};fs.writeFileSync(projectPath,JSON.stringify(external));
+ await page.locator('.header-project-name').click();await page.getByRole('textbox',{name:'Nazwa projektu',exact:true}).fill('Moja kopia');await page.keyboard.press('Enter');await page.keyboard.press('Control+s');
+ await page.waitForFunction(()=>document.querySelector('.header-save').dataset.saveStatus==='error');assert.equal(JSON.parse(fs.readFileSync(projectPath,'utf8')).name,external.name);
+ await page.keyboard.press('Control+Shift+s');await page.waitForFunction(()=>document.querySelector('.header-save').dataset.saveStatus==='saved');assert.equal(JSON.parse(fs.readFileSync(copyPath,'utf8')).name,'Moja kopia');
+ await page.locator('.header-project-name').click();await page.getByRole('textbox',{name:'Nazwa projektu',exact:true}).fill('Moja kopia 2');await page.keyboard.press('Enter');await page.keyboard.press('Control+s');await page.waitForFunction(()=>document.querySelector('.header-save').dataset.saveStatus==='saved');assert.equal(JSON.parse(fs.readFileSync(copyPath,'utf8')).name,'Moja kopia 2');assert.equal(JSON.parse(fs.readFileSync(projectPath,'utf8')).name,external.name);
+ await page.keyboard.press('Control+o');await page.waitForFunction(()=>document.querySelector('.header-project-name').textContent.includes('Zmiana spoza RolVixa'));await page.waitForFunction(()=>!document.querySelector('.header-project-name').disabled);
+ await page.locator('.header-project-name').click();await page.getByRole('textbox',{name:'Nazwa projektu',exact:true}).fill('Otwarty i zapisany');await page.keyboard.press('Enter');await page.keyboard.press('Control+s');await page.waitForFunction(()=>document.querySelector('.header-save').dataset.saveStatus==='saved');assert.equal(JSON.parse(fs.readFileSync(projectPath,'utf8')).name,'Otwarty i zapisany');assert.equal(JSON.parse(fs.readFileSync(copyPath,'utf8')).name,'Moja kopia 2');
+ console.log('Real Windows atomic save, external-change conflict, Save As and opened/direct target switching: OK');
+
  console.log('Real native preview (portrait, Unicode paths, decoded pixels, play, pause, seek):',JSON.stringify(await state()));
  assert.deepEqual(errors,[]);
 }catch(e){

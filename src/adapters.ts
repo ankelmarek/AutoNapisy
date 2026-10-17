@@ -28,8 +28,9 @@ export type Diagnostics = {
   components: { name: string; status: string }[];
 };
 export const backend = {
-  open: () => invoke<{ json: string; path: string } | null>("open_project"),
-  save: (json: string) => invoke<string | null>("save_project", { json }),
+  open: () => invoke<{ json: string; path: string; session:number } | null>("open_project"),
+  newProject: () => invoke<number>("new_project"),
+  save: (json: string,session:number,saveAs=false) => invoke<string | null>("save_project", { json,session,saveAs }),
   diagnostics: () => invoke<Diagnostics>("diagnostics"),
   exportSrt: (json: string, captions: string) => invoke<string | null>("export_srt", { json, captions }),
 };
