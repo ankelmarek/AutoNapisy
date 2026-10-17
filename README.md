@@ -4,7 +4,7 @@ RolVixa (wcześniej AutoNapisy) to lokalna aplikacja Windows x64: Tauri 2, React
 
 ## Aktualizacja i uruchomienie ze źródeł
 
-Zachowaj projekty i nagrania. Pobierz ZIP z GitHuba i rozpakuj do nowego folderu, np. `C:\RolVixa-0.12`. Nie kopiuj starych `node_modules`, `dist` i `src-tauri/target`. Aplikacja otwiera projekty v1–v7 i zapisuje format v8. Przed zapisaniem zachowaj kopię JSON, jeśli chcesz wrócić do starszej wersji aplikacji.
+Zachowaj projekty i nagrania. Pobierz ZIP z GitHuba i rozpakuj do nowego folderu, np. `C:\RolVixa-0.13`. Nie kopiuj starych `node_modules`, `dist` i `src-tauri/target`. Aplikacja otwiera projekty v1–v8 i zapisuje format v8. Przed zapisaniem zachowaj kopię JSON, jeśli chcesz wrócić do starszej wersji aplikacji.
 
 Wymagania: Node.js 22 lub 24, aktualny Rust stable x64 MSVC, Visual Studio Build Tools z „Desktop development with C++” i Windows SDK oraz WebView2 Runtime.
 
@@ -35,7 +35,7 @@ Aplikacja zapisuje ścieżki w `components.json` w katalogu konfiguracji użytko
 2. Kliknij **Transkrybuj po polsku**. FFmpeg przygotowuje mono PCM WAV 16 kHz wyłącznie z użytych fragmentów montażu, z uwzględnieniem cięć, kolejności, poziomów głośności i przejść. Puste przerwy oraz pliki pozostające w bibliotece są pomijane. Whisper rozpoznaje język polski na CPU, maksymalnie 8 wątków.
 3. Przygotowanie i ładowanie modelu mają nieokreślony pasek. Procent pochodzi z Whisper i dotyczy tylko fazy rozpoznawania; nie jest szacowanym postępem całego zadania. Niektóre CLI nie podają procentu.
 4. **Anuluj** zatrzymuje proces. Zamknięcie aplikacji też zatrzymuje zadanie, czeka na jego koniec i sprząta pliki tymczasowe.
-5. Po sukcesie segmenty pojawiają się w lewym panelu i na podglądzie. Kliknij czas, aby przewinąć film. Kliknięcie napisu na osi otwiera jego edycję po prawej. Uchwyty skracają czas wyświetlania bez cięcia filmu. Poprawki dotyczą wybranego wystąpienia; źródłowa transkrypcja pozostaje zachowana.
+5. Po sukcesie segmenty pojawiają się w lewym panelu i na podglądzie. Kliknij czas, aby przewinąć film. Pojedyncze kliknięcie napisu na osi zaznacza go; dwuklik lub Enter otwiera edycję po prawej. Uchwyty skracają czas wyświetlania bez cięcia filmu. Poprawki dotyczą wybranego wystąpienia; źródłowa transkrypcja pozostaje zachowana.
 6. **Zapisz** zapisuje projekt JSON z segmentami, słowami, czasami i stylami. **Eksport SRT** tworzy UTF-8 z tekstem i czasami; SRT nie zachowuje stylów ani nie zmienia filmu.
 
 Nowe napisy zastępują stare dopiero po sukcesie i walidacji. Błąd lub anulowanie zachowuje poprzednie segmenty. Poprawny pusty wynik zastępuje je pustą listą i pokazuje komunikat „Nie rozpoznano mowy”. Whisper może halucynować na ciszy/muzyce — zawsze sprawdzaj wynik. Aplikacja nie generuje fikcyjnych transkrypcji.
@@ -71,7 +71,7 @@ Etap 1 został sprawdzony na Windows przez użytkownika. Testy i smoke test rdze
 
 ## Ograniczenia
 
-Brak tłumaczenia, GPU, proxy wideo, diarizacji, edycji czasów, renderowania filmu i automatycznego pobierania modeli. Podgląd zależy od kodeków WebView2; transkrypcja FFmpeg może działać nawet bez podglądu danego kodeka. Długie nagrania potrzebują miejsca i czasu; nie ma wznawiania po zamknięciu. SRT nie zawiera stylizacji. Model i komponenty nie są dołączone do źródeł ani instalatora.
+Brak tłumaczenia, akceleracji Whisper na GPU, pełnego proxy wideo, diarizacji i automatycznego pobierania modeli. Podgląd korzysta z MLT i strumienia H.264/AAC; po zmianach montażu może wymagać przygotowania nowego bufora. Długie nagrania potrzebują miejsca i czasu; nie ma wznawiania transkrypcji po zamknięciu. SRT nie zawiera stylizacji; eksport MP4 nanosi napisy. Pełny instalator zawiera FFmpeg, FFprobe, MLT i whisper.cpp, a model GGML użytkownik wybiera osobno.
 
 
 ## Wygląd i łamanie napisów — 0.3
@@ -287,7 +287,7 @@ Test kadrowania rzeczywistymi silnikami: `ROLVIXA_MLT=/ścieżka/melt AUTONAPISY
 
 - Wyniki Openverse mają przycisk odsłuchu. Odsłuch nie dodaje pliku do biblioteki ani klipu do montażu; osobne „Pobierz do projektu” importuje pełny utwór z licencją i autorem.
 - Odtwarzacz odsłuchu pokazuje pozycję, pauzę/wznowienie i głośność. Jego głośność nie zmienia ustawień klipów. Zmiana zakładki, zamknięcie biblioteki lub start filmu zatrzymują odsłuch. Ładowanie można anulować albo wybrać inny utwór; spóźniona odpowiedź nie rozpoczyna poprzedniego odsłuchu.
-- Rust pobiera do 4 MiB początku nagrania i tworzy maksymalnie 30-sekundowy stereo WAV w tymczasowym cache sesji (do ośmiu gotowych podglądów). Dane są pobierane również wtedy, gdy serwer ignoruje HTTP Range, ale limit odczytu nadal obowiązuje. Cache odsłuchu nie jest biblioteką projektu i znika przy zamknięciu aplikacji. Niektóre formaty lub serwery wymagają pełnego pliku; wówczas dostępne pozostaje zwykłe pobranie do projektu. Nie jest to jeszcze proxy wideo.
+- Rust pobiera do 4 MiB początku nagrania i tworzy maksymalnie 30-sekundowy stereo WAV w tymczasowym cache sesji (do ośmiu gotowych podglądów). Dane są pobierane również wtedy, gdy serwer ignoruje HTTP Range, ale limit odczytu nadal obowiązuje. Cache odsłuchu nie jest biblioteką projektu i jest usuwany przy prawidłowym zamknięciu aplikacji; po awarii może pozostać w systemowym TEMP. Niektóre formaty lub serwery wymagają pełnego pliku; wówczas dostępne pozostaje zwykłe pobranie do projektu. Nie jest to jeszcze proxy wideo.
 - Dźwięki Kenney można filtrować kategorią i frazą. Przebieg audio na osi wypełnia wysokość klipu: skala rysunku jest normalizowana względem maksimum nagrania, pauzy i proporcje sygnału są zachowane. Nie zmienia to głośności materiału.
 - Cały zestaw ikon interfejsu pochodzi z Tabler Icons v3.35.0 (MIT). Statyczny podzbiór jest dołączony do aplikacji; ikony nie wymagają internetu. Licencja: `licenses/Tabler-Icons-MIT.txt`.
 - Format projektu pozostaje v8, zgodny z 0.12. Kolejny priorytet z ROADMAP.md: proxy wideo; SmartCut jest planowany oddzielnie.
