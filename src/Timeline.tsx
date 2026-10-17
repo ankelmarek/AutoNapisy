@@ -29,7 +29,7 @@ export default function Timeline(p:Props){
  const scrubbing=useRef(false);
  const commit=(next:Clip[])=>{p.onChange(next);setDraft(null);};
  const cut=(id:string,t:number)=>{const next=splitClip(clips,id,t);if(next!==clips)commit(next);};
- const remove=()=>{if(chosen){commit(clips.filter(c=>c.id!==selected));setSelected('');}};
+ const remove=()=>{if(captionSelected){const s=compositionSegments(p.project).find(s=>s.id===captionSelected);if(s)p.onCaptionChange(editCaption(p.project,s,{hidden:true}));setCaptionSelected('');return;}if(chosen){commit(clips.filter(c=>c.id!==selected));setSelected('');}};
  const start=(e:PointerEvent,id:string,kind:'move'|'left'|'right',mirror=false)=>{
   if(p.locked)return;e.stopPropagation();setSelected(id);setCaptionSelected('');p.onSelect(id);
   if(tool==='razor'&&kind==='move'){cut(id,point(e));return;}
@@ -69,7 +69,7 @@ export default function Timeline(p:Props){
    <button disabled={p.locked} aria-pressed={tool==='select'} onClick={()=>setTool('select')} aria-label="Zaznacz" title="Zaznacz" className="icon-button"><Icon name="cursor"/></button>
    <button disabled={p.locked} aria-pressed={tool==='razor'} onClick={()=>setTool('razor')} aria-label="Żyletka" title="Żyletka" className="icon-button"><Icon name="razor"/></button>
    <button disabled={p.locked||!(chosen??clipAt(clips,p.time))} onClick={()=>{const c=chosen??clipAt(clips,p.time);if(c)cut(c.id,p.time);}} aria-label="Przetnij tutaj" title="Przetnij tutaj" className="icon-button"><Icon name="cut"/></button>
-   <button disabled={p.locked||!chosen} onClick={remove} aria-label="Usuń ujęcie" title="Usuń ujęcie" className="icon-button"><Icon name="trash"/></button>
+   <button disabled={p.locked||(!chosen&&!captionSelected)} onClick={remove} aria-label="Usuń zaznaczenie" title="Usuń zaznaczenie" className="icon-button"><Icon name="trash"/></button>
    <button disabled={p.locked||!clips.length} onClick={()=>commit(closeGaps(clips))} aria-label="Dosuń wszystkie" title="Dosuń wszystkie" className="icon-button"><Icon name="pack"/></button>
    {!clips.length && (p.project.media?.duration??0)>=.05 && <button disabled={p.locked} onClick={()=>commit([{id:crypto.randomUUID(),sourceIn:0,sourceOut:p.project.media!.duration!,start:0}])} aria-label="Przywróć cały film" title="Przywróć cały film" className="icon-button"><Icon name="restore"/></button>}
    <button disabled={p.locked} aria-pressed={snap} onClick={()=>setSnap(!snap)} aria-label="Magnes" title={`Magnes: ${snap?'włączony':'wyłączony'}`} className="icon-button"><Icon name="magnet"/></button>

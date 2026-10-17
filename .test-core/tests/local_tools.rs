@@ -29,7 +29,7 @@ fn real_local_transcription() {
 #[test]
 #[ignore = "requires real FFmpeg, whisper.cpp, GGML model and local speech sample"]
 fn real_timeline_transcription() {
-    use autonapisy_core_tests::{project, transcription::execute_timeline};
+    use autonapisy_core_tests::{project, transcription::execute_timeline_mlt};
     let path = |key: &str| PathBuf::from(std::env::var(key).expect(key));
     let tools = Tools {
         ffmpeg: Some(path("AUTONAPISY_FFMPEG")),
@@ -40,7 +40,8 @@ fn real_timeline_transcription() {
     .unwrap();
     let sample = std::fs::canonicalize(path("AUTONAPISY_SAMPLE")).unwrap();
     let p=project::parse(&serde_json::json!({"schemaVersion":6,"name":"Real recognition","media":{"path":sample,"name":"Speech","duration":1},"clips":[{"id":"a","start":3,"sourceIn":0,"sourceOut":1},{"id":"b","start":4,"sourceIn":0.2,"sourceOut":1}],"transitions":[{"id":"t","fromId":"a","toId":"b","kind":"fade","duration":0.2}],"segments":[],"styles":{"default":{"fontFamily":"Arial","fontSize":42,"color":"#ffffff","background":"#000000","position":"bottom"}},"createdAt":"2026-10-17T00:00:00Z","updatedAt":"2026-10-17T00:00:00Z"}).to_string()).unwrap();
-    let (segments, duration) = execute_timeline(Arc::new(Job::new(2)), tools, p).unwrap();
+    let (segments, duration) =
+        execute_timeline_mlt(Arc::new(Job::new(2)), tools, p, path("ROLVIXA_MLT")).unwrap();
     assert!(!segments.is_empty());
     assert!((duration - 4.8).abs() < 0.001);
     assert!(segments.iter().all(|s| s.start >= 3. && s.end <= 4.8));

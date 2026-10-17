@@ -22,6 +22,7 @@ pub struct MltState {
     sequence: AtomicU64,
     workers: Mutex<Vec<(Arc<Job>, std::thread::JoinHandle<()>)>>,
     gate: Arc<Mutex<()>>,
+    cache: Arc<Mutex<mlt::TransitionCache>>,
 }
 struct Session {
     id: u64,
@@ -139,6 +140,7 @@ pub fn start_mlt_preview(
     });
     let running = job.clone();
     let gate = state.gate.clone();
+    let cache = state.cache.clone();
     let worker = std::thread::Builder::new()
         .name("rolvixa-mlt-preview".into())
         .spawn(move || {
@@ -164,7 +166,7 @@ pub fn start_mlt_preview(
                 let scale = (540.0 / meta.width.max(meta.height) as f64).min(1.0);
                 meta.width = ((meta.width as f64 * scale / 2.).round() as u32 * 2).max(2);
                 meta.height = ((meta.height as f64 * scale / 2.).round() as u32 * 2).max(2);
-                mlt::prepare(&running, &ffmpeg, &p, &meta, dir.path(), true)?;
+                mlt::prepare_cached(&running, &ffmpeg, &p, &meta, dir.path(), &cache)?;
                 mlt::run(
                     &running,
                     &melt,
@@ -234,8 +236,9 @@ pub fn read_mlt_preview(id: u64, offset: u64, state: State<'_, MltState>) -> Res
     }
     let status = s.job.status.lock().unwrap();
     let finished = ["completed", "failed", "cancelled"].contains(&status.state.as_str());
+    let aspect = *s.aspect.lock().unwrap();
     Ok(Chunk {
-        aspect: *s.aspect.lock().unwrap(),
+        aspect,
         offset: offset + bytes.len() as u64,
         done: finished && bytes.is_empty(),
         data: base64::engine::general_purpose::STANDARD.encode(bytes),

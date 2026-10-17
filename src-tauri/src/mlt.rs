@@ -397,3 +397,77 @@ mod tests {
         assert_eq!(frame(0.5), 15);
     }
 }
+#[derive(Default)]
+pub struct TransitionCache {
+    entries: std::collections::HashMap<u64, tempfile::TempDir>,
+}
+pub fn prepare_cached(
+    job: &Arc<Job>,
+    ffmpeg: &Path,
+    p: &Project,
+    meta: &Metadata,
+    dir: &Path,
+    cache: &std::sync::Mutex<TransitionCache>,
+) -> Result<PathBuf, String> {
+    use std::hash::{Hash, Hasher};
+    let mut store = cache.lock().map_err(|_| "Błąd pamięci przejść")?;
+    let mut used = std::collections::HashSet::new();
+    let mut overlays = vec![];
+    for t in &p.transitions {
+        job.check()?;
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        ffmpeg.hash(&mut h);
+        t.kind.hash(&mut h);
+        t.duration.to_bits().hash(&mut h);
+        meta.width.hash(&mut h);
+        meta.height.hash(&mut h);
+        for id in [&t.from_id, &t.to_id] {
+            let c = p
+                .clips
+                .as_deref()
+                .unwrap_or(&[])
+                .iter()
+                .find(|c| &c.id == id)
+                .ok_or("Brak klipu przejścia")?;
+            c.source_in.to_bits().hash(&mut h);
+            c.source_out.to_bits().hash(&mut h);
+            serde_json::to_string(&c.adjustments)
+                .map_err(|e| e.to_string())?
+                .hash(&mut h);
+            let path = p.clip_path(c).ok_or("Brak źródła")?;
+            path.hash(&mut h);
+            let m = fs::metadata(path).map_err(|e| e.to_string())?;
+            m.len().hash(&mut h);
+            m.modified().ok().hash(&mut h);
+        }
+        let key = h.finish();
+        used.insert(key);
+        if !store.entries.contains_key(&key) {
+            let folder = tempfile::Builder::new()
+                .prefix("rolvixa-mlt-fx-")
+                .tempdir()
+                .map_err(|e| e.to_string())?;
+            crate::transition_preview::render_sized(job, ffmpeg, p, t, folder.path(), Some(540))?;
+            store.entries.insert(key, folder);
+        }
+        overlays.push((
+            t.id.clone(),
+            store.entries[&key].path().join("transition.mp4"),
+        ));
+    }
+    if store.entries.len() > 256 {
+        let old: Vec<_> = store
+            .entries
+            .keys()
+            .filter(|k| !used.contains(k))
+            .copied()
+            .take(store.entries.len() - 256)
+            .collect();
+        for key in old {
+            store.entries.remove(&key);
+        }
+    }
+    let path = dir.join("timeline.mlt");
+    fs::write(&path, xml(p, meta, &overlays, None)?).map_err(|e| e.to_string())?;
+    Ok(path)
+}

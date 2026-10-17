@@ -270,9 +270,24 @@ pub(crate) fn run_process_capture(
         }
         tail
     });
+    let bounded_preview = program
+        .file_name()
+        .and_then(|s| s.to_str())
+        .is_some_and(|s| s == "melt" || s == "melt.exe")
+        && args.iter().any(|a| a == "avformat:preview.mp4");
     let result = loop {
         let mut slot = job.child.lock().unwrap();
         let child = slot.as_mut().ok_or("Proces nie istnieje")?;
+        if bounded_preview
+            && fs::metadata(cwd.join("preview.mp4")).is_ok_and(|m| m.len() > 512 * 1024 * 1024)
+        {
+            let _ = child.kill();
+            let _ = child.wait();
+            slot.take();
+            break Err(
+                "Bufor podglądu przekroczył 512 MB. Przewiń film, aby rozpocząć nowy bufor.".into(),
+            );
+        }
         if job.cancel.load(Ordering::SeqCst) {
             let _ = child.kill();
         }
