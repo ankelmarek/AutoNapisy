@@ -81,5 +81,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: RolVixa-Windows-x64
-          path: src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+          path: ${{ env.ROLVIXA_INSTALLER }}
           if-no-files-found: error

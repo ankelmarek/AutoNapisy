@@ -1,7 +1,9 @@
 $ErrorActionPreference = 'Stop'
-$installer = Get-ChildItem 'src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*-setup.exe' | Select-Object -First 1
-if (-not $installer) { throw 'Brak instalatora' }
-if ($installer.Name -notlike 'RolVixa_*') { throw 'Nieprawidłowa nazwa instalatora RolVixa' }
+$configuration = Get-Content 'src-tauri/tauri.conf.json' -Raw | ConvertFrom-Json
+if ($configuration.productName -ne 'RolVixa') { throw 'Nieprawidłowa nazwa produktu' }
+$expectedName = 'RolVixa_{0}_x64-setup.exe' -f $configuration.version
+$installer = Get-Item (Join-Path 'src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis' $expectedName)
+if ($env:GITHUB_ENV) { "ROLVIXA_INSTALLER=$($installer.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append }
 $destination = Join-Path $env:RUNNER_TEMP 'RolVixa test Łódź'
 $process = Start-Process -FilePath $installer.FullName -ArgumentList '/S', "/D=$destination" -Wait -PassThru
 if ($process.ExitCode -ne 0) { throw "Instalator zwrócił $($process.ExitCode)" }
