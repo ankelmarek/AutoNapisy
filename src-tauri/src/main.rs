@@ -1,15 +1,15 @@
-mod effects;
-mod waveform;
-mod analysis_commands;
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+mod analysis_commands;
 mod bundled;
 mod commands;
+mod effects;
 mod export_commands;
 mod montage;
 mod project;
 mod rendering;
 mod subtitles;
 mod transcription;
+mod waveform;
 use serde::Serialize;
 use std::{
     collections::HashSet,
@@ -65,12 +65,23 @@ async fn import_video(
         ),
         _ => return Err("Nieprawidłowy rodzaj importu".into()),
     };
-    let Some(files)=dialog.pick_files().await else {return Ok(None);};
-    if files.len()>100 {return Err("Maksymalnie 100 plików jednocześnie".into());}
-    let mut imported=Vec::new();
+    let Some(files) = dialog.pick_files().await else {
+        return Ok(None);
+    };
+    if files.len() > 100 {
+        return Err("Maksymalnie 100 plików jednocześnie".into());
+    }
+    let mut imported = Vec::new();
     for file in files {
-      let p=media_path(file.path())?;let path=path_string(&p)?;let name=p.file_name().and_then(|n|n.to_str()).unwrap_or("Plik").to_owned();
-      access.0.lock().map_err(|_|"Błąd uprawnień")?.insert(p);imported.push(Imported{path,name});
+        let p = media_path(file.path())?;
+        let path = path_string(&p)?;
+        let name = p
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("Plik")
+            .to_owned();
+        access.0.lock().map_err(|_| "Błąd uprawnień")?.insert(p);
+        imported.push(Imported { path, name });
     }
     Ok(Some(imported))
 }
@@ -252,7 +263,9 @@ fn main() {
         .expect("Nie można uruchomić RolVixa");
     app.run(|handle, event| {
         if let tauri::RunEvent::ExitRequested { .. } = event {
-            handle.state::<analysis_commands::AnalysisState>().shutdown();
+            handle
+                .state::<analysis_commands::AnalysisState>()
+                .shutdown();
             handle.state::<commands::Tasks>().shutdown();
             handle.state::<export_commands::ExportState>().shutdown();
         }
