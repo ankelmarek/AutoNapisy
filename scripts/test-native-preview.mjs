@@ -44,12 +44,14 @@ try{
  await page.waitForFunction(before=>{const v=document.querySelector('video.mlt-video');return v?.currentSrc!==before&&v?.readyState>=2;},sourceBefore);
  const hiddenPixels=await page.locator('video.mlt-video').evaluate(v=>{const c=document.createElement('canvas');c.width=c.height=16;const x=c.getContext('2d');x.drawImage(v,0,0,16,16);return [...x.getImageData(0,0,16,16).data].filter((_,i)=>i%4!==3);});
  assert(hiddenPixels.every(v=>v<25),'Eye must actually hide the MLT video, not only dim timeline clips');
+ const hiddenSource=await page.locator('video.mlt-video').evaluate(v=>v.currentSrc);
  await page.getByRole('button',{name:'Ukryj V1',exact:true}).click();
- await page.waitForFunction(()=>document.querySelector('video.mlt-video')?.readyState>=2);
+ await page.waitForFunction(before=>{const v=document.querySelector('video.mlt-video');return v?.currentSrc!==before&&v?.readyState>=2;},hiddenSource);
  await page.getByRole('button',{name:'Wycisz V1',exact:true}).click();
  assert.equal(await page.getByRole('button',{name:'Wycisz V1',exact:true}).getAttribute('aria-pressed'),'true');
  await page.keyboard.press('Control+z');
  assert.equal(await page.getByRole('button',{name:'Wycisz V1',exact:true}).getAttribute('aria-pressed'),'false');
+ await page.waitForFunction(()=>document.querySelector('video.mlt-video')?.readyState>=2);
  console.log('Real native preview (portrait, Unicode paths, decoded pixels, play, pause, seek):',JSON.stringify(await state()));
  assert.deepEqual(errors,[]);
 }finally{
