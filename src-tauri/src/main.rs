@@ -5,10 +5,12 @@ mod commands;
 mod effects;
 mod export_commands;
 mod montage;
+mod preview_commands;
 mod project;
 mod rendering;
 mod subtitles;
 mod transcription;
+mod transition_preview;
 mod waveform;
 use serde::Serialize;
 use std::{
@@ -231,6 +233,7 @@ fn diagnostics(tools: State<'_, commands::ToolState>) -> Diagnostics {
 fn main() {
     let app = tauri::Builder::default()
         .manage(Access::default())
+        .manage(preview_commands::PreviewState::default())
         .manage(analysis_commands::AnalysisState::default())
         .manage(commands::ToolState::default())
         .manage(commands::Tasks::default())
@@ -244,6 +247,7 @@ fn main() {
             import_video,
             analysis_commands::audio_waveform,
             prepare_preview,
+            preview_commands::prepare_transition_preview,
             open_project,
             save_project,
             diagnostics,
@@ -266,8 +270,11 @@ fn main() {
             handle
                 .state::<analysis_commands::AnalysisState>()
                 .shutdown();
+            handle.state::<preview_commands::PreviewState>().shutdown();
             handle.state::<commands::Tasks>().shutdown();
             handle.state::<export_commands::ExportState>().shutdown();
         }
     });
 }
+
+mod timeline_audio;

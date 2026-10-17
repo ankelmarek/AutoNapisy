@@ -441,7 +441,6 @@ pub fn execute(job: Arc<Job>, tools: Tools, media: PathBuf) -> Result<(Vec<Segme
         .tempdir()
         .map_err(|e| format!("Brak miejsca na pliki tymczasowe: {e}"))?;
     let wav = temp.path().join("audio.wav");
-    let output = temp.path().join("result");
     // Only local file/pipe protocols, first audio stream, no shell interpolation.
     let mut args: Vec<std::ffi::OsString> = [
         "-nostdin",
@@ -480,6 +479,36 @@ pub fn execute(job: Arc<Job>, tools: Tools, media: PathBuf) -> Result<(Vec<Segme
         false,
         temp.path(),
     )?;
+    recognize(job, tools, temp.path())
+}
+pub fn execute_timeline(
+    job: Arc<Job>,
+    tools: Tools,
+    p: crate::project::Project,
+) -> Result<(Vec<Segment>, f64), String> {
+    let temp = tempfile::Builder::new()
+        .prefix("rolvixa-transcript-")
+        .tempdir()
+        .map_err(|e| e.to_string())?;
+    let ranges = crate::timeline_audio::prepare(
+        &job,
+        tools.ffmpeg.as_deref().ok_or("Brak FFmpeg")?,
+        &p,
+        temp.path(),
+    )?;
+    let (segments, _) = recognize(job, tools, temp.path())?;
+    let duration = p
+        .clips
+        .as_deref()
+        .unwrap_or(&[])
+        .iter()
+        .map(crate::project::Clip::end)
+        .fold(0.0, f64::max);
+    Ok((crate::timeline_audio::remap(segments, &ranges), duration))
+}
+fn recognize(job: Arc<Job>, tools: Tools, dir: &Path) -> Result<(Vec<Segment>, f64), String> {
+    let wav = dir.join("audio.wav");
+    let output = dir.join("result");
     job.check()?;
     let reader =
         hound::WavReader::open(&wav).map_err(|e| format!("Nie można odczytać dźwięku: {e}"))?;
@@ -520,13 +549,13 @@ pub fn execute(job: Arc<Job>, tools: Tools, media: PathBuf) -> Result<(Vec<Segme
     args.extend(["-ml".into(), "48".into(), "-sow".into()]);
     // whisper.cpp's Windows CRT argv can lose Unicode. Its response-file support
     // reads UTF-8 bytes verbatim; relative WAV/output names also bypass narrow-path I/O.
-    write_response(&temp.path().join("arguments.txt"), &args)?;
+    write_response(&dir.join("arguments.txt"), &args)?;
     run_process(
         &job,
         tools.whisper.as_deref().ok_or("Brak Whisper")?,
         &["@arguments.txt".into()],
         true,
-        temp.path(),
+        dir,
     )?;
     job.check()?;
     let mut json = String::new();

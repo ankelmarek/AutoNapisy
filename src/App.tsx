@@ -8,7 +8,7 @@ import {
   type TaskStatus,
 } from "./transcription";
 import {
-  applyTranscript,
+  applyTimelineTranscript,
   newProject,
   parseProject,
   serializeProject,
@@ -22,6 +22,7 @@ import VideoProperties from './VideoProperties';
 import {visuals,videoFilter,reconcileTransitions,applyTransition} from './effects';
 import {editCaption,resizeCaption} from './captionEditing';
 import LocalMedia from "./LocalMedia";
+import TransitionPreview,{useTransitionPreviews} from "./TransitionPreview";
 import MediaLibrary from "./MediaLibrary";
 import Icon from "./Icons";
 import rolvixaIcon from "./assets/rolvixa-icon.png";
@@ -39,7 +40,7 @@ export default function App() {
   const [source, setSource] = useState(""),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState(
-      "Gotowy. Wszystkie pliki pozostają na tym komputerze.",
+      "Gotowy.",
     ),
     [settings, setSettings] = useState(false),
     [diagnostics, setDiagnostics] = useState<Diagnostics | null>(null),
@@ -69,13 +70,15 @@ export default function App() {
   const surfaceWidth=Math.min(stageSize.width,stageSize.height*aspect);
   const elements=useRef(new Map<string,HTMLMediaElement>());
   const [sources,setSources]=useState<Record<string,string>>({});
-  const [transcriptSource,setTranscriptSource]=useState("primary");
   const [leftTab,setLeftTab]=useState<"files"|"captions"|"effects">("files");
   const [inspectorTab,setInspectorTab]=useState<'video'|'captions'>('video'),[selectedClip,setSelectedClip]=useState(''),[selectedCaption,setSelectedCaption]=useState(''),[selectedTransition,setSelectedTransition]=useState('');
-  const [effectChoice,setEffectChoice]=useState<EffectChoice>({kind:'left',duration:.4});
+  const [effectChoice,setEffectChoice]=useState<EffectChoice>({kind:'fade',duration:.4});
   const captionInput=useRef<HTMLTextAreaElement>(null);
   const playback = usePlayback(elements,project,source);
-  const {time,playing,seek,toggle} = playback;
+  const {time,playing,seek} = playback;
+  const transitionPreviews=useTransitionPreviews(project);
+  const toggle=()=>{if(!playing&&transitionPreviews.pending){setMessage(transitionPreviews.error||"Przygotowywanie przejść…");return;}playback.toggle();};
+  useEffect(()=>{if(transitionPreviews.pending&&playing)playback.pause();},[transitionPreviews.pending]);
   const duration = editDuration(project);
   const displayed = useMemo(()=>compositionProject(project),[project]);
   const displayedSegments = useMemo(()=>compositionSegments(project),[project]);
@@ -134,7 +137,7 @@ export default function App() {
       for(const m of [...(p.media?[p.media]:[]),...p.assets]){
         try{prepared[m.path]=await preview.prepare(m.path);url ||= prepared[m.path];}catch{missing.push(m.name);}
       }
-      setSources(prepared);setTranscriptSource('primary');
+      setSources(prepared);
       resetPlayback();
       history.reset(p);
       setSource(url);
@@ -165,10 +168,9 @@ export default function App() {
       setDiagnostics(await backend.diagnostics());
     });
   const transcribe = async () => {
-    const selectedMedia=transcriptSource==='primary'?project.media:project.assets.find(a=>a.id===transcriptSource);
-    if (!selectedMedia || controller.current) return;
+    if (!projectClips(project).length || controller.current) return;
     if (
-      project.segments.length &&
+      displayedSegments.length &&
       !window.confirm(
         "Nowa transkrypcja zastąpi obecne napisy po poprawnym zakończeniu. Kontynuować?",
       )
@@ -180,13 +182,12 @@ export default function App() {
     setTask(null);
     try {
       const segments = await transcription.transcribe(
-        selectedMedia,
+        project,
         abort.signal,
         setTask,
       );
       const current=latestProject.current;
-      const bounded=applyTranscript({...current,media:selectedMedia,clips:null},segments).segments;
-      const updated=transcriptSource==='primary'?{...current,segments:bounded}:{...current,assets:current.assets.map(a=>a.id===transcriptSource?{...a,segments:bounded}:a)};
+      const updated=applyTimelineTranscript(current,segments);
       setProject(updated);
       setDirty(true);
       setMessage(
@@ -261,7 +262,7 @@ export default function App() {
         <div className="brand">
           <img className="brand-icon" src={rolvixaIcon} alt=""/>
           <div>
-            RolVixa <small>0.9 · lokalne studio napisów</small>
+            RolVixa
           </div>
         </div>
         <input className="header-project-name" aria-label="Nazwa projektu" value={project.name} maxLength={200} disabled={locked} onChange={e=>{setProject(p=>({...p,name:e.target.value}));setDirty(true);}}/>
@@ -311,17 +312,13 @@ export default function App() {
           </div>
           {leftTab==='effects'&&<EffectsLibrary chosen={effectChoice} onChoose={setEffectChoice}/>}
           {leftTab==='files'&&<MediaLibrary project={project} sources={sources} locked={locked} onImport={importVideo}
-            onTranscript={id=>{setTranscriptSource(id);setLeftTab('captions');}}
-            onAdd={id=>{try{playback.pause();const next=insertLibraryItem(project,id,time);setProject(next);if(next.media?.path!==project.media?.path)setTranscriptSource('primary');setDirty(true);setMessage('Dodano plik z biblioteki na oś czasu.');}catch(e){setMessage(String(e));}}}/>}
+            onAdd={id=>{try{playback.pause();const next=insertLibraryItem(project,id,time);setProject(next);setDirty(true);setMessage('Dodano plik z biblioteki na oś czasu.');}catch(e){setMessage(String(e));}}}/>}
           <div className="captions-tab-content" role="tabpanel" id="captions-panel" aria-labelledby="captions-tab" hidden={leftTab!=='captions'}>
           <div className="transcription-controls">
-            <select aria-label="Źródło transkrypcji" disabled={locked} value={transcriptSource} onChange={e=>setTranscriptSource(e.target.value)}>
-              {project.media&&<option value="primary">{project.media.name}</option>}
-              {project.assets.filter(a=>a.kind==='video').map(a=><option key={a.id} value={a.id}>{a.name}</option>)}
-            </select>
+            <span className="transcription-scope">Napisy z montażu · tylko fragmenty na osi</span>
             <button
               className="primary"
-              disabled={locked || !project.media}
+              disabled={locked || !projectClips(project).length}
               onClick={() => void transcribe()}
             >
               Transkrybuj po polsku
@@ -374,9 +371,9 @@ export default function App() {
                 <div className="symbol">≋</div>
                 <h3>{project.media && !duration ? "Montaż jest pusty" : "Tu pojawią się Twoje słowa"}</h3>
                 <p>
-                  {project.media && !duration ? 'Cofnij usunięcie lub wybierz „Przywróć cały film” na osi czasu. Oryginalna transkrypcja pozostaje zapisana.' : 'Importuj film i kliknij „Transkrybuj po polsku”. W ustawieniach wskaż lokalny model Whisper.'}
+                  {project.media && !duration ? 'Cofnij usunięcie lub wybierz „Przywróć cały film” na osi czasu. Oryginalna transkrypcja pozostaje zapisana.' : 'Importuj film i kliknij „Transkrybuj po polsku”. W ustawieniach wskaż model Whisper.'}
                 </p>
-                <small>Rozpoznawanie lokalne · bez tłumaczenia</small>
+
               </div>
             )}
           </div>
@@ -396,6 +393,7 @@ export default function App() {
                   return <LocalMedia key={c.id} id={c.id} video={isVideo} visible={visible} filter={videoFilter(activeClip)} translate={visual?.translate??0} opacity={visual?.opacity??1} warm={c.start<=time+5&&c.start+c.sourceOut-c.sourceIn>=time-.25} onElement={el=>{if(el){elements.current.set(c.id,el);}else elements.current.delete(c.id);}} src={url}
                     onMetadata={el=>{if(isVideo&&!c.assetId){const v=el as HTMLVideoElement;if(v.videoWidth&&v.videoHeight)setAspect(v.videoWidth/v.videoHeight);}playback.prepare(c.id);}} onError={()=>setMessage(`Nie można odtworzyć: ${media?.name}. WebView2 wymaga obsługi kodeka (zalecany H.264 / AAC).`)} />;
                 })}
+                {project.transitions.map(t=>{const to=projectClips(project).find(c=>c.id===t.toId)!;const active=time>=to.start-t.duration&&time<to.start&&picture.some(v=>v.id===t.toId);const src=transitionPreviews.urls[t.id];return src?<TransitionPreview key={t.id} src={src} start={to.start-t.duration} duration={t.duration} time={time} playing={playing} active={active}/>:active?<span key={t.id} className="transition-preparing">{transitionPreviews.error||'Przygotowywanie przejścia…'}</span>:null;})}
                 <CaptionOverlay video={captionSurface} project={displayed} time={time} compositionCanvas />
                 {gap && <span className="gap-label">{duration?'Przerwa między ujęciami':'Dodaj film z biblioteki na oś czasu'}</span>}
               </div>
@@ -403,7 +401,7 @@ export default function App() {
               <div className="empty">
                 <div className="symbol">▷</div>
                 <h3>Twój film, w centrum uwagi</h3>
-                <p>Wybierz lokalny plik wideo, aby rozpocząć.</p>
+                <p>Wybierz film, aby rozpocząć.</p>
                 <button disabled={locked} onClick={importVideo}>
                   Wybierz film
                 </button>
@@ -624,11 +622,12 @@ export default function App() {
       </main>
       <Timeline project={project} time={time} locked={locked} onSeek={seek}
         onChange={(clips,mode)=>{if(mode!=='volume')playback.pause();setProject(p=>({...p,clips,transitions:reconcileTransitions(p,clips)}));setDirty(true);}} onPreviewVolume={playback.previewVolume} onSelect={id=>{setSelectedClip(id);setSelectedTransition('');setInspectorTab('video');}} onCaptionSelect={selectCaption}
+        onMediaDrop={(id,at,track)=>{try{playback.pause();changeProject(insertLibraryItem(project,id,at,track));setMessage('Dodano plik na oś czasu.');}catch(e){setMessage(String(e));}}}
         onCaptionChange={p=>changeProject(p)} effectChoice={effectChoice} onTransition={(a,b,choice)=>{try{playback.pause();const next=applyTransition(project,a,b,choice.kind,choice.duration);changeProject(next);setSelectedTransition(next.transitions.find(t=>t.toId===b)!.id);setInspectorTab('video');}catch(e){setMessage(String(e));}}} onTransitionSelect={id=>{setSelectedTransition(id);setInspectorTab('video');}}
         undo={undo} redo={redo} canUndo={history.canUndo} canRedo={history.canRedo}/>
       <footer role="status">
         {busy ? "Przetwarzanie…" : message}
-        <span>● Offline · bez wysyłania nagrań</span>
+
       </footer>
       {settings && (
         <div className="overlay">
@@ -646,7 +645,7 @@ export default function App() {
               Polska mowa → polskie napisy. Lepszą dokładność zwykle zapewnia
               ggml-small.bin lub ggml-medium.bin, kosztem czasu i pamięci.
               Pełny instalator zawiera FFmpeg, FFprobe i whisper.cpp — są wykrywane
-              automatycznie. Wybierz osobno lokalny model wielojęzyczny (bez .en).
+              automatycznie. Wybierz osobno model wielojęzyczny (bez .en).
               Możesz też wskazać własne wersje narzędzi.
             </p>
             <div className="tools">
@@ -669,7 +668,7 @@ export default function App() {
                 </div>
               ))}
               <p>
-                CPU · język polski · pliki pozostają na komputerze. Model nie jest
+                CPU · język polski. Model nie jest
                 pobierany automatycznie ani dołączony do instalatora.
               </p>
             </div>

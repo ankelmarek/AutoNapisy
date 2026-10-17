@@ -22,7 +22,7 @@ export type Tools = {
 };
 export interface TranscriptionService {
   transcribe(
-    media: Media,
+    media: Media | Project,
     signal?: AbortSignal,
     onStatus?: (status: TaskStatus) => void,
   ): Promise<Project["segments"]>;
@@ -31,7 +31,7 @@ export const transcription: TranscriptionService = {
   async transcribe(media, signal, onStatus) {
     if (signal?.aborted) throw new DOMException("Anulowano", "AbortError");
     const id = await invoke<number>("start_transcription", {
-      path: media.path,
+      ...("schemaVersion" in media?{json:JSON.stringify(media)}:{path:media.path}),
     });
     let cancelSent = false;
     const cancel = () => {

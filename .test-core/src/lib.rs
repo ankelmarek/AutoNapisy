@@ -19,3 +19,9 @@ pub mod waveform;
 
 #[path = "../../src-tauri/src/effects.rs"]
 pub mod effects;
+
+#[path = "../../src-tauri/src/timeline_audio.rs"]
+pub mod timeline_audio;
+
+#[path = "../../src-tauri/src/transition_preview.rs"]
+pub mod transition_preview;

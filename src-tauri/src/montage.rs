@@ -157,11 +157,24 @@ pub fn assemble(
             if !is_video && !has_audio {
                 continue;
             }
+            let input_start = if is_video && transition.is_some() {
+                let t = transition.unwrap();
+                let to = clips.iter().find(|c| c.id == t.to_id).unwrap();
+                to.start
+            } else {
+                start
+            };
+            let audio_offset = start - input_start;
             args.extend(strings(&[
                 "-ss",
-                &(c.source_in + start - c.start).to_string(),
+                &(c.source_in + input_start - c.start).max(0.0).to_string(),
                 "-t",
-                &(end - start + 0.1).to_string(),
+                &(if is_video && transition.is_some() {
+                    transition.unwrap().duration + 0.15
+                } else {
+                    end - start + 0.1
+                })
+                .to_string(),
                 "-protocol_whitelist",
                 "file,pipe",
                 "-i",
@@ -169,11 +182,11 @@ pub fn assemble(
             args.push(path.into());
             if is_video {
                 video.insert(c.id.clone(), input);
-                filter.push_str(&format!("[{input}:v:0]setpts=PTS-STARTPTS,{}scale={}:{}:force_original_aspect_ratio=decrease,pad={}:{}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,fps=30,tpad=stop_mode=clone:stop_duration=0.1,format=yuv420p[v{input}];",crate::effects::color_filter(c),meta.width,meta.height,meta.width,meta.height));
+                filter.push_str(&format!("[{input}:v:0]setpts=PTS-STARTPTS,{}scale={}:{}:force_original_aspect_ratio=decrease,pad={}:{}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,fps=30,settb=AVTB,tpad=stop_mode=clone:stop_duration=0.1,format=yuv420p[v{input}];",crate::effects::color_filter(c),meta.width,meta.height,meta.width,meta.height));
             }
             if has_audio {
                 let label = format!("a{input}");
-                filter.push_str(&format!("[{input}:a:0]asetpts=PTS-STARTPTS,aresample=48000:async=1:first_pts=0,aformat=channel_layouts=stereo,volume='{}':eval=frame,apad,atrim=duration={duration}[{label}];",crate::effects::audio_gain(p,c,start)));
+                filter.push_str(&format!("[{input}:a:0]atrim=start={audio_offset},asetpts=PTS-STARTPTS,aresample=48000:async=1:first_pts=0,aformat=channel_layouts=stereo,volume='{}':eval=frame,apad,atrim=duration={duration}[{label}];",crate::effects::audio_gain(p,c,start)));
                 sound.push(label);
             }
             input += 1;
@@ -190,27 +203,14 @@ pub fn assemble(
                 .unwrap();
             let offset = start - (to.start - t.duration);
             let d = t.duration;
-            if t.kind == "black" {
-                filter.push_str(&format!("[v{av}]format=gbrp[blacka];[v{bv}]format=gbrp[blackb];[blacka][blackb]blend=all_expr='A*max(0,1-2*(T+{offset})/{d})+B*max(0,2*(T+{offset})/{d}-1)',format=yuv420p[v];"));
-            } else {
-                args.extend(strings(&[
-                    "-f",
-                    "lavfi",
-                    "-i",
-                    &format!(
-                        "color=c=black:s={}x{}:r=30:d={duration}",
-                        meta.width, meta.height
-                    ),
-                ]));
-                let progress = format!("min(1,max(0,(t+{offset})/{d}))");
-                let (out_x, in_x) = if t.kind == "left" {
-                    (format!("-W*({progress})"), format!("W*(1-({progress}))"))
-                } else {
-                    (format!("W*({progress})"), format!("-W*(1-({progress}))"))
-                };
-                filter.push_str(&format!("[{input}:v:0][v{av}]overlay=x='{out_x}':y=0:shortest=1[slide];[slide][v{bv}]overlay=x='{in_x}':y=0:shortest=1[v];"));
-                input += 1;
-            }
+            filter.push_str(&crate::effects::xfade_filter(
+                &format!("v{av}"),
+                &format!("v{bv}"),
+                &t.kind,
+                d,
+                offset,
+                duration,
+            )?);
         } else if let Some(v) = visible.first().and_then(|id| video.get(*id)) {
             filter.push_str(&format!("[v{v}]null[v];"));
         } else {

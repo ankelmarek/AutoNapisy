@@ -60,3 +60,47 @@ pub fn audio_gain(p: &Project, c: &Clip, start: f64) -> String {
     }
     c.volume.to_string()
 }
+
+pub const KINDS: &[&str] = &[
+    "fade",
+    "fadeblack",
+    "fadewhite",
+    "slideleft",
+    "slideright",
+    "slideup",
+    "slidedown",
+    "wipeleft",
+    "wiperight",
+    "wipeup",
+    "wipedown",
+    "hblur",
+    "pixelize",
+    "circleopen",
+    "rectcrop",
+    "distance",
+    "dissolve",
+    "zoomin",
+    "diagtl",
+    "horzopen",
+];
+
+pub fn xfade_filter(
+    a: &str,
+    b: &str,
+    kind: &str,
+    duration: f64,
+    offset: f64,
+    length: f64,
+) -> Result<String, String> {
+    if !KINDS.contains(&kind)
+        || !duration.is_finite()
+        || !(0.1..=2.0).contains(&duration)
+        || !offset.is_finite()
+        || offset < -1e-6
+        || !length.is_finite()
+        || length <= 0.0
+    {
+        return Err("Nieprawidłowy efekt przejścia".into());
+    }
+    Ok(format!("[{a}][{b}]xfade=transition={kind}:duration={duration}:offset=0,trim=start={}:duration={length},setpts=PTS-STARTPTS,format=yuv420p[v];",offset.max(0.0)))
+}

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import {transitionKinds,legacyTransition} from "./transitionCatalog";
 const time = z.number().finite().nonnegative();
 export const styleSchema = z
   .object({
@@ -42,9 +43,10 @@ const segment = z
   });
 const currentProjectSchema = z
   .object({
-    schemaVersion: z.literal(5),
+    schemaVersion: z.literal(6),
+    timelineSegments:z.array(segment).nullable().default(null),
     captionEdits:z.record(z.object({trimStart:time,trimEnd:time,text:z.string().max(100000).optional(),hidden:z.boolean().optional()}).strict()).default({}),
-    transitions:z.array(z.object({id:z.string().min(1),fromId:z.string().min(1),toId:z.string().min(1),kind:z.enum(['left','right','black']),duration:z.number().min(.1).max(2)}).strict()).max(99).default([]),
+    transitions:z.array(z.object({id:z.string().min(1),fromId:z.string().min(1),toId:z.string().min(1),kind:z.enum(transitionKinds),duration:z.number().min(.1).max(2)}).strict()).max(99).default([]),
     assets: z.array(z.object({id:z.string().min(1),path:z.string().min(1),name:z.string(),duration:time,kind:z.enum(["video","audio"]),segments:z.array(segment)}).strict()).max(100).default([]),
     clips: z.array(z.object({id:z.string().min(1),sourceIn:time,sourceOut:time,start:time,assetId:z.string().optional(),track:z.union([z.literal(0),z.literal(1)]).optional(),kind:z.enum(["video","audio"]).optional(),volume:z.number().min(0).max(1).optional(),adjustments:z.object({brightness:z.number().min(.25).max(2),contrast:z.number().min(.25).max(2),saturation:z.number().min(0).max(2)}).strict().optional()}).strict()).max(100).nullable(),
     name: z.string().min(1).max(200),
@@ -78,6 +80,8 @@ const currentProjectSchema = z
       const invalid=!a||!b||a.kind==='audio'||b.kind==='audio'||(a.track??0)!==(b.track??0)||Math.abs(a.start+a.sourceOut-a.sourceIn-b.start)>1e-6||b.sourceIn<t.duration-1e-6||a.sourceOut-a.sourceIn<t.duration-1e-6||toIds.has(t.toId);toIds.add(t.toId);return invalid;
     }))c.addIssue({code:'custom',message:'Nieprawidłowe połączenie przejścia'});
     if(Object.keys(p.captionEdits).length>10000)c.addIssue({code:'custom',message:'Zbyt wiele zmian napisów'});
+    const timelineDuration=Math.max(0,...(p.clips??[]).map(c=>c.start+c.sourceOut-c.sourceIn),...(p.clips===null?[p.media?.duration??0]:[]));
+    if(p.timelineSegments&&(new Set(p.timelineSegments.map(s=>s.id)).size!==p.timelineSegments.length||p.timelineSegments.some(s=>!p.styles[s.styleId]||s.end>86400)))c.addIssue({code:'custom',message:'Nieprawidłowe napisy montażu'});
     if (!p.styles.default)
       c.addIssue({ code: "custom", message: "Brak stylu domyślnego" });
     if (
@@ -94,15 +98,16 @@ const currentProjectSchema = z
       });
   });
 export const projectSchema = z.preprocess((value) => {
-  if (value && typeof value==='object' && 'schemaVersion' in value && [1,2,3,4].includes(Number(value.schemaVersion))) {
-    const p=value as {media?:{duration?:number};schemaVersion:number;clips?:unknown};
-    return {...value,assets:[],...value,captionEdits:{},transitions:[],schemaVersion:5,clips:p.schemaVersion>=3 ? p.clips : p.media?.duration ? [{id:'original',sourceIn:0,sourceOut:p.media.duration,start:0}] : null};
+  if(value&&typeof value==='object'&&'schemaVersion' in value&&[1,2,3,4,5].includes(Number(value.schemaVersion))){
+    const p=value as Project;
+    return {...p,assets:p.assets??[],captionEdits:p.captionEdits??{},timelineSegments:null,transitions:(p.transitions??[]).map(t=>({...t,kind:legacyTransition(t.kind)})),schemaVersion:6,clips:p.schemaVersion>=3?p.clips:p.media?.duration?[{id:'original',sourceIn:0,sourceOut:p.media.duration,start:0}]:null};
   }
   return value;
 }, currentProjectSchema);
-export type Project = z.infer<typeof projectSchema>;
+export type Project = z.infer<typeof currentProjectSchema>;
 export const newProject = (): Project => ({
-  schemaVersion: 5,
+  schemaVersion: 6,
+  timelineSegments:null,
   captionEdits:{},
   transitions:[],
   assets: [],
@@ -173,4 +178,11 @@ export function applyTranscript(
     segments: bounded,
     updatedAt: new Date().toISOString(),
   });
+}
+
+/** Validate recognition independently from source paths and transition references. */
+export function applyTimelineTranscript(project:Project,segments:Project['segments']):Project{
+ const duration=Math.max(0,...(project.clips??[]).map(c=>c.start+c.sourceOut-c.sourceIn),...(project.clips===null?[project.media?.duration??0]:[]));
+ const clean=applyTranscript({...newProject(),media:{path:'timeline',name:'Montaż',duration},styles:project.styles},segments);
+ return projectSchema.parse({...project,timelineSegments:clean.segments,captionEdits:Object.fromEntries(Object.entries(project.captionEdits).filter(([id])=>!id.startsWith('timeline:'))),updatedAt:new Date().toISOString()});
 }

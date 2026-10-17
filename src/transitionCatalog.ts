@@ -1,0 +1,4 @@
+export const transitionKinds=['fade','fadeblack','fadewhite','slideleft','slideright','slideup','slidedown','wipeleft','wiperight','wipeup','wipedown','hblur','pixelize','circleopen','rectcrop','distance','dissolve','zoomin','diagtl','horzopen'] as const;
+export type TransitionKind=typeof transitionKinds[number];
+export const transitionLabels:Record<TransitionKind,string>={fade:'Przenikanie',fadeblack:'Przez czerń',fadewhite:'Przez biel',slideleft:'W lewo',slideright:'W prawo',slideup:'W górę',slidedown:'W dół',wipeleft:'Kurtyna w lewo',wiperight:'Kurtyna w prawo',wipeup:'Kurtyna w górę',wipedown:'Kurtyna w dół',hblur:'Rozmycie',pixelize:'Pikselizacja',circleopen:'Koło',rectcrop:'Prostokąt',distance:'Romb',dissolve:'Rozpuszczanie',zoomin:'Zoom',diagtl:'Przekątna',horzopen:'Żaluzja'};
+export const legacyTransition=(kind:string)=>({left:'slideleft',right:'slideright',black:'fadeblack'}[kind]??kind);

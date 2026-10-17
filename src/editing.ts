@@ -60,7 +60,9 @@ export function closeGaps(clips: Clip[]): Clip[] {
 export type EditedSegment = Project['segments'][number] & {sourceId:string;clipId:string;assetId?:string};
 export function compositionSegments(p: Project): EditedSegment[] {
   const clips=presentationClips(p);
-  return ordered(clips).filter(c=>c.kind!=='audio').flatMap(c=>{
+  const total=editDuration(p);
+  const timeline=p.timelineSegments?.filter(s=>s.start<total).map(s=>({...s,end:Math.min(s.end,total),words:s.words.filter(w=>w.start<total).map(w=>({...w,end:Math.min(w.end,total)})),id:'timeline:'+s.id,sourceId:s.id,clipId:''}));
+  return (timeline??ordered(clips).filter(c=>c.kind!=='audio').flatMap(c=>{
     const incoming=p.transitions.find(t=>t.toId===c.id),outgoing=p.transitions.find(t=>t.fromId===c.id),next=outgoing?projectClips(p).find(x=>x.id===outgoing.toId):undefined;
     let ranges=[{start:c.start+(incoming?incoming.duration/2:0),end:next?next.start-outgoing!.duration/2:clipEnd(c)}];
     for(const upper of clips.filter(u=>u.kind!=='audio'&&(u.track??0)>(c.track??0)))ranges=ranges.flatMap(r=>{
@@ -73,7 +75,7 @@ export function compositionSegments(p: Project): EditedSegment[] {
       const text=s.words.length?words.map(w=>w.text).join(' ').trim():s.text;if(!text)return [];
       return [{...s,id:JSON.stringify([c.id,s.id,index]),sourceId:s.id,clipId:c.id,assetId:c.assetId,start:start+offset,end:end+offset,text,words}];
     }));
-  }).flatMap(s=>{
+  })).flatMap(s=>{
     const patch=p.captionEdits[s.id];if(!patch)return [s];if(patch.hidden)return [];
     const start=s.start+patch.trimStart,end=s.end-patch.trimEnd;if(end-start<.049999)return [];
     const words=patch.text!==undefined||patch.trimStart>0||patch.trimEnd>0?[]:s.words;

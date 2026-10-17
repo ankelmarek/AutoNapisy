@@ -1,10 +1,10 @@
-# RolVixa 0.9 — polska mowa → polskie napisy
+# RolVixa 0.10 — polska mowa → polskie napisy
 
 RolVixa (wcześniej AutoNapisy) to lokalna aplikacja Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Rozpoznaje polską mowę przez whisper.cpp, bez tłumaczenia. Nie wysyła nagrań, nie zawiera klienta HTTP ani telemetrii.
 
 ## Aktualizacja i uruchomienie ze źródeł
 
-Zachowaj projekty i nagrania. Pobierz ZIP z GitHuba i rozpakuj do nowego folderu, np. `C:\RolVixa-0.9`. Nie kopiuj starych `node_modules`, `dist` i `src-tauri/target`. Aplikacja otwiera projekty v1–v4 i zapisuje format v5. Przed zapisaniem zachowaj kopię JSON, jeśli chcesz wrócić do starszej wersji aplikacji.
+Zachowaj projekty i nagrania. Pobierz ZIP z GitHuba i rozpakuj do nowego folderu, np. `C:\RolVixa-0.10`. Nie kopiuj starych `node_modules`, `dist` i `src-tauri/target`. Aplikacja otwiera projekty v1–v5 i zapisuje format v6. Przed zapisaniem zachowaj kopię JSON, jeśli chcesz wrócić do starszej wersji aplikacji.
 
 Wymagania: Node.js 22 lub 24, aktualny Rust stable x64 MSVC, Visual Studio Build Tools z „Desktop development with C++” i Windows SDK oraz WebView2 Runtime.
 
@@ -32,7 +32,7 @@ Aplikacja zapisuje ścieżki w `components.json` w katalogu konfiguracji użytko
 ## Obsługa
 
 1. W menu **Projekt** wybierz import filmów lub audio (można zaznaczyć wiele plików). Import trafia tylko do biblioteki. Przycisk **+** przy pliku dodaje go na oś czasu. Pierwszy dodany film wyznacza format obrazu. Możesz też otworzyć projekt.
-2. Kliknij **Transkrybuj po polsku**. FFmpeg wyodrębnia pierwszą ścieżkę audio do mono PCM WAV 16 kHz. Whisper rozpoznaje język polski na CPU, maksymalnie 8 wątków.
+2. Kliknij **Transkrybuj po polsku**. FFmpeg przygotowuje mono PCM WAV 16 kHz wyłącznie z użytych fragmentów montażu, z uwzględnieniem cięć, kolejności, poziomów głośności i przejść. Puste przerwy oraz pliki pozostające w bibliotece są pomijane. Whisper rozpoznaje język polski na CPU, maksymalnie 8 wątków.
 3. Przygotowanie i ładowanie modelu mają nieokreślony pasek. Procent pochodzi z Whisper i dotyczy tylko fazy rozpoznawania; nie jest szacowanym postępem całego zadania. Niektóre CLI nie podają procentu.
 4. **Anuluj** zatrzymuje proces. Zamknięcie aplikacji też zatrzymuje zadanie, czeka na jego koniec i sprząta pliki tymczasowe.
 5. Po sukcesie segmenty pojawiają się w lewym panelu i na podglądzie. Kliknij czas, aby przewinąć film. Kliknięcie napisu na osi otwiera jego edycję po prawej. Uchwyty skracają czas wyświetlania bez cięcia filmu. Poprawki dotyczą wybranego wystąpienia; źródłowa transkrypcja pozostaje zachowana.
@@ -208,7 +208,7 @@ Wersja 0.6 poprawia też kompilację dołączonego FFmpeg: zawiera statycznie li
 Testy 0.7: jednostkowe TypeScript i Rust; rzeczywisty FFmpeg sprawdza warstwy czerwony/niebieski, jednoczesne tony 440/880/1320 Hz, muzykę nad czarną przerwą, głośność, Unicode i niezmienność źródeł. Opcjonalny `scripts/test-editor.mjs` sprawdza import, cztery pasy, połączony montaż, niezależne audio, odtwarzanie i układ w 1366×768 oraz 1920×1080 (Playwright instalowany osobno do `.tools/browser`). Windows CI uruchamia test realnego miksu także z FFmpeg dołączonym do instalatora.
 
 
-## RolVixa 0.9 — pliki, linia głośności i odtwarzanie
+## RolVixa 0.10 — pliki, linia głośności i odtwarzanie
 
 - Lewy panel otwiera się na zakładce **Pliki**. Pokazuje filmy i audio, czas trwania, pełną ścieżkę lokalną, dostępność oraz liczbę użyć. Wyszukiwarka filtruje nazwy i ścieżki. **+** na karcie dodaje istniejące źródło do montażu w pozycji głowicy; nie kopiuje nagrania. Usunięcie klipu z osi nie usuwa źródła z biblioteki. Ikona napisów przełącza na **Napisy** danego filmu.
 - Narzędzia osi są ikonami z podpowiedziami i nazwami dla czytników ekranu. Skróty C, V, Ctrl+Z i Ctrl+Shift+Z nadal działają.
@@ -233,3 +233,15 @@ W zakładce **Efekty** ustaw długość i przeciągnij przejście w lewo, w praw
 Skróty: **Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y** cofnij / ponów, **Ctrl+C / V / X / D** kopiuj / wklej przy głowicy / wytnij / duplikuj klip, **Delete** usuń klip lub ukryj napis, **Spacja** odtwarzaj / pauza. Podczas pisania Spacja wpisuje odstęp; **Ctrl+Spacja** steruje odtwarzaniem także w polu tekstowym. **Ctrl+S / O / N / I** zapis / otwórz / nowy / import filmów, **Ctrl+Shift+I** import audio. **Alt + przeciągnięcie myszą** lub środkowy przycisk przesuwa widok osi bez zmiany głowicy. Strzałki przewijają o klatkę, z Shift o sekundę; Home/End przenosi na początek/koniec.
 
 Test interfejsu: `node scripts/test-editor9.mjs` przy uruchomionym Vite i lokalnie zainstalowanym Playwright/Chromium w `.tools`. Używa wygenerowanych filmów testowych i kontrolowanego mocka IPC; nie zastępuje próby w Windows WebView2. Testy rzeczywistego FFmpeg: `cargo test --manifest-path .test-core/Cargo.toml --test montage_export -- --ignored --nocapture` (ustaw `AUTONAPISY_FFMPEG` na pełną ścieżkę do FFmpeg). Obejmują montaż, miks, przejścia, korekcję i przebieg audio.
+
+
+## Zmiany 0.10
+
+- Transkrypcja obejmuje montaż, zamiast całego wybranego źródła. Używa pierwszej ścieżki audio każdego użytego pliku i miksuje słyszalne fragmenty, również samodzielne audio. Pliki z biblioteki poza osią nie są otwierane przez rozpoznawanie. Puste przerwy nie trafiają do Whispera; mapa czasów przywraca ich pozycje w wyniku. Nie jest to wykrywanie i wycinanie ciszy wewnątrz klipu. Zmniejszenie głośności do zera wyklucza fragment z rozpoznania.
+- Napisy montażu mają własne czasy osi w `timelineSegments`; nie są ograniczane długością pierwszego filmu. Naprawiono odrzucanie poprawnej transkrypcji przy istniejących przejściach. Nowy wynik podmienia napisy dopiero po sukcesie. Napisy źródłowe pozostają w projekcie. Po zmianie kolejności montażu napisy z osi pozostają na dotychczasowych pozycjach; ponowna transkrypcja dopasuje je do nowego montażu.
+- 20 przejść z filtra **FFmpeg xfade**. Galeria: przenikanie, czerń, biel, przesunięcia i kurtyny w czterech kierunkach, rozmycie, pikselizacja, koło, prostokąt, romb, rozpuszczanie, zoom, przekątna i żaluzja. Przeciągnij kartę na połączenie sąsiadujących klipów tego samego pasa. Pasek obejmuje oba filmy i pokazuje długość. Stare left/right/black są migrowane na odpowiedniki xfade. Efekt nadal zużywa początek drugiego filmu i skraca montaż o swoją długość; inne pasy nie przesuwają się automatycznie.
+- Podgląd przejścia jest prawdziwym wynikiem FFmpeg, z tym samym xfade i korekcją obrazu co eksport. Krótki MP4 jest buforowany do końca sesji, w rozdzielczości do 540 px, bez dźwięku; dźwięk miksuje dotychczasowy odtwarzacz. Pierwsze przygotowanie wymaga chwili. Do odtwarzania przejść potrzebny jest skonfigurowany FFmpeg. Eksport zachowuje rozdzielczość projektu.
+- Film lub audio można przeciągnąć z biblioteki na wybrany pas i pozycję osi. Przy zajętym miejscu klip trafia do najbliższego wolnego miejsca. Napisy są nad pasami obrazu. Usunięto podtytuł marki i zbędne komunikaty o przechowywaniu plików.
+- Schemat v6: `schemas/project-v6.schema.json`. Zachowaj kopię JSON przed zapisaniem, jeśli potrzebujesz wracać do starszej aplikacji.
+
+Regresje obejmują rzeczywisty eksport i podgląd wszystkich 20 efektów, przygotowanie skróconego audio z pominięciem nieużytego źródła i pustych przerw, prawdziwy Whisper na krótkim próbku testowym, zachowanie przejść przy zapisie rozpoznania i przeciąganie mediów w interfejsie.

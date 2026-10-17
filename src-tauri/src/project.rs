@@ -14,6 +14,8 @@ pub struct Project {
     pub caption_edits: HashMap<String, CaptionEdit>,
     #[serde(default)]
     pub transitions: Vec<Transition>,
+    #[serde(default)]
+    pub timeline_segments: Option<Vec<Segment>>,
     pub segments: Vec<Segment>,
     pub styles: HashMap<String, Style>,
     pub created_at: String,
@@ -188,7 +190,7 @@ pub fn parse(json: &str) -> Result<Project, String> {
     }
     let mut p: Project =
         serde_json::from_value(raw).map_err(|e| format!("Niepoprawny JSON projektu: {e}"))?;
-    if ![1, 2, 3, 4, 5].contains(&p.schema_version) {
+    if ![1, 2, 3, 4, 5, 6].contains(&p.schema_version) {
         return Err("Nieobsługiwana wersja projektu".into());
     }
     if p.schema_version < 3 {
@@ -209,7 +211,18 @@ pub fn parse(json: &str) -> Result<Project, String> {
                 }]
             });
     }
-    p.schema_version = 5;
+    if p.schema_version < 6 {
+        for t in &mut p.transitions {
+            t.kind = match t.kind.as_str() {
+                "left" => "slideleft",
+                "right" => "slideright",
+                "black" => "fadeblack",
+                other => other,
+            }
+            .into();
+        }
+    }
+    p.schema_version = 6;
     if p.assets.len() > 100 {
         return Err("Zbyt wiele źródeł".into());
     }
@@ -229,6 +242,7 @@ pub fn parse(json: &str) -> Result<Project, String> {
         validation.assets.clear();
         validation.clips = None;
         validation.transitions.clear();
+        validation.timeline_segments = None;
         validation.media = Some(Media {
             path: a.path.clone(),
             name: a.name.clone(),
@@ -304,7 +318,7 @@ pub fn parse(json: &str) -> Result<Project, String> {
             || !destinations.insert(&t.to_id)
             || !t.duration.is_finite()
             || !(0.1..=2.0).contains(&t.duration)
-            || !["left", "right", "black"].contains(&t.kind.as_str())
+            || !crate::effects::KINDS.contains(&t.kind.as_str())
             || a.kind != "video"
             || b.kind != "video"
             || a.track != b.track
@@ -373,6 +387,20 @@ pub fn parse(json: &str) -> Result<Project, String> {
         return Err("Brak stylu domyślnego".into());
     }
     let mut ids = HashSet::new();
+    if let Some(segments) = &p.timeline_segments {
+        let mut validation = p.clone();
+        validation.timeline_segments = None;
+        validation.assets.clear();
+        validation.clips = None;
+        validation.transitions.clear();
+        validation.segments = segments.clone();
+        if let Some(media) = &mut validation.media {
+            media.duration = Some(86400.0);
+        } else if !segments.is_empty() {
+            return Err("Brak montażu dla napisów".into());
+        }
+        parse(&serde_json::to_string(&validation).map_err(|e| e.to_string())?)?;
+    }
     for s in &p.segments {
         if s.id.is_empty()
             || !ids.insert(&s.id)
@@ -426,6 +454,7 @@ pub fn export_captions(p: &Project, json: Option<&str>) -> Result<Vec<Segment>, 
     let mut validation = p.clone();
     validation.clips = None;
     validation.transitions.clear();
+    validation.timeline_segments = None;
     validation.segments = segments;
     if let Some(media) = validation.media.as_mut() {
         media.duration = Some(duration);
@@ -441,7 +470,7 @@ mod tests {
     #[test]
     fn migrate_v1_and_validate_layout() {
         let project = parse(&json()).unwrap();
-        assert_eq!(project.schema_version, 5);
+        assert_eq!(project.schema_version, 6);
         assert!(!project.styles["default"].uppercase);
         assert_eq!(project.styles["default"].max_lines, 2);
         let mut value = serde_json::to_value(project).unwrap();

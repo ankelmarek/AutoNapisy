@@ -103,20 +103,67 @@ pub async fn choose_component(
 }
 #[tauri::command]
 pub fn start_transcription(
-    path: String,
+    path: Option<String>,
+    json: Option<String>,
     access: State<'_, Access>,
     tools: State<'_, ToolState>,
     tasks: State<'_, Tasks>,
 ) -> Result<u64, String> {
-    let media = media_path(std::path::Path::new(&path))?;
-    if !access
-        .0
-        .lock()
-        .map_err(|_| "Błąd uprawnień")?
-        .contains(&media)
-    {
-        return Err("Najpierw zaimportuj film lub otwórz jego projekt".into());
-    }
+    let timeline = if let Some(json) = json {
+        if json.len() > 16 * 1024 * 1024 {
+            return Err("Projekt przekracza 16 MB".into());
+        }
+        let mut p = crate::project::parse(&json)?;
+        if p.clips.is_none() {
+            p.clips = Some(
+                p.media
+                    .as_ref()
+                    .and_then(|m| m.duration)
+                    .map(|duration| {
+                        vec![crate::project::Clip {
+                            id: "original".into(),
+                            start: 0.0,
+                            source_in: 0.0,
+                            source_out: duration,
+                            kind: "video".into(),
+                            volume: 1.0,
+                            ..Default::default()
+                        }]
+                    })
+                    .unwrap_or_default(),
+            );
+        }
+
+        for c in p.clips.as_deref().unwrap_or(&[]) {
+            let path = media_path(std::path::Path::new(p.clip_path(c).ok_or("Brak źródła")?))?;
+            if !access
+                .0
+                .lock()
+                .map_err(|_| "Błąd uprawnień")?
+                .contains(&path)
+            {
+                return Err("Najpierw zaimportuj źródła".into());
+            }
+        }
+        Some(p)
+    } else {
+        None
+    };
+    let media = if timeline.is_none() {
+        let path = path.ok_or("Brak montażu")?;
+        let media = media_path(std::path::Path::new(&path))?;
+        if !access
+            .0
+            .lock()
+            .map_err(|_| "Błąd uprawnień")?
+            .contains(&media)
+        {
+            return Err("Najpierw zaimportuj film".into());
+        }
+        Some(media)
+    } else {
+        None
+    };
     let tools = tools.0.lock().unwrap().validated()?;
     let mut current = tasks.current.lock().unwrap();
     if current.as_ref().is_some_and(|j| j.active()) {
@@ -131,7 +178,11 @@ pub fn start_transcription(
     let worker = std::thread::Builder::new()
         .name("autonapisy-transcription".into())
         .spawn(move || {
-            let result = transcription::execute(Arc::clone(&running), tools, media);
+            let result = if let Some(p) = timeline {
+                transcription::execute_timeline(Arc::clone(&running), tools, p)
+            } else {
+                transcription::execute(Arc::clone(&running), tools, media.unwrap())
+            };
             let mut status = running.status.lock().unwrap();
             if running.cancel.load(Ordering::SeqCst) {
                 status.state = "cancelled".into();
