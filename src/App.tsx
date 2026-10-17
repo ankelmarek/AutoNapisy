@@ -19,6 +19,7 @@ import Timeline from "./Timeline";
 import LocalMedia from "./LocalMedia";
 import MediaLibrary from "./MediaLibrary";
 import Icon from "./Icons";
+import rolvixaIcon from "./assets/rolvixa-icon.png";
 import {libraryItems,insertLibraryItem} from "./library";
 import { useProjectHistory } from "./useHistory";
 import { usePlayback } from "./usePlayback";
@@ -235,7 +236,7 @@ export default function App() {
     <div className="app">
       <header>
         <div className="brand">
-          <span className="logo rolvixa-mark" aria-hidden="true">R</span>
+          <img className="brand-icon" src={rolvixaIcon} alt=""/>
           <div>
             RolVixa <small>0.8 · lokalne studio napisów</small>
           </div>
