@@ -1,9 +1,12 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod analysis_commands;
+mod audio_commands;
+mod audio_library;
 mod bundled;
 mod commands;
 mod effects;
 mod export_commands;
+mod framing;
 mod mlt_commands;
 mod montage;
 mod preview_commands;
@@ -253,6 +256,7 @@ fn diagnostics(
 fn main() {
     let app = tauri::Builder::default()
         .manage(Access::default())
+        .manage(audio_commands::AudioLibraryState::default())
         .manage(mlt_commands::MltState::default())
         .manage(preview_commands::PreviewState::default())
         .manage(analysis_commands::AnalysisState::default())
@@ -271,11 +275,16 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             import_video,
+            audio_commands::builtin_audio,
+            audio_commands::search_audio,
+            audio_commands::download_audio,
+            audio_commands::audition_audio,
             mlt_commands::start_mlt_preview,
             mlt_commands::read_mlt_preview,
             mlt_commands::cancel_mlt_preview,
             analysis_commands::audio_waveform,
             analysis_commands::media_info,
+            analysis_commands::layer_frames,
             prepare_preview,
             preview_commands::prepare_transition_preview,
             open_project,
@@ -302,6 +311,9 @@ fn main() {
                 .shutdown();
             handle.state::<preview_commands::PreviewState>().shutdown();
             handle.state::<mlt_commands::MltState>().shutdown();
+            handle
+                .state::<audio_commands::AudioLibraryState>()
+                .shutdown();
             handle.state::<commands::Tasks>().shutdown();
             handle.state::<export_commands::ExportState>().shutdown();
         }

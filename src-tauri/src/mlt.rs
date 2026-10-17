@@ -126,7 +126,7 @@ pub fn xml(
     let last = total - 1;
     let mut s=format!("<?xml version=\"1.0\" encoding=\"utf-8\"?><mlt producer=\"output\"><profile description=\"RolVixa\" width=\"{}\" height=\"{}\" frame_rate_num=\"30\" frame_rate_den=\"1\" progressive=\"1\" sample_aspect_num=\"1\" sample_aspect_den=\"1\" display_aspect_num=\"{}\" display_aspect_den=\"{}\" colorspace=\"709\"/>",meta.width,meta.height,meta.width,meta.height);
     s+=&format!("<producer id=\"black\" in=\"0\" out=\"{last}\">{}{}{}<property name=\"length\">{total}</property></producer><playlist id=\"base\"><entry producer=\"black\" in=\"0\" out=\"{last}\"/></playlist>",prop("mlt_service","color"),prop("resource","0x000000ff"),prop("set.test_audio",1));
-    let mut tracks: Vec<(String, &'static str)> = vec![];
+    let mut tracks: Vec<(String, &'static str, String)> = vec![];
     for lane in 0..2 {
         for c in clips
             .iter()
@@ -136,7 +136,7 @@ pub fn xml(
             if ranges.is_some() {
                 audio.kind = "audio".into();
             }
-            append_clip(&mut s, p, &audio, &mut tracks, total)?;
+            append_clip(&mut s, p, &audio, &mut tracks, total, meta)?;
         }
         for (id, path) in overlays {
             let t = p
@@ -162,7 +162,7 @@ pub fn xml(
                 prop("set.test_audio", 1)
             );
             s+=&format!("<playlist id=\"track{n}\">{}<entry producer=\"clip{n}\" in=\"0\" out=\"{}\"/></playlist>",if start>0{format!("<blank length=\"{start}\"/>")}else{String::new()},length-1);
-            tracks.push((format!("track{n}"), "audio"));
+            tracks.push((format!("track{n}"), "audio", "0=0/0:100%x100%:100".into()));
         }
     }
     for c in clips.iter().filter(|c| c.kind == "audio") {
@@ -170,10 +170,10 @@ pub fn xml(
         if ranges.is_some() {
             audio.kind = "audio".into();
         }
-        append_clip(&mut s, p, &audio, &mut tracks, total)?;
+        append_clip(&mut s, p, &audio, &mut tracks, total, meta)?;
     }
     s += &format!("<tractor id=\"timeline\" in=\"0\" out=\"{last}\"><track producer=\"base\"/>");
-    for (id, hide) in &tracks {
+    for (id, hide, _) in &tracks {
         s += &format!(
             "<track producer=\"{}\"{}/>",
             id,
@@ -184,7 +184,7 @@ pub fn xml(
             }
         );
     }
-    for (i, _) in tracks.iter().enumerate() {
+    for (i, (_, _, geometry)) in tracks.iter().enumerate() {
         let b = i + 1;
         s += &format!(
             "<transition in=\"0\" out=\"{last}\">{}{}{}{}{}{}</transition>",
@@ -202,8 +202,10 @@ pub fn xml(
             prop("b_track", b),
             prop("always_active", 1),
             prop("progressive", 1),
-            prop("geometry", "0=0/0:100%x100%:100")
+            prop("geometry", geometry)
         );
+        let end = s.len() - "</transition>".len();
+        s.insert_str(end, &(prop("halign", "centre") + &prop("valign", "middle")));
     }
     s += "</tractor>";
     if let Some(ranges) = ranges {
@@ -227,8 +229,9 @@ fn append_clip(
     s: &mut String,
     p: &Project,
     c: &Clip,
-    tracks: &mut Vec<(String, &'static str)>,
+    tracks: &mut Vec<(String, &'static str, String)>,
     _total: i64,
+    meta: &Metadata,
 ) -> Result<(), String> {
     let n = tracks.len();
     let input = frame(c.source_in);
@@ -323,6 +326,7 @@ fn append_clip(
         } else {
             ""
         },
+        crate::framing::geometry(c, meta.width, meta.height),
     ));
     Ok(())
 }
@@ -334,6 +338,9 @@ pub fn prepare(
     dir: &Path,
     preview: bool,
 ) -> Result<PathBuf, String> {
+    let mut meta = meta.clone();
+    crate::framing::apply_canvas(p, &mut meta);
+    let meta = &meta;
     let mut overlays = vec![];
     for (i, t) in p.transitions.iter().enumerate() {
         if hidden_transition(p, t) {
@@ -494,6 +501,9 @@ pub fn prepare_cached(
         t.duration.to_bits().hash(&mut h);
         meta.width.hash(&mut h);
         meta.height.hash(&mut h);
+        serde_json::to_string(&p.canvas)
+            .map_err(|e| e.to_string())?
+            .hash(&mut h);
         for id in [&t.from_id, &t.to_id] {
             let c = p
                 .clips
@@ -504,6 +514,9 @@ pub fn prepare_cached(
                 .ok_or("Brak klipu przejścia")?;
             c.source_in.to_bits().hash(&mut h);
             c.source_out.to_bits().hash(&mut h);
+            serde_json::to_string(&c.transform)
+                .map_err(|e| e.to_string())?
+                .hash(&mut h);
             serde_json::to_string(&c.adjustments)
                 .map_err(|e| e.to_string())?
                 .hash(&mut h);

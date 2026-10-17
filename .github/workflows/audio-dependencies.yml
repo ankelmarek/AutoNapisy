@@ -1,0 +1,23 @@
+name: Audio dependencies and native compile check
+on:
+  push:
+    branches: [build/audio-dependencies]
+jobs:
+  check:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+          cache-on-failure: true
+      - name: Resolve native HTTPS dependencies
+        run: cargo update -p rolvixa --manifest-path src-tauri/Cargo.toml
+      - name: Print resolved lockfile
+        run: |
+          Write-Output 'ROLVIXA_LOCK_BEGIN'
+          Get-Content src-tauri/Cargo.lock
+          Write-Output 'ROLVIXA_LOCK_END'
+      - name: Compile actual Windows native commands
+        run: cargo check --locked --manifest-path src-tauri/Cargo.toml

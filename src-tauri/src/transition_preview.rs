@@ -32,12 +32,13 @@ pub fn render_sized(
         .find(|c| c.id == t.from_id)
         .ok_or("Brak klipu")?;
     let b = clips.iter().find(|c| c.id == t.to_id).ok_or("Brak klipu")?;
-    let meta = inspect(
+    let mut meta = inspect(
         job,
         ffmpeg,
         Path::new(&p.media.as_ref().ok_or("Brak filmu")?.path),
         dir,
     )?;
+    crate::framing::apply_canvas(p, &mut meta);
     let scale = max_size
         .map(|v| (v as f64 / meta.width.max(meta.height) as f64).min(1.0))
         .unwrap_or(1.0);
@@ -74,7 +75,14 @@ pub fn render_sized(
             args.push(arg.into());
         }
         args.push(p.clip_path(c).ok_or("Brak źródła")?.into());
-        filter.push_str(&format!("[{i}:v:0]setpts=PTS-STARTPTS,{}scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,fps=30,settb=AVTB,tpad=stop_mode=clone:stop_duration=0.15,format=yuv420p[v{i}];",crate::effects::color_filter(c)));
+        filter.push_str(&format!("[{i}:v:0]setpts=PTS-STARTPTS,{}fps=30,settb=AVTB,tpad=stop_mode=clone:stop_duration=0.15[v{i}source];",crate::effects::color_filter(c)));
+        filter.push_str(&crate::framing::ffmpeg_chain(
+            c,
+            width,
+            height,
+            &format!("v{i}source"),
+            &format!("v{i}"),
+        ));
     }
     filter.push_str(&crate::effects::xfade_filter(
         "v0", "v1", &t.kind, t.duration, 0.0, t.duration,
