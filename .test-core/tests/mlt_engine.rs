@@ -159,5 +159,29 @@ fn actual_mlt_tracks() {
         (gray[0] as i32 - gray[2] as i32).abs() < 15 && gray[0] < 70,
         "correction {gray:?}"
     );
-    println!("MLT actual layers, cuts, gap, Unicode and FFmpeg transition overlay: OK");
+    // Measure linked sound, independent sound, mixing and clip gain in the actual engine.
+    p.clips.as_mut().unwrap()[0].adjustments = None;
+    let mut levels = vec![];
+    for (label, volume, independent) in [("full", 1., false), ("half", 0.5, false), ("mix", 1., true)] {
+        p.clips.as_mut().unwrap().truncate(1);
+        p.clips.as_mut().unwrap()[0].volume = volume;
+        if independent {
+            p.clips.as_mut().unwrap().push(project::Clip {
+                id: "sound".into(), kind: "audio".into(), asset_id: Some("b".into()),
+                track: 1, source_out: 2., volume: 0.5, ..Default::default()
+            });
+        }
+        let audio = dir.path().join(label);
+        fs::create_dir(&audio).unwrap();
+        fs::write(audio.join("timeline.mlt"), mlt::xml(&p, &meta, &[], Some(&[(0, 60)])).unwrap()).unwrap();
+        let wav = mlt::run(&job, &melt, &audio, 0, 59, false, true).unwrap();
+        let mut reader = hound::WavReader::open(wav).unwrap();
+        let samples: Vec<_> = reader.samples::<i16>().skip(8000).take(16000).map(|x| x.unwrap() as f64).collect();
+        levels.push((samples.iter().map(|x| x*x).sum::<f64>() / samples.len() as f64).sqrt());
+    }
+    let half = levels[1] / levels[0];
+    let mixed = levels[2] / levels[0];
+    assert!((half - 0.5).abs() < 0.04, "volume RMS {levels:?}");
+    assert!((mixed - 1.25_f64.sqrt()).abs() < 0.05, "audio mix RMS {levels:?}");
+    println!("MLT actual layers, cuts, gap, Unicode, transitions, audio mixing and gain: OK");
 }

@@ -12,7 +12,7 @@ jobs=$(nproc); if [ "$jobs" -gt 4 ]; then jobs=4; fi
 ffmpeg_recipe=$(sha256sum "$root/scripts/build-bundled-ffmpeg.sh" | cut -d' ' -f1)
 if [ ! -f "$ffprefix/lib/pkgconfig/libavformat.pc" ] || [ "$(cat "$ffprefix/lib/pkgconfig/.rolvixa-recipe" 2>/dev/null || true)" != "$ffmpeg_recipe" ]; then
   "$root/scripts/build-bundled-ffmpeg.sh"
-  make -C "$root/.tools/vendor-build/ffmpeg" -j"$jobs" install-libs install-headers install-pkgconfig
+  make -C "$root/.tools/vendor-build/ffmpeg" -j"$jobs" install-libs install-headers
   printf '%s' "$ffmpeg_recipe" > "$ffprefix/lib/pkgconfig/.rolvixa-recipe"
 fi
 fetch() {
