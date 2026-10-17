@@ -128,7 +128,7 @@ PY
 static_libs=$(pkg-config --static --libs libavformat libavcodec libavfilter libswscale libswresample libavutil | tr ' ' ';')
 opts=()
 for name in DECKLINK FREI0R GDK GLAXNIMATE_QT6 JACKRACK KDENLIVE MOVIT NDI OLDFILM OPENCV OPENFX PLACEBO PLUS PLUSGPL QT6 RESAMPLE RTAUDIO RUBBERBAND RNNOISE SDL1 SDL2 SOX SPATIALAUDIO VIDSTAB VORBIS XINE; do opts+=("-DMOD_$name=OFF"); done
-cmake -S "$work/mlt" -B "$work/mlt-out" -G 'MinGW Makefiles' -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$(cygpath -m "$install")" -DCMAKE_PREFIX_PATH="$prefix_win;$ffprefix_win" -DCMAKE_SHARED_LINKER_FLAGS='-static-libgcc -static-libstdc++' -DCMAKE_MODULE_LINKER_FLAGS='-static-libgcc -static-libstdc++' -DCMAKE_EXE_LINKER_FLAGS='-static-libgcc -static-libstdc++' -DGPL=ON -DGPL3=OFF -DUSE_AVDEVICE=OFF -DMOD_AVFORMAT=ON -DMOD_XML=ON -DMOD_NORMALIZE=ON -DROLVIXA_FFMPEG_STATIC_DEPS="$static_libs" -DBUILD_TESTING=OFF -DBUILD_DOCS=OFF -DCLANG_FORMAT=OFF "${opts[@]}"
+cmake -S "$work/mlt" -B "$work/mlt-out" -G 'MinGW Makefiles' -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$(cygpath -m "$install")" -DCMAKE_PREFIX_PATH="$prefix_win;$ffprefix_win" -DCMAKE_C_FLAGS=-DMELT_NOSDL -DCMAKE_DISABLE_FIND_PACKAGE_SDL2=ON -DCMAKE_SHARED_LINKER_FLAGS='-static-libgcc -static-libstdc++' -DCMAKE_MODULE_LINKER_FLAGS='-static-libgcc -static-libstdc++' -DCMAKE_EXE_LINKER_FLAGS='-static-libgcc -static-libstdc++' -DGPL=ON -DGPL3=OFF -DUSE_AVDEVICE=OFF -DMOD_AVFORMAT=ON -DMOD_XML=ON -DMOD_NORMALIZE=ON -DROLVIXA_FFMPEG_STATIC_DEPS="$static_libs" -DBUILD_TESTING=OFF -DBUILD_DOCS=OFF -DCLANG_FORMAT=OFF "${opts[@]}"
 cmake --build "$work/mlt-out" -j "$jobs"
 cmake --install "$work/mlt-out"
 # All compiler runtimes stay beside melt. Never rely on the developer's PATH.
