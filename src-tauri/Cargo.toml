@@ -3,6 +3,9 @@ name = "rolvixa"
 version = "0.11.0"
 edition = "2021"
 rust-version = "1.77.2"
+[features]
+# Native dialog fixture for the separately built CI executable only.
+ui-tests = []
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 [dependencies]

@@ -5,6 +5,9 @@ Copy-Item 'src-tauri/target/x86_64-pc-windows-msvc/release/rolvixa.exe' (Join-Pa
 $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = '--remote-debugging-port=9222 --disable-gpu'
 $env:ROLVIXA_WEBVIEW_CDP = 'http://127.0.0.1:9222'
 $env:AUTONAPISY_FFMPEG = Join-Path $destination 'vendor/ffmpeg.exe'
+$env:ROLVIXA_TEST_PROJECT = Join-Path $env:RUNNER_TEMP 'RolVixa prawdziwy podgląd Łódź/projekt.json'
+node scripts/test-native-preview.mjs --prepare
+if ($LASTEXITCODE -ne 0) { throw 'Nie udało się przygotować projektu testowego' }
 $app = Start-Process -FilePath (Join-Path $destination 'rolvixa.exe') -PassThru -RedirectStandardOutput '.tools/app-stdout.log' -RedirectStandardError '.tools/app-stderr.log'
 try {
   Write-Output "Installed app PID $($app.Id); waiting for WebView2 CDP"
@@ -18,6 +21,8 @@ try {
   }
   if (-not $ready) { throw 'WebView2 nie udostępnił połączenia testowego CDP' }
   Write-Output 'WebView2 CDP is ready; starting editor interactions'
+  node scripts/test-native-preview.mjs
+  if ($LASTEXITCODE -ne 0) { throw 'Rzeczywisty podgląd MLT przez IPC nie przeszedł testu' }
   $test = Start-Process -FilePath (Get-Command node).Source -ArgumentList 'scripts/test-editor9.mjs' -NoNewWindow -PassThru
   if (-not $test.WaitForExit(180000)) {
     taskkill /PID $test.Id /T /F 2>$null | Out-Null

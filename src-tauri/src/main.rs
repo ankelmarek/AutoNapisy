@@ -112,15 +112,24 @@ struct Opened {
 }
 #[tauri::command]
 async fn open_project(access: State<'_, Access>) -> Result<Option<Opened>, String> {
-    let Some(file) = rfd::AsyncFileDialog::new()
+    #[cfg(feature = "ui-tests")]
+    let fixture = std::env::var_os("ROLVIXA_TEST_PROJECT").map(PathBuf::from);
+    #[cfg(not(feature = "ui-tests"))]
+    let fixture: Option<PathBuf> = None;
+    let path = if let Some(path) = fixture {
+        path
+    } else {
+        let Some(file) = rfd::AsyncFileDialog::new()
         .add_filter("Projekt RolVixa", &["json"])
         .pick_file()
         .await
-    else {
-        return Ok(None);
+        else {
+            return Ok(None);
+        };
+        file.path().to_path_buf()
     };
     let mut json = String::new();
-    fs::File::open(file.path())
+    fs::File::open(&path)
         .map_err(|e| e.to_string())?
         .take(16 * 1024 * 1024 + 1)
         .read_to_string(&mut json)
@@ -141,7 +150,7 @@ async fn open_project(access: State<'_, Access>) -> Result<Option<Opened>, Strin
     }
     Ok(Some(Opened {
         json,
-        path: path_string(file.path())?,
+        path: path_string(&path)?,
     }))
 }
 #[tauri::command]
