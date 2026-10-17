@@ -1,4 +1,4 @@
-# Requires MSYS2 MINGW64 with make, nasm, diffutils, gcc and pkgconf, plus VS CMake.
+# Requires MSYS2 MINGW64: make, mingw32-make, nasm, diffutils, gcc, pkgconf, CMake and Python.
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $bash = 'C:/msys64/usr/bin/bash.exe'

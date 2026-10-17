@@ -55,6 +55,70 @@ cmake --build "$work/xml-out" -j "$jobs"
 cmake --install "$work/xml-out"
 # MLT derives a pthread archive location from the iconv archive location on MinGW.
 cp /mingw64/lib/libwinpthread.a "$prefix/lib/libpthread.a"
+# Keep MLT's module/data paths in UTF-8, even under a non-UTF-8 Windows locale.
+python - "$work/mlt/src/framework" <<'PYUNICODE'
+from pathlib import Path
+import sys
+root=Path(sys.argv[1])
+p=root/'mlt_factory.c';s=p.read_text()
+old="""        char path[1024];
+        DWORD size = sizeof(path);
+        GetModuleFileName(NULL, path, size);"""
+new="""        WCHAR wide_path[32768];
+        char path[32768 * 4];
+        GetModuleFileNameW(NULL, wide_path, 32768);
+        WideCharToMultiByte(CP_UTF8, 0, wide_path, -1, path, sizeof(path), NULL, NULL);"""
+if s.count(old)!=1: raise SystemExit('Review MLT app directory Unicode patch')
+s=s.replace(old,new)
+old="""        mlt_properties_set(global_properties, "MLT_APPDIR", appdir);
+        free(appdir);
+#elif defined(RELOCATABLE)"""
+new="""        mlt_properties_set(global_properties, "MLT_APPDIR", appdir);
+        WCHAR wide_data[32768];
+        char data_path[32768 * 4];
+        DWORD data_size = GetEnvironmentVariableW(L"MLT_DATA", wide_data, 32768);
+        if (data_size > 0 && data_size < 32768) {
+            WideCharToMultiByte(CP_UTF8, 0, wide_data, -1, data_path, sizeof(data_path), NULL, NULL);
+            mlt_properties_set(global_properties, "MLT_DATA", data_path);
+        } else {
+            snprintf(data_path, sizeof(data_path), "%s%s", appdir, PREFIX_DATA);
+            mlt_properties_set(global_properties, "MLT_DATA", data_path);
+        }
+        free(appdir);
+#elif defined(RELOCATABLE)"""
+if s.count(old)!=1: raise SystemExit('Review MLT data directory Unicode patch')
+p.write_text(s.replace(old,new))
+p=root/'mlt_properties.c';s=p.read_text()
+s=s.replace('#include <dirent.h>', '#include <dirent.h>\n#ifdef _WIN32\n#include <windows.h>\n#endif')
+a=s.index('    DIR *dir = opendir(dirname);', s.index('int mlt_properties_dir_list('))
+b=s.index('    if (sort && mlt_properties_count(self))',a)
+old=s[a:b]
+new=r"""#ifdef _WIN32
+    int count = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, dirname, -1, NULL, 0);
+    WCHAR *search = count > 0 ? calloc(count + 3, sizeof(WCHAR)) : NULL;
+    if (search) {
+        MultiByteToWideChar(CP_UTF8, 0, dirname, -1, search, count);
+        wcscat(search, L"\\*");
+        WIN32_FIND_DATAW item;
+        HANDLE handle = FindFirstFileW(search, &item);
+        if (handle != INVALID_HANDLE_VALUE) {
+            do {
+                char name[4096], fullname[32768 * 4], key[20];
+                WideCharToMultiByte(CP_UTF8, 0, item.cFileName, -1, name, sizeof(name), NULL, NULL);
+                if (pattern == NULL || (name[0] != '.' && mlt_fnmatch(pattern, name))) {
+                    snprintf(key, sizeof(key), "%d", mlt_properties_count(self));
+                    snprintf(fullname, sizeof(fullname), "%s/%s", dirname, name);
+                    mlt_properties_set_string(self, key, fullname);
+                }
+            } while (FindNextFileW(handle, &item));
+            FindClose(handle);
+        }
+        free(search);
+    }
+#else
+"""
+s=s[:a]+new+old+'#endif\n\n'+s[b:];p.write_text(s)
+PYUNICODE
 # Keep private static FFmpeg dependencies within one linker group.
 python - "$work/mlt/src/modules/avformat/CMakeLists.txt" <<'PY'
 from pathlib import Path

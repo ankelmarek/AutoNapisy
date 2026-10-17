@@ -85,7 +85,7 @@ jobs:
         with:
           msystem: MINGW64
           update: true
-          install: make diffutils curl mingw-w64-x86_64-gcc mingw-w64-x86_64-pkgconf mingw-w64-x86_64-nasm mingw-w64-x86_64-cmake mingw-w64-x86_64-python
+          install: make diffutils curl mingw-w64-x86_64-gcc mingw-w64-x86_64-pkgconf mingw-w64-x86_64-nasm mingw-w64-x86_64-make mingw-w64-x86_64-cmake mingw-w64-x86_64-python
       - name: Build MLT engine and collect source licenses
         if: steps.vendor-cache.outputs.cache-hit != 'true'
         shell: msys2 {0}
