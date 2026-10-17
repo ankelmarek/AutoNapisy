@@ -745,8 +745,8 @@
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:rolvixa:project:6",
-  "title": "RolVixa project v6",
+  "$id": "urn:rolvixa:project:8",
+  "title": "RolVixa project v8",
   "$comment": "Czasy w sekundach. Walidatory aplikacji dodatkowo sprawdzają relacje czasów, unikalność ID i referencje stylów.",
-  "description": "Napisy montażu w czasach osi, przejścia FFmpeg xfade. Migracja v5 zachowuje długości i zamienia left/right/black na slideleft/slideright/fadeblack."
+  "description": "Montaż, napisy osi czasu, sterowanie ścieżkami, format kadru, przekształcenia klipów i pochodzenie licencjonowanych nagrań audio. Migracja z v1–v7."
 }

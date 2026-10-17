@@ -103,6 +103,49 @@ fn actual_canvas_pan_zoom_and_transition() {
             assert!(rgb(&ff, &out, 112, 96, "0.2")[2] > 180);
         }
     }
+    // A smaller V2 film must leave V1 visible, including its aspect-fit margins.
+    p.clips = Some(vec![
+        project::Clip {
+            id: "bottom".into(),
+            kind: "video".into(),
+            source_out: 1.,
+            volume: 1.,
+            transform: Some(project::Transform {
+                scale: 3.,
+                x: 0.5,
+                y: 0.,
+            }),
+            ..Default::default()
+        },
+        project::Clip {
+            id: "top".into(),
+            kind: "video".into(),
+            track: 1,
+            source_out: 1.,
+            volume: 1.,
+            transform: Some(project::Transform {
+                scale: 0.5,
+                x: 0.,
+                y: 0.,
+            }),
+            ..Default::default()
+        },
+    ]);
+    let layers = dir.path().join("layers");
+    fs::create_dir(&layers).unwrap();
+    let layered = mlt::assemble(&job, &melt, &ff, &p, &meta, &layers).unwrap();
+    assert!(
+        rgb(&ff, &layered, 8, 8, "0.2")[0] > 180,
+        "V1 must remain visible outside scaled V2"
+    );
+    assert!(
+        rgb(&ff, &layered, 80, 96, "0.2")[2] > 180,
+        "Scaled V2 must remain above V1"
+    );
+    assert!(
+        rgb(&ff, &layered, 80, 70, "0.2")[0] > 180,
+        "V2 fit margins must be transparent to V1"
+    );
     p.clips = Some(vec![
         project::Clip {
             id: "a".into(),
