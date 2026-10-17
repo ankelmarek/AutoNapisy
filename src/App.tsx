@@ -68,6 +68,7 @@ export default function App() {
   const saver=saverRef.current,saveState=saver.state;
   const saving=saveState.phase==='saving';
   const revision=useMemo(()=>projectRevision(project),[project]);
+  const pristineRevision=useRef(revision);
   const dirty=saveState.baseline===null||saveState.baseline!==revision;
   const status=useMemo(()=>saveStatus(saveState,project),[saveState,project]);
   const statusText=status==='saved'?'Zapisano':status==='saving'?'Zapisywanie…':status==='error'?`Błąd zapisu: ${saveState.error}`:saveState.path?'Niezapisane zmiany':'Projekt niezapisany';
@@ -131,7 +132,7 @@ export default function App() {
   };
   const resetPlayback = playback.reset;
   const replace = () =>
-    !dirty || window.confirm("Projekt ma niezapisane zmiany. Kontynuować?");
+    !(saveState.baseline===null?revision!==pristineRevision.current:dirty) || window.confirm("Projekt ma niezapisane zmiany. Kontynuować?");
   const importMedia = (kind:'video'|'audio') => run(async()=>{
     const files=await preview.import(kind);if(!files?.length)return;
     let next=latestProject.current;const prepared:Record<string,string>={},failed:string[]=[];let added=0;
@@ -166,7 +167,7 @@ export default function App() {
   const createNew=()=>run(async()=>{
     if(saver.saving||!replace())return;
     const session=await backend.newProject();const p=newProject();
-    resetPlayback();history.reset(p);saver.accept(p,'',session);setSource('');setSources({});
+    resetPlayback();history.reset(p);pristineRevision.current=projectRevision(p);saver.accept(p,'',session);setSource('');setSources({});
   });
   const save=async(saveAs=false)=>{
     if(saver.saving)return;
