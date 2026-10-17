@@ -149,6 +149,7 @@ jobs:
       - name: Test actual installation and bundled tools
         run: ./scripts/test-installer.ps1
       - name: Test real installed Tauri WebView2 editor
+        timeout-minutes: 6
         run: ./scripts/test-webview.ps1
       - uses: actions/upload-artifact@v4
         with:
