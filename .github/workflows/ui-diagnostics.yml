@@ -27,6 +27,7 @@ jobs:
           github-token: ${{ github.token }}
           path: src-tauri/target/x86_64-pc-windows-msvc/release
       - run: ./scripts/test-installer.ps1
+      - run: New-Item -ItemType Directory -Force .tools
       - run: ./scripts/test-webview.ps1
       - uses: actions/upload-artifact@v4
         if: always()
@@ -37,3 +38,4 @@ jobs:
             docs/editor9-*.png
             .tools/app-*.log
           if-no-files-found: ignore
+          include-hidden-files: true

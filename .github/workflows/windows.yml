@@ -17,6 +17,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   build:
+    if: github.ref != 'refs/heads/diagnostics/audio-013'
     runs-on: windows-latest
     steps:
       - name: Cancel older builds of the same branch
