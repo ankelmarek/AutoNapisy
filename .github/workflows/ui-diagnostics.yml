@@ -1,0 +1,39 @@
+name: UI diagnostics 0.13
+on:
+  push:
+    branches: [diagnostics/audio-013]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: RolVixa-Windows-x64
+          run-id: 39047336880
+          github-token: ${{ github.token }}
+          path: src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis
+      - uses: actions/download-artifact@v4
+        with:
+          name: RolVixa-UI-Diagnostics
+          run-id: 39047336880
+          github-token: ${{ github.token }}
+          path: src-tauri/target/x86_64-pc-windows-msvc/release
+      - run: ./scripts/test-installer.ps1
+      - run: ./scripts/test-webview.ps1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: UI-captures
+          path: |
+            .tools/*.png
+            docs/editor9-*.png
+            .tools/app-*.log
+          if-no-files-found: ignore
