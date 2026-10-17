@@ -14,6 +14,7 @@ use tauri::State;
 #[derive(Default)]
 pub struct AnalysisState {
     frame_job: Mutex<Option<Arc<Job>>>,
+    frame_gate: Arc<Mutex<()>>,
     jobs: Arc<Mutex<Vec<Arc<Job>>>>,
     gate: Arc<Mutex<()>>,
 }
@@ -65,7 +66,7 @@ pub async fn layer_frames(
         }
         jobs.push(job.clone());
     }
-    let gate = analysis.gate.clone();
+    let gate = analysis.frame_gate.clone();
     tauri::async_runtime::spawn_blocking(move||{
       let result=(||{
        let _guard=gate.lock().map_err(|_|"Błąd kolejki podglądu")?;

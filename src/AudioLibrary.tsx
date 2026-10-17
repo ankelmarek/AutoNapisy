@@ -13,7 +13,7 @@ export default function AudioLibrary({project,locked,onImport,onRegister,onAdd,o
  const [tab,setTab]=useState<'music'|'sounds'|'own'>('music'),[builtins,setBuiltins]=useState<LibraryAudio[]>([]),[error,setError]=useState(''),[message,setMessage]=useState(''),[query,setQuery]=useState(''),[filter,setFilter]=useState('commercial'),[result,setResult]=useState<Search|null>(null),[page,setPage]=useState(1),[busy,setBusy]=useState(false),[loadingId,setLoadingId]=useState(''),[playingId,setPlayingId]=useState(''),[soundQuery,setSoundQuery]=useState('');
  const audio=useRef<HTMLAudioElement>(null),alive=useRef(true),request=useRef(0);
  const local=libraryItems(project).filter(m=>m.kind==='audio').map(m=>({...m,duration:m.duration??0,provenance:'provenance'in m?m.provenance:undefined}));
- useEffect(()=>{alive.current=true;void invoke<LibraryAudio[]>('builtin_audio').then(v=>{if(alive.current)setBuiltins(v);}).catch(e=>{if(alive.current)setError(String(e));});return()=>{alive.current=false;request.current++;audio.current?.pause();};},[]);
+ useEffect(()=>{alive.current=true;const element=audio.current;void invoke<LibraryAudio[]>('builtin_audio').then(v=>{if(alive.current)setBuiltins(v);}).catch(e=>{if(alive.current)setError(String(e));});return()=>{alive.current=false;request.current++;element?.pause();};},[]);
  const stop=()=>{request.current++;audio.current?.pause();setPlayingId('');setLoadingId('');};
  useEffect(()=>{if(timelinePlaying)stop();},[timelinePlaying]);
  const audition=async(item:LibraryAudio)=>{if(item.id===playingId){stop();return;}onPause();stop();const ticket=++request.current;setError('');setLoadingId(item.id);
