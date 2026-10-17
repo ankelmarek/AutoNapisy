@@ -62,6 +62,17 @@ jobs:
             $ready = (Get-FileHash scripts/build-bundled-ffmpeg.sh).Hash -eq (Get-FileHash src-tauri/.bundled/sources/build-bundled-ffmpeg.sh).Hash
           }
           "ready=$($ready.ToString().ToLower())" >> $env:GITHUB_OUTPUT
+      - name: Inspect restored MLT runtime
+        id: tools-ready
+        run: |
+          $ready = '${{ steps.ffmpeg-ready.outputs.ready }}' -eq 'true'
+          foreach ($p in @('vendor/mlt/BUILD.txt', 'vendor/mlt/melt.exe', 'sources/build-bundled-mlt.sh', 'licenses/mlt/README.txt', 'vendor/whisper-cli.exe', 'sources/whisper.cpp.tar.gz', 'licenses/whisper.cpp-MIT.txt')) {
+            if (-not (Test-Path "src-tauri/.bundled/$p")) { $ready = $false }
+          }
+          if ($ready) {
+            $ready = (Get-FileHash scripts/build-bundled-mlt.sh).Hash -eq (Get-FileHash src-tauri/.bundled/sources/build-bundled-mlt.sh).Hash
+          }
+          "ready=$($ready.ToString().ToLower())" >> $env:GITHUB_OUTPUT
       - name: Restore FFmpeg intermediate objects
         id: ffmpeg-objects
         if: steps.ffmpeg-ready.outputs.ready != 'true'
@@ -87,7 +98,7 @@ jobs:
           path: .tools/vendor-build
           key: ffmpeg-objects-v1-${{ hashFiles('scripts/build-bundled-ffmpeg.sh') }}
       - name: Restore MLT and FFmpeg build intermediates
-        if: steps.vendor-cache.outputs.cache-hit != 'true'
+        if: steps.tools-ready.outputs.ready != 'true'
         uses: actions/cache/restore@v4
         with:
           path: .tools/vendor-build
@@ -95,7 +106,7 @@ jobs:
           restore-keys: ffmpeg-objects-v1-
       - name: Restore MLT compilation intermediates
         id: mlt-objects
-        if: steps.vendor-cache.outputs.cache-hit != 'true'
+        if: steps.tools-ready.outputs.ready != 'true'
         uses: actions/cache/restore@v4
         with:
           path: |
@@ -104,17 +115,17 @@ jobs:
           key: mlt-objects-v1-${{ hashFiles('scripts/build-bundled-ffmpeg.sh') }}-${{ hashFiles('scripts/build-bundled-mlt.sh') }}
           restore-keys: mlt-objects-v1-${{ hashFiles('scripts/build-bundled-ffmpeg.sh') }}-
       - uses: msys2/setup-msys2@v2
-        if: steps.vendor-cache.outputs.cache-hit != 'true'
+        if: steps.tools-ready.outputs.ready != 'true'
         with:
           msystem: MINGW64
           update: true
           install: make diffutils curl mingw-w64-x86_64-gcc mingw-w64-x86_64-pkgconf mingw-w64-x86_64-nasm mingw-w64-x86_64-make mingw-w64-x86_64-cmake mingw-w64-x86_64-python
       - name: Build MLT engine and collect source licenses
-        if: steps.vendor-cache.outputs.cache-hit != 'true'
+        if: steps.tools-ready.outputs.ready != 'true'
         shell: msys2 {0}
         run: ./scripts/build-bundled-mlt.sh
       - name: Preserve MLT compilation intermediates
-        if: always() && steps.vendor-cache.outputs.cache-hit != 'true' && steps.mlt-objects.outputs.cache-hit != 'true' && hashFiles('.tools/vendor-build/prefix/lib/libavformat.a') != ''
+        if: always() && steps.tools-ready.outputs.ready != 'true' && steps.mlt-objects.outputs.cache-hit != 'true' && hashFiles('.tools/vendor-build/prefix/lib/libavformat.a') != ''
         uses: actions/cache/save@v4
         with:
           path: |
@@ -122,7 +133,7 @@ jobs:
             .tools/vendor-build/prefix
           key: mlt-objects-v1-${{ hashFiles('scripts/build-bundled-ffmpeg.sh') }}-${{ hashFiles('scripts/build-bundled-mlt.sh') }}
       - name: Build whisper.cpp and collect source licenses
-        if: steps.vendor-cache.outputs.cache-hit != 'true'
+        if: steps.tools-ready.outputs.ready != 'true'
         run: ./scripts/build-bundled-whisper.ps1
       - uses: taiki-e/install-action@cargo-about
         if: steps.vendor-cache.outputs.cache-hit != 'true'
