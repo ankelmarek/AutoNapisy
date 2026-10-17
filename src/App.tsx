@@ -17,6 +17,9 @@ import {
 } from "./model";
 import Timeline from "./Timeline";
 import LocalMedia from "./LocalMedia";
+import MediaLibrary from "./MediaLibrary";
+import Icon from "./Icons";
+import {libraryItems,insertLibraryItem} from "./library";
 import { useProjectHistory } from "./useHistory";
 import { usePlayback } from "./usePlayback";
 import { clipAt, editDuration, projectClips, compositionSegments, compositionProject, clipMedia, appendMedia } from "./editing";
@@ -61,6 +64,7 @@ export default function App() {
   const elements=useRef(new Map<string,HTMLMediaElement>());
   const [sources,setSources]=useState<Record<string,string>>({});
   const [transcriptSource,setTranscriptSource]=useState("primary");
+  const [leftTab,setLeftTab]=useState<"files"|"captions">("files");
   const playback = usePlayback(elements,project,source);
   const {time,playing,seek,toggle} = playback;
   const duration = editDuration(project);
@@ -231,9 +235,9 @@ export default function App() {
     <div className="app">
       <header>
         <div className="brand">
-          <span className="logo">A</span>
+          <span className="logo rolvixa-mark" aria-hidden="true">R</span>
           <div>
-            AutoNapisy <small>0.7 · lokalne studio napisów</small>
+            RolVixa <small>0.8 · lokalne studio napisów</small>
           </div>
         </div>
         <div className="actions">
@@ -322,9 +326,15 @@ export default function App() {
       <main>
         <section className="panel transcript">
           <div className="panelhead">
-            <h2>Transkrypcja</h2>
-            <span>{displayedSegments.length} segmentów w montażu</span>
+            <div className="library-tabs" role="tablist" aria-label="Zasoby projektu">
+              <button id="files-tab" role="tab" aria-selected={leftTab==='files'} aria-controls="files-panel" onClick={()=>setLeftTab('files')}><Icon name="files" size={16}/>Pliki <small>{libraryItems(project).length}</small></button>
+              <button id="captions-tab" role="tab" aria-selected={leftTab==='captions'} aria-controls="captions-panel" onClick={()=>setLeftTab('captions')}><Icon name="captions" size={16}/>Napisy</button>
+            </div>
           </div>
+          {leftTab==='files'&&<MediaLibrary project={project} sources={sources} locked={locked} onImport={importVideo}
+            onTranscript={id=>{setTranscriptSource(id);setLeftTab('captions');}}
+            onAdd={id=>{try{playback.pause();setProject(insertLibraryItem(project,id,time));setDirty(true);setMessage('Dodano plik z biblioteki na oś czasu.');}catch(e){setMessage(String(e));}}}/>}
+          <div className="captions-tab-content" role="tabpanel" id="captions-panel" aria-labelledby="captions-tab" hidden={leftTab!=='captions'}>
           <div className="transcription-controls">
             <select aria-label="Źródło transkrypcji" disabled={locked} value={transcriptSource} onChange={e=>setTranscriptSource(e.target.value)}>
               {project.media&&<option value="primary">{project.media.name}</option>}
@@ -409,6 +419,7 @@ export default function App() {
               </div>
             )}
           </div>
+          </div>
         </section>
         <section className="panel preview">
           <div className="panelhead">
@@ -418,11 +429,11 @@ export default function App() {
           <div className="stage" ref={stage}>
             {source ? (
               <div className="composition-surface" ref={captionSurface} style={{width:surfaceWidth,height:surfaceWidth/aspect}}>
-                {projectClips(project).map(c=>{
+                {playback.runs.map(c=>{
                   const media=clipMedia(project,c),url=media?sources[media.path]:undefined;
-                  const isVideo=c.kind!=='audio',visible=clipAt(projectClips(project),Math.min(time,duration-1e-7))?.id===c.id;
-                  return <LocalMedia key={c.id} id={c.id} video={isVideo} visible={visible} onElement={el=>{if(el){elements.current.set(c.id,el);}else elements.current.delete(c.id);}} src={url}
-                    onMetadata={el=>{if(isVideo&&!c.assetId){const v=el as HTMLVideoElement;if(v.videoWidth&&v.videoHeight)setAspect(v.videoWidth/v.videoHeight);}playback.seek(time);}} onError={()=>setMessage(`Nie można odtworzyć: ${media?.name}. WebView2 wymaga obsługi kodeka (zalecany H.264 / AAC).`)} />;
+                  const isVideo=c.kind!=='audio',visible=c.clipIds.includes(clipAt(projectClips(project),Math.min(time,duration-1e-7))?.id??'');
+                  return <LocalMedia key={c.id} id={c.id} video={isVideo} visible={visible} warm={c.start<=time+5&&c.start+c.sourceOut-c.sourceIn>=time-.25} onElement={el=>{if(el){elements.current.set(c.id,el);}else elements.current.delete(c.id);}} src={url}
+                    onMetadata={el=>{if(isVideo&&!c.assetId){const v=el as HTMLVideoElement;if(v.videoWidth&&v.videoHeight)setAspect(v.videoWidth/v.videoHeight);}playback.prepare(c.id);}} onError={()=>setMessage(`Nie można odtworzyć: ${media?.name}. WebView2 wymaga obsługi kodeka (zalecany H.264 / AAC).`)} />;
                 })}
                 <CaptionOverlay video={captionSurface} project={displayed} time={time} compositionCanvas />
                 {gap && <span className="gap-label">Przerwa między ujęciami</span>}
@@ -637,7 +648,7 @@ export default function App() {
         </section>
       </main>
       <Timeline project={project} time={time} locked={locked} onSeek={seek}
-        onChange={clips=>{playback.pause();setProject(p=>({...p,clips}));setDirty(true);}}
+        onChange={(clips,mode)=>{if(mode!=='volume')playback.pause();setProject(p=>({...p,clips}));setDirty(true);}} onPreviewVolume={playback.previewVolume}
         undo={undo} redo={redo} canUndo={history.canUndo} canRedo={history.canRedo}/>
       <footer role="status">
         {busy ? "Przetwarzanie…" : message}

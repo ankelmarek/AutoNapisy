@@ -20,11 +20,11 @@ for(const [width,height]of[[1366,768],[1920,1080],[1366,700]]){
  let second=await page.locator('.edit-clip:not(.audio-clip)').nth(1).boundingBox();
  await page.mouse.move(second.x+4,second.y+25);await page.mouse.down();await page.mouse.move(second.x+34,second.y+25,{steps:10});await page.mouse.up();
  await page.getByRole('button',{name:/Zapisz/}).click();let saved=await page.evaluate(()=>window.__saved);assert.equal(saved.schemaVersion,4);assert(Math.abs(saved.clips[1].sourceIn-7)<.03,JSON.stringify(saved.clips));
- await page.getByRole('button',{name:'↶ Cofnij',exact:true}).click();await page.getByRole('button',{name:/Zapisz/}).click();saved=await page.evaluate(()=>window.__saved);assert.equal(saved.clips[1].sourceIn,6);
+ await page.getByRole('button',{name:'Cofnij',exact:true}).click();await page.getByRole('button',{name:/Zapisz/}).click();saved=await page.evaluate(()=>window.__saved);assert.equal(saved.clips[1].sourceIn,6);
  await page.getByRole('button',{name:/Ponów/}).click();
  second=await page.locator('.edit-clip:not(.audio-clip)').nth(1).boundingBox();await page.mouse.move(second.x+40,second.y+20);await page.mouse.down();await page.mouse.move(second.x+11,second.y+20,{steps:8});await page.mouse.up();
  await page.getByRole('button',{name:/Zapisz/}).click();saved=await page.evaluate(()=>window.__saved);assert(Math.abs(saved.clips[1].start-6)<.01,'snap failed '+JSON.stringify(saved.clips));
- await page.getByRole('button',{name:'Usuń ujęcie'}).click();assert.equal(await page.locator('.edit-clip:not(.audio-clip)').count(),1);await page.getByRole('button',{name:'↶ Cofnij',exact:true}).click();assert.equal(await page.locator('.edit-clip:not(.audio-clip)').count(),2);
+ await page.getByRole('button',{name:'Usuń ujęcie'}).click();assert.equal(await page.locator('.edit-clip:not(.audio-clip)').count(),1);await page.getByRole('button',{name:'Cofnij',exact:true}).click();assert.equal(await page.locator('.edit-clip:not(.audio-clip)').count(),2);
  await page.mouse.click(box.x+165,box.y+10);await page.getByRole('button',{name:'▶',exact:true}).click();await page.waitForTimeout(1400);assert.equal(await page.getByRole('button',{name:'Ⅱ',exact:true}).count(),1);assert(await page.locator('video').nth(1).evaluate(v=>v.currentTime)>7,'playback did not jump across cut');await page.getByRole('button',{name:'Ⅱ',exact:true}).click();
  await page.locator('.edit-clip:not(.audio-clip)').nth(1).click({position:{x:40,y:20}});await page.getByRole('spinbutton',{name:'Pozycja ujęcia',exact:true}).fill('8');
  await page.mouse.click(box.x+195,box.y+10);assert(await page.locator('video').evaluateAll(videos=>videos.every(v=>v.classList.contains('gap')&&v.paused)),'gap should be black and paused');

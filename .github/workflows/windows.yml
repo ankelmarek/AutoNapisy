@@ -80,6 +80,6 @@ jobs:
         run: ./scripts/test-installer.ps1
       - uses: actions/upload-artifact@v4
         with:
-          name: AutoNapisy-Windows-x64
+          name: RolVixa-Windows-x64
           path: src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
           if-no-files-found: error

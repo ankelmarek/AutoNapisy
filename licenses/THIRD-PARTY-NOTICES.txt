@@ -1,10 +1,10 @@
-AutoNapisy — komponenty zewnętrzne
+RolVixa — komponenty zewnętrzne
 
 Informacje dotyczą wersji dołączonych do pełnego instalatora. Jeśli wskażesz
 własne narzędzia, sprawdź licencje ich dostawcy i konkretnej konfiguracji.
 
 FFmpeg 8.0.1 + libx264: GPL-2.0-or-later. Oddzielne programy ffmpeg.exe i
-ffprobe.exe są uruchamiane jako procesy. AutoNapisy nie linkuje bibliotek FFmpeg.
+ffprobe.exe są uruchamiane jako procesy. RolVixa nie linkuje bibliotek FFmpeg.
 Konfiguracja nie zawiera komponentów nonfree i nie korzysta z sieci.
 Źródła FFmpeg i x264, skrypty budowania oraz konfiguracje znajdują się w folderze
 sources obok zainstalowanej aplikacji. Są to źródła wersji użytych do budowania

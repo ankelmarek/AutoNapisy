@@ -100,7 +100,7 @@ struct Opened {
 #[tauri::command]
 async fn open_project(access: State<'_, Access>) -> Result<Option<Opened>, String> {
     let Some(file) = rfd::AsyncFileDialog::new()
-        .add_filter("Projekt AutoNapisy", &["json"])
+        .add_filter("Projekt RolVixa", &["json"])
         .pick_file()
         .await
     else {
@@ -138,8 +138,8 @@ async fn save_project(json: String) -> Result<Option<String>, String> {
     }
     project::parse(&json)?;
     let Some(file) = rfd::AsyncFileDialog::new()
-        .add_filter("Projekt AutoNapisy", &["json"])
-        .set_file_name("projekt.autonapisy.json")
+        .add_filter("Projekt RolVixa", &["json"])
+        .set_file_name("projekt.rolvixa.json")
         .save_file()
         .await
     else {
@@ -248,7 +248,7 @@ fn main() {
             export_commands::cancel_video_export
         ])
         .build(tauri::generate_context!())
-        .expect("Nie można uruchomić AutoNapisy");
+        .expect("Nie można uruchomić RolVixa");
     app.run(|handle, event| {
         if let tauri::RunEvent::ExitRequested { .. } = event {
             handle.state::<commands::Tasks>().shutdown();

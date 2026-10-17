@@ -40,12 +40,13 @@ fn config_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
         .join("components.json"))
 }
 pub fn load_tools(app: &tauri::AppHandle) -> Tools {
-    let mut settings = config_path(app)
-        .ok()
-        .and_then(|p| fs::read(p).ok())
-        .filter(|v| v.len() <= 64 * 1024)
-        .and_then(|v| serde_json::from_slice(&v).ok())
-        .unwrap_or_default();
+    let mut settings = match (config_path(app), app.path().config_dir()) {
+        (Ok(current), Ok(base)) => crate::bundled::load_settings(
+            &current,
+            &base.join("pl.autonapisy.desktop").join("components.json"),
+        ),
+        _ => Tools::default(),
+    };
     if let Ok(resources) = app.path().resource_dir() {
         crate::bundled::apply_defaults(&mut settings, &resources);
     }

@@ -1,10 +1,10 @@
-# AutoNapisy 0.7 — polska mowa → polskie napisy
+# RolVixa 0.8 — polska mowa → polskie napisy
 
-Lokalna aplikacja Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Rozpoznaje polską mowę przez whisper.cpp, bez tłumaczenia. Nie wysyła nagrań, nie zawiera klienta HTTP ani telemetrii.
+RolVixa (wcześniej AutoNapisy) to lokalna aplikacja Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Rozpoznaje polską mowę przez whisper.cpp, bez tłumaczenia. Nie wysyła nagrań, nie zawiera klienta HTTP ani telemetrii.
 
 ## Aktualizacja i uruchomienie ze źródeł
 
-Zachowaj projekty i nagrania. Pobierz ZIP z GitHuba i rozpakuj do nowego folderu, np. `C:\AutoNapisy-0.7`. Nie kopiuj starych `node_modules`, `dist` i `src-tauri/target`. Aplikacja otwiera projekty v1 z wersji 0.1/0.2 i migruje je w pamięci, także z v2 i v3. Wersja 0.7 zapisuje format v4 z montażem oraz ustawieniami wyglądu; starsze AutoNapisy go nie odczyta. Zachowaj kopię poprzedniego JSON, jeśli potrzebujesz wracać do 0.2.
+Zachowaj projekty i nagrania. Pobierz ZIP z GitHuba i rozpakuj do nowego folderu, np. `C:\RolVixa-0.8`. Nie kopiuj starych `node_modules`, `dist` i `src-tauri/target`. Aplikacja otwiera projekty v1 z wersji 0.1/0.2 i migruje je w pamięci, także z v2 i v3. Wersja 0.8 nadal zapisuje format v4 z montażem oraz ustawieniami wyglądu; starsze AutoNapisy go nie odczyta. Zachowaj kopię poprzedniego JSON, jeśli potrzebujesz wracać do 0.2.
 
 Wymagania: Node.js 22 lub 24, aktualny Rust stable x64 MSVC, Visual Studio Build Tools z „Desktop development with C++” i Windows SDK oraz WebView2 Runtime.
 
@@ -206,3 +206,17 @@ Wersja 0.6 poprawia też kompilację dołączonego FFmpeg: zawiera statycznie li
 - Projekty przechowują odwołania do nagrań. Przenosząc projekt na drugi komputer, zachowaj lokalizacje źródeł. Niedostępne źródła są raportowane. Eksport MP4 wymaga co najmniej jednego zaimportowanego filmu.
 
 Testy 0.7: jednostkowe TypeScript i Rust; rzeczywisty FFmpeg sprawdza warstwy czerwony/niebieski, jednoczesne tony 440/880/1320 Hz, muzykę nad czarną przerwą, głośność, Unicode i niezmienność źródeł. Opcjonalny `scripts/test-editor.mjs` sprawdza import, cztery pasy, połączony montaż, niezależne audio, odtwarzanie i układ w 1366×768 oraz 1920×1080 (Playwright instalowany osobno do `.tools/browser`). Windows CI uruchamia test realnego miksu także z FFmpeg dołączonym do instalatora.
+
+
+## RolVixa 0.8 — pliki, linia głośności i odtwarzanie
+
+- Lewy panel otwiera się na zakładce **Pliki**. Pokazuje filmy i audio, czas trwania, pełną ścieżkę lokalną, dostępność oraz liczbę użyć. Wyszukiwarka filtruje nazwy i ścieżki. **+** na karcie dodaje istniejące źródło do montażu w pozycji głowicy; nie kopiuje nagrania. Usunięcie klipu z osi nie usuwa źródła z biblioteki. Ikona napisów przełącza na **Napisy** danego filmu.
+- Narzędzia osi są ikonami z podpowiedziami i nazwami dla czytników ekranu. Skróty C, V, Ctrl+Z i Ctrl+Shift+Z nadal działają.
+- Każdy pasek audio ma **linię głośności na całej długości fragmentu**. Chwyć ją i przesuń pionowo: w górę głośniej, w dół ciszej. Poziom 0–100% dotyczy całego klipu, zapisuje się w projekcie i jest stosowany przy eksporcie. Zmiana połączonego audio zmienia dźwięk jego filmu; osobne audio pozostaje niezależne.
+- Podczas przeciągania słychać zmianę bez zatrzymania odtwarzania. Jedno przeciągnięcie to jedna operacja Cofnij. Anulowanie gestu przywraca poziom. Po zaznaczeniu linii ↑/↓ zmienia 1%, Shift 10%, Home wycisza, End ustawia 100%. Nadal jest też suwak we właściwościach. Linia jest regulacją poziomu całego fragmentu, bez punktów automatyki i bez wizualizacji przebiegu próbek.
+- Ciągłe ujęcia z tego samego pliku i strumienia korzystają ze wspólnego odtwarzacza: cięcie żyletką nie restartuje dekodera. Inne nadchodzące ujęcia są buforowane i ustawiane na początek źródła z wyprzedzeniem do 5 sekund. Załadowanie metadanych innego pliku nie pauzuje grających mediów. Odtwarzanie nadal zależy od kodeków WebView2, prędkości dysku i dostępnej pamięci; ta zmiana nie dodaje proxy HEVC.
+- Nazwa programu, okna, pliku `rolvixa.exe`, instalatora `RolVixa_0.8.0_x64-setup.exe` i domyślnego folderu instalacji to **RolVixa**. Repozytorium GitHub nadal jest `ankelmarek/AutoNapisy`. Format projektu v4 pozostaje zgodny z 0.7, otwierane są także stare projekty v1–v3.
+- Profil ustawień ma identyfikator `pl.rolvixa.desktop`. Jeśli nie ma jeszcze jego `components.json`, program odczyta poprzednie ustawienia z `pl.autonapisy.desktop` w katalogu konfiguracji użytkownika; nie usuwa ani nie nadpisuje starszych ustawień i nagrań. Własne narzędzia nadal mają pierwszeństwo, a niedostępne ścieżki FFmpeg/Whisper zastępują komponenty dołączone do instalatora. Poprzednia aplikacja może pozostać zainstalowana niezależnie.
+- Znak **R** w nagłówku jest tymczasowy; plik docelowego logo nie został jeszcze dostarczony.
+
+Weryfikacja podglądu: `scripts/test-studio.mjs` korzysta z tej samej lokalnej próby WebM wygenerowanej przez `scripts/test-editor.mjs` oraz Playwright. Sprawdza katalog plików, ikonowe narzędzia, przeciąganie linii, klawiaturę, cofanie, anulowanie i odsłuch w trakcie zmiany. Mierzy odtwarzanie przez ciągłe cięcie i zmianę pliku, bez pauzy dekodera na ciągłym cięciu i bez przewijania nowego źródła dopiero na łączeniu. Układ jest sprawdzany w 1366×700 oraz 1920×1080. Wyniki testu Chromium nie są gwarancją identycznych opóźnień WebView2 dla dowolnego kodeka i komputera.

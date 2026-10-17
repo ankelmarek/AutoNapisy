@@ -258,8 +258,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
 
 [[package]]
-name = "autonapisy"
-version = "0.7.0"
+name = "rolvixa"
+version = "0.8.0"
 dependencies = [
  "base64 0.22.1",
  "hound",
