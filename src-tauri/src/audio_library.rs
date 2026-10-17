@@ -76,7 +76,13 @@ pub fn parse_search(data: &[u8]) -> Result<SearchPage, String> {
             if !url.starts_with("https://") && !url.starts_with("http://") {
                 return None;
             }
-            let extension = r.filetype.unwrap_or("mp3".into()).to_lowercase();
+            let filetype = r.filetype.unwrap_or("mp3".into()).to_lowercase();
+            // Jamendo exposes MP3 bitrate variants as mp31/mp32. Keep the
+            // original download URL, but use the actual codec's file suffix.
+            let extension = match filetype.as_str() {
+                "mp31" | "mp32" => "mp3".to_owned(),
+                _ => filetype,
+            };
             if !["mp3", "ogg", "wav", "flac", "m4a", "aac", "opus"].contains(&extension.as_str()) {
                 return None;
             }
@@ -171,6 +177,17 @@ mod tests {
         assert_eq!(page.results[0].attribution, "Credit");
         let public = serde_json::to_value(&page).unwrap();
         assert!(public["results"][0].get("url").is_none());
+    }
+    #[test]
+    fn accepts_openverse_jamendo_mp3_variants() {
+        for filetype in ["mp31", "mp32", "mp3"] {
+            let data = serde_json::json!({"result_count":240,"page_count":12,"results":[{"id":"5d029c9d-1ab7-4f58-a90e-73d58eb03a28","title":"Le piano troix","duration":129000,"license":"by-sa","filetype":filetype,"url":"https://prod-1.storage.jamendo.com/?trackid=150810&format=mp32"}]});
+            let page = parse_search(data.to_string().as_bytes()).unwrap();
+            assert_eq!(page.results.len(), 1);
+            assert_eq!(page.results[0].extension, "mp3");
+            assert!(page.results[0].url.ends_with("format=mp32"));
+            assert_eq!(page.results[0].duration, 129.);
+        }
     }
     #[test]
     fn rejects_non_audio_and_missing_fields() {

@@ -92,9 +92,30 @@ try{
  assert(audioSaved.clips.some(c=>c.assetId===asset.id&&c.kind==='audio'&&c.track===1),'Audio must land on A2');
  assert.equal(asset.provenance.license,'CC0 1.0');
  console.log('Real native framing, pointer drag, v8 persistence, 100 Kenney sounds, audition and A2 drag: OK');
- // External API availability is diagnostic, not a fabricated search success.
- const openverse=await page.evaluate(async()=>{try{const p=await window.__TAURI_INTERNALS__.invoke('search_audio',{query:'piano',page:1,license:'cc0'});return {status:'ok',results:p.results.length};}catch(e){return {status:'unavailable',error:String(e)};}});
- console.log('Live Openverse API:',JSON.stringify(openverse));
+ // Verify the real Openverse UI and Jamendo MP3 variants. External outages
+ // remain visible diagnostics, while a successful search must retain results.
+ await page.getByRole('button',{name:'Muzyka',exact:true}).click();
+ await page.getByRole('textbox',{name:'Szukaj muzyki w Openverse'}).fill('piano');
+ await page.getByRole('button',{name:'Szukaj',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelector('.remote-audio')||document.querySelector('.audio-library-error')||document.querySelector('.audio-results .empty h3')?.textContent==='Brak wyników',{},{timeout:75000});
+ if(await page.locator('.audio-library-error').count())console.log('Live Openverse unavailable:',await page.locator('.audio-library-error').textContent());
+ else{
+  const results=await page.locator('.remote-audio').count();assert(results>0,'Openverse piano search must retain valid music files');
+  await page.locator('.remote-audio').first().getByRole('button',{name:'Pobierz do projektu'}).click();
+  await page.waitForFunction(()=>document.querySelector('.audio-library-item')||document.querySelector('.audio-library-error'),{},{timeout:75000});
+  if(await page.locator('.audio-library-error').count())console.log('Live Openverse provider unavailable:',await page.locator('.audio-library-error').textContent());
+  else{
+   const local=page.locator('.audio-library-item:visible').first();
+   await local.getByRole('button',{name:/Odsłuchaj:/}).click();
+   await page.waitForFunction(()=>{const a=document.querySelector('.audio-library audio');return a&&!a.paused&&a.currentTime>.05;});
+   await local.getByRole('button',{name:/Zatrzymaj:/}).click();
+   await page.locator('.project-menu summary').click();await page.locator('.project-menu-popup').getByRole('button',{name:'Zapisz',exact:true}).click();
+   await page.waitForFunction(()=>!document.querySelector('select[aria-label="Format obrazu"]').disabled);
+   const musicSaved=JSON.parse(fs.readFileSync(process.env.ROLVIXA_TEST_PROJECT,'utf8'));
+   const music=musicSaved.assets.find(a=>a.provenance?.provider==='openverse');assert(music&&music.duration>0,'Downloaded track must be probed and persisted');assert(music.path.endsWith('.mp3'));assert(music.provenance.sourceUrl&&music.provenance.licenseUrl&&music.provenance.attribution);
+   console.log('Live Openverse search, download, FFprobe, local audition and attribution persistence: OK',JSON.stringify({results,duration:music.duration,license:music.provenance.license}));
+  }
+ }
  console.log('Real native preview (portrait, Unicode paths, decoded pixels, play, pause, seek):',JSON.stringify(await state()));
  assert.deepEqual(errors,[]);
 }catch(e){
