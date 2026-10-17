@@ -125,3 +125,71 @@ Cztery uzgodnione kierunki: automatyka głośności przez Alt+klik, płynne fade
 - Status użycia miniatur jest zgodny z rzeczywistym projektem; siatka działa dla paneli wąskich, wielu mediów i plików niedostępnych, bez regresji przeciągania na oś.
 - Wdrożyć w kolejności: **(1) siatka i znacznik użycia, (2) fade, (3) punkty automatyki i synchronizacja audio z MLT**, o ile pomiar pracochłonności nie wskaże korzystniejszej kolejności połączenia fade z obwiednią.
 
+## Kolejna paczka ergonomii montażu: zatwierdzone funkcje (TODO)
+
+Użytkownik zatwierdził z poprzedniej listy **punkty 1, 2, 3, 4, 6, 7, 8, 9**. **Punkt 5 (kolorowe znaczniki na osi) nie jest częścią tej paczki.** Celem jest intuicyjny, niedestrukcyjny montaż z pełną kontrolą użytkownika. Nie wdrażać wszystkiego jedną zmianą; weryfikować każdą funkcję na realnym podglądzie MLT i eksporcie. Korzystać z Tabler Icons.
+
+### 1. Scrubbing miniaturek w bibliotece i podgląd źródła
+
+- Po przesuwaniu kursora w poziomie po miniaturze filmu wyświetlać klatki odpowiadające pozycji kursora w **źródłowym nagraniu**, bez zmiany głowicy i montażu projektu. Po opuszczeniu miniatury wraca kadr reprezentatywny. Dla klawiatury/touch zapewnić osobne polecenie „Podgląd źródła”.
+- Kliknięcie/otwarcie karty wyświetla **podgląd pliku źródłowego** (source viewer), wyraźnie odróżniony od podglądu aktualnego montażu; bez przypadkowego dodawania na oś.
+- Miniaturki dekodować oszczędnie: ograniczyć liczbę jednoczesnych dekoderów i częstotliwość odczytu, buforować klatki, odwoływać nieaktualne zadania. W miarę dostępności korzystać z proxy zamiast wielokrotnie dekodować HEVC/4K; przy braku proxy zastosować bezpieczny fallback.
+
+### 2. Zaznaczanie In / Out przed dodaniem na oś
+
+- W podglądzie źródła umożliwić ustawienie punktów wejścia **I** i wyjścia **O**, klawiaturą, przyciskami i myszą; wyświetlać ich timecode, wybrany zakres i długość.
+- Polecenie „Dodaj zaznaczony fragment” lub przeciągnięcie z podglądu na tor wstawia **tylko wskazany przedział**, zapisując prawidłowe `sourceIn/sourceOut` i `start`. Nie kopiować ani nie zmieniać pliku źródłowego.
+- Walidować granice, długość, tempo klatek i dostępność materiału; przy braku zaznaczenia zachować dotychczasowe dodawanie całego klipu. Nie naruszać montażu podczas samego zaznaczania.
+- Zapewnić spójne znaczniki czasu dla proxy i oryginału; w razie ponownego otwarcia źródła można pamiętać ostatni zakres jako ustawienie biblioteki, bez przekształcania projektu.
+
+### 3. Odłączanie audio od wideo oraz montaż J-cut/L-cut
+
+- Menu klipu: **„Odłącz audio”**. Oddzielić logiczne powiązanie i utworzyć niezależny klip audio odwołujący się do tej samej ścieżki źródłowej, **bez zdublowania dźwięku w miksie**. Oryginalny klip wideo przestaje odtwarzać swoją powiązaną ścieżkę audio.
+- Dźwięk i obraz zyskują niezależne przycinanie, przesuwanie i wybór toru; zachować możliwość świadomego zsynchronizowania ich ponownie (opcjonalna akcja „Połącz ponownie”).
+- Obsłużyć **L-cut** (dźwięk poprzedniego ujęcia trwa po zmianie obrazu) oraz **J-cut** (dźwięk następnego ujęcia rozpoczyna się przed jego obrazem), z prawidłowym miksowaniem, napisami i podglądem.
+- Przeciągnięcie granic bez przypadkowego odłączenia, Undo/Redo jako pojedyncza odwracalna operacja, zapis nowego schematu/migracje. Nie naruszać starszych projektów.
+
+### 4. Ripple Edit: kontrolowane domykanie przerw
+
+- Przełączalny tryb **Ripple On/Off**, wyraźnie oznaczony na osi. Przy Ripple On skrócenie/usunięcie ujęcia może przesunąć kolejne elementy do lewej; Ripple Off zachowuje przerwę tak jak dotychczas.
+- Przed zatwierdzeniem, dla operacji obejmujących kilka ścieżek, pokazać podgląd przesunięć (ghost clips, liczba przesuwanych elementów, długość skrócenia montażu), a nie przesuwać ich niejawnie.
+- Jawnie zdefiniować wpływ na V1/V2, A1/A2, napisy, przejścia, rozdzielone audio i elementy powiązane. Zapewnić możliwość ograniczenia do wybranych/odblokowanych torów i ochronę innych. Konflikty oraz nakładanie sygnalizować przed zastosowaniem.
+- Przetestować Undo/Redo, cofanie dużych operacji, cięcia wielu klipów, puste przerwy, koniec montażu, synchronizację dźwięku i napisów.
+
+### 6. Bezpieczne strefy Reels / Shorts / TikTok
+
+- Opcjonalna nakładka **safe zones** na podglądzie formatu 9:16, z presetami Reels, TikTok i Shorts, wskazująca obszary potencjalnie zasłonięte przez elementy platformy.
+- Przezroczysta nakładka jest wyłącznie pomocą edycyjną i **nie trafia do eksportu**. Ma skalować się razem z kadrem i nie przechwytywać gestów transformacji i zaznaczania napisów.
+- Presety mają charakter przybliżony, mogą zmieniać się wraz z interfejsem platform. Udostępnić możliwość dostosowania marginesów i wyłączenia warstwy; unikać deklaracji „gwarantowanej bezpiecznej strefy”.
+
+### 7. „Zastąp źródło” bez utraty montażu
+
+- Akcja dla pliku w bibliotece: zamiana odwołania do źródła przy zachowaniu tożsamości klipów, ich pozycji, ręcznych cięć, kadrowania, transformacji i efektów tam, gdzie wynik pozostaje poprawny.
+- Najpierw sprawdzić zgodność nowego pliku przez FFprobe (czas, liczba i typ strumieni, proporcje/obrót, FPS, audio). Jeśli wymiana skróci materiał poniżej użytych `sourceOut`, pokazać konkretne konflikty i zaoferować anulowanie albo jawne, kontrolowane dopasowanie.
+- Dotychczasowe napisy/transkrypcje źródłowe wymagają odświeżenia lub świadomego zachowania, gdy nie odpowiadają nowemu nagraniu; nie przenosić ich po cichu na obcą wypowiedź.
+- Unieważniać stare proxy, miniatury, waveforms i cache źródła; zachować dane autorskie/licencje audio z prawidłowym przypisaniem. Testy wielu wystąpień jednego źródła i cofania zamiany.
+
+### 8. Kontrola jakości przed eksportem (preflight)
+
+- Przed eksportem zaoferować raport z **ostrzeżeniami, nie automatyczną ingerencją**: brakujące źródła, możliwy clipping/przesterowanie audio, nieoczekiwana cisza, puste/czarne przerwy, napisy i grafiki poza wskazaną strefą, potencjalnie niewłaściwy format/kadr.
+- Wynik ma zawierać **lokalizację na osi czasu i przejście do problemu**. Rozdzielać błędy blokujące poprawny eksport od sugestii, z opcją „Eksportuj mimo ostrzeżeń”.
+- Analiza dźwięku/obrazu musi opierać się na realnym złożonym montażu i pomiarach (FFmpeg/MLT), nie na arbitralnym „score jakości”. Przeprowadzać kosztowniejsze analizy na żądanie/z odpowiednim cache, nie podczas każdego ruchu myszy.
+- Zgłaszać ograniczenia detekcji; np. cisza i czarny kadr mogą być celowym środkiem narracyjnym.
+
+### 9. Autozapis i odzyskiwanie sesji po awarii
+
+- Zapisywać kopie odzyskiwania stanu **lokalnie** i atomowo, z rozsądnym odstępem/debounce oraz na wybranych punktach ryzyka. Autozapis nigdy nie nadpisuje ręcznie zapisanego pliku projektu bez świadomego polecenia.
+- Po uruchomieniu po awarii wyświetlić różnicę czasu/stanu pomiędzy ostatnim zapisem ręcznym i kopią awaryjną oraz opcje **„Odzyskaj”, „Otwórz zapisany projekt”, „Odrzuć kopię”**. Zachować poprzednią kopię do czasu zakończenia odzyskiwania.
+- Ograniczać liczbę/miejsce kopii; nie umieszczać kopii filmów i audio w snapshots, tylko bezpieczne odwołania do źródeł. Obsłużyć brak miejsca, uszkodzony JSON, nieaktualną wersję schematu, brak mediów i zamknięcie podczas zapisu.
+- Zapis ma nie blokować UI, zapewnić walidację i poprawne Undo/Redo po odzyskaniu; testy symulowanej awarii i ponownego otwarcia.
+
+### Proponowane etapy i wspólne testy
+
+1. Najpierw **9 (odzyskiwanie)**, aby zmniejszyć ryzyko utraty pracy podczas dalszej rozbudowy.
+2. Następnie **1 + 2 (biblioteka źródeł)**, najlepiej po ustabilizowaniu proxy. Zachować kompatybilność z siatką miniaturek i zielonym znacznikiem wykorzystania źródła.
+3. Następnie **3 + 4 (J/L-cut i Ripple)**: zaplanować wspólne reguły powiązania audio z obrazem, przesunięć na osi oraz napisów, by nie utracić synchronizacji.
+4. Niezależnie dodać **6 (strefy bezpieczne)**, **7 (zastępowanie źródła)** oraz **8 (preflight)**; zastępowanie źródła uwzględnia mechanizm proxy, a preflight wymaga stabilnego i sprawdzalnego eksportu.
+5. Każdy etap wymaga testów TypeScript/Rust oraz realnego podglądu MLT i porównania z eksportem; potwierdzić migracje schematów, Undo/Redo, działania przy brakującym źródle i bez internetu.
+
+**Status:** zaakceptowane do TODO; bez rozpoczęcia implementacji. Punkt 5 (kolorowe znaczniki na osi czasu) celowo pominięty.
+
