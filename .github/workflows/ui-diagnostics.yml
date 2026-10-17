@@ -17,13 +17,13 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: RolVixa-Windows-x64
-          run-id: 39047336880
+          run-id: 39048353990
           github-token: ${{ github.token }}
           path: src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis
       - uses: actions/download-artifact@v4
         with:
           name: RolVixa-UI-Diagnostics
-          run-id: 39047336880
+          run-id: 39048353990
           github-token: ${{ github.token }}
           path: src-tauri/target/x86_64-pc-windows-msvc/release
       - run: ./scripts/test-installer.ps1
