@@ -290,12 +290,12 @@ fn append_clip(
             None,
         );
     }
-    let volume = if c.volume > 0.0 {
-        20.0 * c.volume.log10()
-    } else {
-        -100.0
-    };
-    *s += &filter("volume", &[("level", volume.to_string())], None, None);
+    *s += &filter(
+        "volume",
+        &[("level", crate::audio_envelope::mlt_level(c, count))],
+        Some(input),
+        Some(out),
+    );
     for t in &p.transitions {
         let incoming = t.to_id == c.id;
         let outgoing = t.from_id == c.id;

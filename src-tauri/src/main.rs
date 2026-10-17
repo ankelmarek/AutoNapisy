@@ -271,3 +271,5 @@ fn main() {
 mod timeline_audio;
 
 mod mlt;
+
+mod audio_envelope;

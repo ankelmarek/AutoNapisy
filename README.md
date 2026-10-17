@@ -1,10 +1,11 @@
-# RolVixa 0.15 — polska mowa → polskie napisy
+# RolVixa 0.16 — polska mowa → polskie napisy
 
+**Gotowy instalator 0.16:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39069356974/artifacts/12114951791), rozpakuj i uruchom `RolVixa_0.16.0_x64-setup.exe`.
 RolVixa (wcześniej AutoNapisy) to lokalna aplikacja Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Rozpoznaje polską mowę przez whisper.cpp, bez tłumaczenia. Transkrypcja i montaż działają na komputerze. Opcjonalna biblioteka muzyki łączy się z Openverse po wpisaniu frazy wyszukiwania; nie wysyła nagrań użytkownika.
 
 ## Aktualizacja i uruchomienie ze źródeł
 
-Zachowaj projekty i nagrania. Pobierz ZIP z GitHuba i rozpakuj do nowego folderu, np. `C:\RolVixa-0.15`. Nie kopiuj starych `node_modules`, `dist` i `src-tauri/target`. Aplikacja otwiera projekty v1–v8 i zapisuje format v8. Przed zapisaniem zachowaj kopię JSON, jeśli chcesz wrócić do starszej wersji aplikacji.
+Zachowaj projekty i nagrania. Pobierz ZIP z GitHuba i rozpakuj do nowego folderu, np. `C:\RolVixa-0.16`. Nie kopiuj starych `node_modules`, `dist` i `src-tauri/target`. Aplikacja otwiera projekty v1–v9 i zapisuje format v9. Przed zapisaniem zachowaj kopię JSON, jeśli chcesz wrócić do starszej wersji aplikacji.
 
 Wymagania: Node.js 22 lub 24, aktualny Rust stable x64 MSVC, Visual Studio Build Tools z „Desktop development with C++” i Windows SDK oraz WebView2 Runtime.
 
@@ -353,3 +354,27 @@ Testy 0.15: jednostkowe scenariusze rewizji/anulowania/błędów/sesji i atomowe
 Weryfikacja wydania 0.15: [pełny przebieg Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39066339364) zakończony sukcesem: **106 testów TypeScript, 50 testów Rust oraz 8 testów integracyjnych FFmpeg/MLT/proxy/audio**, kompilacja NSIS, rzeczywista instalacja i testy WebView2. Testy potwierdziły także poprawkę Ctrl+O po zapisie. [Pobierz ZIP instalatora](https://github.com/ankelmarek/AutoNapisy/actions/runs/39066339364/artifacts/12113219339), rozpakuj i uruchom `RolVixa_0.15.0_x64-setup.exe`. Paczka zawiera standardową wersję aplikacji bez narzędzi deweloperskich.
 
 Nowe pliki 0.15: `src/ProjectTitle.tsx`, `src/projectSaving.ts`, `src-tauri/src/project_file.rs`, `src-tauri/src/project_commands.rs`, `tests/projectSaving.test.ts`. Zmieniono również nagłówek App, menu, adapter IPC, style, oficjalny podzbiór Tabler Icons, testy WebView2 i metadane wersji. Uruchamianie deweloperskie pozostaje bez zmian: `npm ci`, `npm test`, `npm run tauri -- dev`; pakiet Windows: `./scripts/build-windows.ps1`.
+
+
+## RolVixa 0.16 — fade i punkty głośności
+
+Na dźwięku filmu oraz niezależnym audio A1/A2 znajdują się dwa okrągłe uchwyty: lewy ustawia **fade in**, prawy **fade out**. Przeciągnij je poziomo, aby ustawić długość; Home lub Delete zeruje zaznaczony fade. Strzałki zmieniają czas o klatkę (Shift: 0,1 s). Fade używa łagodnej krzywej smoothstep; nachodzące fade mnożą się.
+
+**Alt+klik na krzywej głośności** dodaje romb w miejscu kliknięcia. Samo dodanie nie zmienia dźwięku. Przesuwaj punkt w poziomie (czas) i pionie (poziom); sąsiednich punktów nie można przekroczyć. Strzałki na zaznaczonym punkcie zmieniają czas/poziom, Delete lub menu pod prawym przyciskiem usuwa punkt. Limit: 64 punkty na klip. Alt+przeciąganie pustego obszaru nadal przesuwa widok osi.
+
+Panel **Film / audio** udostępnia dokładne czasy fade oraz listę punktów (czas w klipie i poziom). Enter lub wyjście z pola zatwierdza, Esc anuluje. „Reset fade i punktów” zachowuje bazową głośność klipu. Zwykłe przeciąganie krzywej góra–dół reguluje bazową głośność całego fragmentu.
+
+Przebieg źródłowego dźwięku zachowuje skalę widoku; na nim znajduje się rzeczywista obwiednia `głośność klipu × liniowa automatyka × fade in × fade out`. Procent punktu jest mnożnikiem bazowej głośności; panel i tooltip pokazują też wynik. Mute ścieżek i istniejące przejścia pozostają dodatkowymi czynnikami miksu.
+
+Podczas gestu odtwarzanie jest zatrzymywane; krzywa aktualizuje się bez renderowania MLT przy każdym ruchu. Po puszczeniu uchwytu odsłuch uwzględnia wynik, a cały gest stanowi jeden krok Undo. Escape lub anulowanie wskaźnika odrzuca gest. Kopiowanie, przesuwanie, podział i ponowne otwieranie zachowują ustawienia.
+
+**Przycinanie i podział zachowują źródłowe czasy punktów i fade**, także poza aktualnie widocznym fragmentem. Pozwala to ponownie odsłonić wcześniejszy zakres bez utraty ustawień i nie dodaje nowych wyciszeń na cięciu. Przestawienie uchwytu lub wpisanie czasu fade zakotwicza ten fade na bieżącym brzegu klipu. Przy bardzo krótkich klipach korzystaj z powiększenia osi lub pól liczbowych.
+
+Schemat **v9**: opcjonalne `clips[].audio`, tablica `points` (`id`, `time` w sekundach źródła, `gain` 0–1), `fadeIn`/`fadeOut` (`anchor` w sekundach źródła, `duration`). Starsze projekty v1–v8 otwierają się bez zmiany dotychczasowego brzmienia; nowy zapis ma format v9, którego starsze wersje aplikacji nie odczytają. Zachowaj kopię przed nadpisaniem. Definicja: `schemas/project-v9.schema.json`.
+
+Podgląd MLT, eksport MP4 i transkrypcja korzystają z tej samej obwiedni. MLT używa natywnego filtra volume i adaptacyjnie przeliczonych kluczy dB z dokładnością czasową osi 30 FPS; FFmpeg otrzymuje kontrolowane wyrażenia z tego samego modelu. Nie ma odsłuchu zmian w trakcie przeciągania. Ta wersja nie dodaje automatycznego wykrywania pauz ani SmartCut.
+
+
+Nowe pliki 0.16: `src/audioEnvelope.ts`, `src/AudioAutomation.tsx`, `src/AudioProperties.tsx`, `src-tauri/src/audio_envelope.rs`, `schemas/project-v9.schema.json`, `tests/audioEnvelope.test.ts`, `.test-core/tests/audio_envelope.rs`. Zmieniono także model/migracje, oś czasu, panel właściwości, MLT/FFmpeg i testy Windows. Uruchamianie deweloperskie: `npm ci`, `npm test`, `npm run tauri -- dev`. Budowa instalatora z komponentami: `./scripts/build-windows.ps1` w Windows PowerShell.
+
+Weryfikacja 0.16: [pełny przebieg Windows x64 39069356974](https://github.com/ankelmarek/AutoNapisy/actions/runs/39069356974) zakończony sukcesem: **115 testów TypeScript, 54 Rust, 10 integracyjnych FFmpeg/MLT/audio/proxy**, produkcyjny instalator NSIS, rzeczywista instalacja i WebView2. UI sprawdzono przy 1366×700 oraz 1920×1080: Alt+klik, przeciąganie punktów/fade bez renderowania każdego ruchu, Escape, Delete/menu, klawiatura, pola liczbowe, kopia, Undo/Redo, zapis/otwarcie i audio połączone z filmem. Rzeczywiste testy audio mierzą RMS dla fade, liniowej automatyki, miksu i mute, po seek/split oraz w MP4 i wejściu do transkrypcji. Testy neutralnych ścieżek porównują ten sam format/kanały, aby oddzielić zmianę wzmocnienia od downmixu i strat AAC.

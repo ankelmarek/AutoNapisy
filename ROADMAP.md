@@ -1,5 +1,13 @@
 # Kolejne etapy RolVixa
 
+## Wykonane w 0.16 — fade i automatyka głośności
+
+- [x] Obwiednia w schemacie v9, źródłowe czasy i zachowanie po trim/split/copy/Undo.
+- [x] Łagodne fade in/out, nakładanie przez mnożenie, klawiatura i dokładne pola czasu.
+- [x] Alt+klik, romby czas/poziom, menu/Delete, edycja liczbowa i jeden krok historii na gest.
+- [x] Wspólny model MLT/FFmpeg/eksportu/transkrypcji; rzeczywiste testy RMS, przewijania, cięcia, miksu i mute.
+- [x] Odbiór Windows/WebView2 i instalator: run 39069356974; 115 TS, 54 Rust, 10 integracyjnych. Paczka i ograniczenia opisane w README.
+
 ## Wykonane w 0.15 — nagłówek i poprawny zapis projektu
 
 **Wdrożone zgodnie z zatwierdzonym zakresem** po 0.14/proxy, a przed zaawansowanym audio, SmartCut i Export Studio: nowy nagłówek oraz właściwe `Zapisz` / `Zapisz jako`. Pełne kryteria i testy: **[issue #2 - nowy nagłówek i zapis](https://github.com/ankelmarek/AutoNapisy/issues/2)**.
@@ -107,11 +115,11 @@ Status: **do zaplanowania i implementacji**, bez zmiany priorytetów bieżących
 
 Status: **profil SDR wdrożony w 0.14**. Zarządzanie barwami HDR i dalsze pomiary pozostają rozszerzeniem; szczegóły i ograniczenia wydania w README.
 
-## Edycja audio i siatka mediów: usprawnienia UI/UX (TODO)
+## Edycja audio i siatka mediów — wykonane w 0.14/0.16
 
-Cztery uzgodnione kierunki: automatyka głośności przez Alt+klik, płynne fade in/out z uchwytów, zielony znacznik klipu użytego na osi i siatka miniaturek zamiast listy w zakładce Pliki. Zaplanować jako odrębny etap bez ingerowania w aktualne prace Codex nad proxy. Nowe kontrolki wykorzystują istniejący styl Tabler Icons.
+Siatkę i znacznik użycia wdrożono w 0.14; fade in/out oraz automatykę przez Alt+klik w 0.16. Kontrolki korzystają z Tabler Icons. Pozostają przyszłe rozszerzenia: podpowiedzi pauz/snap audio i dalszy rozwój odsłuchu zmian w trakcie gestu.
 
-### A. Punkty głośności na osi audio (volume keyframes)
+### A. Punkty głośności na osi audio — wykonane w 0.16
 
 - **Alt+klik** na linii głośności klipu audio dodaje punkt w dokładnym czasie kliknięcia, bez przesuwania klipu i głowicy. Obsługiwać również dźwięk powiązany z klipem wideo na A1/A2.
 - Punkt można przeciągać **pionowo** (poziom) i **poziomo** (czas), z ograniczeniem do długości klipu i kolejności sąsiadujących punktów. Pokazywać czas oraz realną głośność (procent, opcjonalnie dB). Wymagana precyzyjna edycja, obsługa klawiatury i usuwanie punktu z menu kontekstowego/Delete.
@@ -120,12 +128,12 @@ Cztery uzgodnione kierunki: automatyka głośności przez Alt+klik, płynne fade
 - Zapis i odczyt w nowym schemacie projektu z migracją starszych projektów. Uwzględnić Undo/Redo (jeden gest to jeden krok), kopię/duplikowanie, przesuwanie, przycinanie, dzielenie, zmianę prędkości jeśli dojdzie, oraz powrót po ponownym otwarciu.
 - Podczas przeciągania zapewnić responsywny podgląd linii i wskazania, bez wielokrotnego kosztownego renderowania MLT. Weryfikacja audio po zatwierdzeniu gestu; jeśli dostępny jest odsłuch na żywo, nie może rozmijać się z finalnym eksportem.
 
-### B. Fade in / fade out na uchwytach audio
+### B. Fade in / fade out na uchwytach audio — wykonane w 0.16
 
 - Dwa małe, dostępne myszą i klawiaturą **okrągłe uchwyty** przy początku i końcu ścieżki audio. Przeciąganie lewego w prawo ustala czas narastania, prawego w lewo ustala czas wyciszenia. Wizualizować krzywe na przebiegu dźwięku bez zmiany skali samego waveform.
 - Fade ma działać na osobnych klipach audio oraz audio połączonym z wideo; wartości domyślnie zerowe (bez automatycznego wyciszania). Kształt krzywej początkowo łagodny, później możliwe presety liniowy/łagodny (np. equal-power tam, gdzie uzasadnione).
 - Fade i keyframes muszą się **łączyć**, a nie nadpisywać; wynikiem jest jedna widoczna i renderowana obwiednia. Długości fade nie przekraczają klipu. Jeżeli dwa fade nachodzą na siebie, jasno określić sposób połączenia (mnożenie ramp) i utrzymać podgląd zgodny z eksportem.
-- „Inteligentne” ułatwienia: opcjonalna podpowiedź/ciche przyciąganie do sensownych miejsc na podstawie poziomu audio, bez samoczynnego stosowania; użytkownik może ręcznie ustawić dokładny czas albo wyłączyć przyciąganie. Priorytetem jest kontrola, a nie AI.
+- **Przyszłe rozszerzenie, poza 0.16:** „inteligentne” ułatwienia: opcjonalna podpowiedź/ciche przyciąganie do sensownych miejsc na podstawie poziomu audio, bez samoczynnego stosowania; użytkownik może ręcznie ustawić dokładny czas albo wyłączyć przyciąganie. Priorytetem jest kontrola, a nie AI.
 - Nie mylić uchwytów fade z uchwytami przycinania klipu ani z punktami automatyki; odpowiednie obszary chwytania, kursor, tooltip, focus i blokada zdarzeń rodzica.
 
 ### C. Siatka miniaturek w zakładce Pliki — wykonane w 0.14

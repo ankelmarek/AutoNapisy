@@ -652,7 +652,7 @@ export default function App() {
         </section>
       </main>
       <Timeline project={project} time={time} locked={locked} onSeek={seek}
-        onChange={(clips,mode)=>{if(mode!=='volume')playback.pause();setProject(p=>({...p,clips,transitions:reconcileTransitions(p,clips)}));}} onPreviewVolume={playback.previewVolume} onSelect={id=>{setSelectedClip(id);setSelectedTransition('');setInspectorTab('video');}} onCaptionSelect={selectCaption}
+        onChange={(clips,mode)=>{if(mode!=='volume')playback.pause();setProject(p=>({...p,clips,transitions:reconcileTransitions(p,clips)}));}} onPreviewVolume={playback.previewVolume} onBeginAudio={playback.pause} onSelect={id=>{setSelectedClip(id);setSelectedTransition('');setInspectorTab('video');}} onCaptionSelect={selectCaption}
         onMediaDrop={(id,at,track)=>{try{playback.pause();changeProject(insertLibraryItem(project,id,at,track));setMessage('Dodano plik na oś czasu.');}catch(e){setMessage(String(e));}}}
         onCaptionChange={p=>changeProject(p)} effectChoice={effectChoice} onTransition={(a,b,choice)=>{try{playback.pause();const next=applyTransition(project,a,b,choice.kind,choice.duration);changeProject(next);setSelectedTransition(next.transitions.find(t=>t.toId===b)!.id);setInspectorTab('video');}catch(e){setMessage(String(e));}}} onTransitionSelect={id=>{setSelectedTransition(id);setInspectorTab('video');}}
         undo={undo} redo={redo} canUndo={history.canUndo} canRedo={history.canRedo}/>

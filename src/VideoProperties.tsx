@@ -1,3 +1,4 @@
+import AudioProperties from './AudioProperties';
 import {transitionKinds,transitionLabels} from './transitionCatalog';
 import type {Project} from './model';
 import {neutral,removeTransition,applyTransition} from './effects';
@@ -9,6 +10,7 @@ export default function VideoProperties({project,clip,locked,transitionId,onChan
   {!clip?<p className="hint">Zaznacz film na osi czasu, aby zmienić jego obraz.</p>:<fieldset disabled={locked}><legend>{clip.kind==='audio'?'Dźwięk':'Korekcja filmu'}</legend><p className="property-file">{clipMedia(project,clip)?.name}</p>
    {clip.kind!=='audio'&&<>{([['brightness','Jasność'],['contrast','Kontrast'],['saturation','Nasycenie']] as const).map(([key,label])=><label key={key}>{label}<b>{Math.round(a[key]*100)}%</b><input aria-label={label} type="range" min={key==='saturation'?0:.25} max={2} step={.01} value={a[key]} onChange={e=>onChange({...project,clips:projectClips(project).map(c=>c.id===clip.id?{...c,adjustments:{...a,[key]:Number(e.target.value)}}:c)})}/></label>)}<button onClick={()=>onChange({...project,clips:projectClips(project).map(c=>c.id===clip.id?{...c,adjustments:{...neutral}}:c)})}>Reset korekcji</button><p className="hint">Korekcja dotyczy zaznaczonego ujęcia, jest widoczna w podglądzie i zapisywana w MP4.</p></>}
    <label>Głośność<b>{Math.round((clip.volume??1)*100)}%</b><input aria-label="Głośność w panelu właściwości" type="range" min={0} max={1} step={.01} value={clip.volume??1} onChange={e=>onChange({...project,clips:projectClips(project).map(c=>c.id===clip.id?{...c,volume:Number(e.target.value)}:c)})}/></label>
+   <AudioProperties key={clip.id} clip={clip} onChange={next=>onChange({...project,clips:projectClips(project).map(c=>c.id===clip.id?next:c)})}/>
   </fieldset>}
  </div>;
 }

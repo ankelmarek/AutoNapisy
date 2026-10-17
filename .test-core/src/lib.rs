@@ -40,3 +40,6 @@ pub mod proxy;
 
 #[path = "../../src-tauri/src/project_file.rs"]
 pub mod project_file;
+
+#[path="../../src-tauri/src/audio_envelope.rs"]
+pub mod audio_envelope;
