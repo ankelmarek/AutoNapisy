@@ -270,7 +270,7 @@ export default function App() {
       if(text||['INPUT','SELECT'].includes(el?.tagName))return;
       if(e.key==='Home'){e.preventDefault();seek(0);}else if(e.key==='End'){e.preventDefault();seek(duration);}else if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();seek(time+(e.key==='ArrowLeft'?-1:1)*(e.shiftKey?1:1/30));}
     };window.addEventListener('keydown',handler);return()=>window.removeEventListener('keydown',handler);
-  },[locked,project,time,playing]);
+  },[locked,project,time,playing,saveState]);
   const style = project.styles.default;
   const updateStyle = (patch: Partial<typeof style>) => {
     setProject((p) => ({
