@@ -10,10 +10,15 @@ try {
     try { $null = Invoke-RestMethod "$env:ROLVIXA_WEBVIEW_CDP/json/version"; $ready = $true; break } catch { Start-Sleep -Milliseconds 250 }
   }
   if (-not $ready) { throw 'WebView2 nie udostępnił połączenia testowego CDP' }
-  node scripts/test-editor9.mjs
-  if ($LASTEXITCODE) { throw 'Test interfejsu w rzeczywistym WebView2 nie przeszedł' }
+  $test = Start-Process -FilePath (Get-Command node).Source -ArgumentList 'scripts/test-editor9.mjs' -NoNewWindow -PassThru
+  if (-not $test.WaitForExit(180000)) {
+    taskkill /PID $test.Id /T /F 2>$null | Out-Null
+    throw 'Test WebView2 przekroczył limit 3 minut'
+  }
+  if ($test.ExitCode -ne 0) { throw 'Test interfejsu w rzeczywistym WebView2 nie przeszedł' }
   Write-Output 'Actual installed Tauri/WebView2: media drag, transition drag, caption click/Delete/double-click, keyboard and MLT stream: OK'
 } finally {
   taskkill /PID $app.Id /T /F 2>$null | Out-Null
   Remove-Item Env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS -ErrorAction SilentlyContinue
+  $global:LASTEXITCODE = 0
 }
