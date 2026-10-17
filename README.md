@@ -1,10 +1,10 @@
-# RolVixa 0.13 — polska mowa → polskie napisy
+# RolVixa 0.14 — polska mowa → polskie napisy
 
 RolVixa (wcześniej AutoNapisy) to lokalna aplikacja Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Rozpoznaje polską mowę przez whisper.cpp, bez tłumaczenia. Transkrypcja i montaż działają na komputerze. Opcjonalna biblioteka muzyki łączy się z Openverse po wpisaniu frazy wyszukiwania; nie wysyła nagrań użytkownika.
 
 ## Aktualizacja i uruchomienie ze źródeł
 
-Zachowaj projekty i nagrania. Pobierz ZIP z GitHuba i rozpakuj do nowego folderu, np. `C:\RolVixa-0.13`. Nie kopiuj starych `node_modules`, `dist` i `src-tauri/target`. Aplikacja otwiera projekty v1–v8 i zapisuje format v8. Przed zapisaniem zachowaj kopię JSON, jeśli chcesz wrócić do starszej wersji aplikacji.
+Zachowaj projekty i nagrania. Pobierz ZIP z GitHuba i rozpakuj do nowego folderu, np. `C:\RolVixa-0.14`. Nie kopiuj starych `node_modules`, `dist` i `src-tauri/target`. Aplikacja otwiera projekty v1–v8 i zapisuje format v8. Przed zapisaniem zachowaj kopię JSON, jeśli chcesz wrócić do starszej wersji aplikacji.
 
 Wymagania: Node.js 22 lub 24, aktualny Rust stable x64 MSVC, Visual Studio Build Tools z „Desktop development with C++” i Windows SDK oraz WebView2 Runtime.
 
@@ -71,7 +71,7 @@ Etap 1 został sprawdzony na Windows przez użytkownika. Testy i smoke test rdze
 
 ## Ograniczenia
 
-Brak tłumaczenia, akceleracji Whisper na GPU, pełnego proxy wideo, diarizacji i automatycznego pobierania modeli. Podgląd korzysta z MLT i strumienia H.264/AAC; po zmianach montażu może wymagać przygotowania nowego bufora. Długie nagrania potrzebują miejsca i czasu; nie ma wznawiania transkrypcji po zamknięciu. SRT nie zawiera stylizacji; eksport MP4 nanosi napisy. Pełny instalator zawiera FFmpeg, FFprobe, MLT i whisper.cpp, a model GGML użytkownik wybiera osobno.
+Brak tłumaczenia, akceleracji Whisper na GPU, diarizacji i automatycznego pobierania modeli. Podgląd korzysta z MLT i strumienia H.264/AAC; po zmianach montażu może wymagać przygotowania nowego bufora. Długie nagrania potrzebują miejsca i czasu; nie ma wznawiania transkrypcji po zamknięciu. SRT nie zawiera stylizacji; eksport MP4 nanosi napisy. Pełny instalator zawiera FFmpeg, FFprobe, MLT i whisper.cpp, a model GGML użytkownik wybiera osobno.
 
 
 ## Wygląd i łamanie napisów — 0.3
@@ -293,3 +293,44 @@ Test kadrowania rzeczywistymi silnikami: `ROLVIXA_MLT=/ścieżka/melt AUTONAPISY
 - Format projektu pozostaje v8, zgodny z 0.12. Kolejny priorytet z ROADMAP.md: proxy wideo; SmartCut jest planowany oddzielnie.
 
 Test ograniczonego wejścia i rzeczywistego odsłuchu: `AUTONAPISY_FFMPEG=/ścieżka/ffmpeg cargo test --manifest-path .test-core/Cargo.toml --test remote_audio -- --ignored --nocapture`. Windows CI sprawdza także podgląd utworu Openverse przed importem, pozycję, głośność i niezmienność projektu oraz oddzielne pobranie i zapis autorstwa.
+
+## RolVixa 0.14 — proxy, biblioteka i strefy bezpieczne
+
+Pełny instalator Windows zawiera wszystkie silniki; model Whisper nadal wybierasz osobno. Format projektu pozostaje v8. Zachowaj oryginalne nagrania: cache proxy nie jest kopią zapasową materiałów.
+
+### Jak korzystać z proxy
+
+1. Importuj filmy do zakładki **Pliki**. Import nadal nie dodaje ich na oś. Biblioteka pokazuje responsywną siatkę miniaturek, nazwy i czas trwania. Zielony okrąg z białym znakiem zaznacza źródło użyte w montażu; zmienia się po usunięciu lub cofnięciu.
+2. Program odczytuje FFprobe: kontener, kodek/profil, orientację, rozdzielczość, FPS, ścieżki audio i informacje kolorystyczne. Różnica nominalnego i średniego FPS jest wskazówką możliwego VFR, a nie pełną analizą zmienności klatek.
+3. Dla wymagającego materiału SDR (np. HEVC, ponad Full HD, ponad 40 FPS lub możliwy VFR) automatycznie przygotowuje proxy. Pod miniaturą widać kolejkę, rzeczywisty postęp, gotowość lub błąd. Pozostałe klipy można montować podczas przygotowywania.
+4. Rozwiń status pod miniaturą. Możesz ręcznie przygotować **540p lub 720p**, anulować zadanie i przełączyć między oryginałem a gotową kopią. Podana rozdzielczość dotyczy dłuższego boku; proporcje są zachowane, małe nagrania nie są powiększane.
+5. Proxy to H.264/AAC, stereo, pierwsza ścieżka audio i 30 kl./s. MLT oraz miniatury mogą korzystać z kopii; **eksport MP4 i transkrypcja zawsze korzystają z oryginałów**. Dotychczasowy montaż i eksport również pracują w 30 kl./s. Ścieżki cache nie są zapisywane w projekcie JSON.
+6. Koło zębate nad siatką pokazuje zajętość cache i umożliwia jego wyczyszczenie po potwierdzeniu. Anuluj trwające zadania; czyszczenie nie usuwa oryginałów. Aktywny odczyt chroni używane pliki przed usunięciem.
+
+Cache jest w systemowym katalogu cache RolVixa, w podfolderze `video-proxy-v1`. Powiązanie kopii ze źródłem obejmuje kanoniczną ścieżkę, rozmiar, datę modyfikacji, próbki początku/końca oraz wersję profilu. Gotowe kopie są używane także po ponownym otwarciu projektu. Zmiana lub brak źródła/proxy unieważnia odwołanie; brak oryginału blokuje prawidłowy podgląd/eksport zamiast niejawnego eksportu z kopii.
+
+Limit cache wynosi **8 GiB**, pojedynczej kopii **4 GiB**; generator kontroluje limit podczas zapisu i dostępne miejsce na dysku. Jeden film jest przetwarzany naraz, z ograniczeniem wątków FFmpeg. Nie usuwamy automatycznie kopii innych projektów. Po awarii mogą pozostać nieukończone pliki, które usuwa czyszczenie cache. Cache ma jednego właściciela procesu; druga instancja może pracować na oryginałach.
+
+**Ograniczenie HDR:** profil 0.14 obsługuje SDR. Przy wykryciu PQ/HLG program pokazuje informację i pozostawia oryginał; konwersja HDR→SDR z kontrolą barw jest osobnym etapem. Nie gwarantujemy obsługi każdego pliku na podstawie rozszerzenia.
+
+### Strefy i poprawki interfejsu
+
+- W pasku podglądu wybierz format **9:16 · Rolka**, następnie **Strefy** i preset Reels, TikTok lub Shorts. Marginesy można zmieniać w procentach i wyłączyć nakładkę. To przybliżona pomoc wobec zmiennego interfejsu platform.
+- Strefy nie przechwytują przeciągania filmu i **nie trafiają do eksportu ani projektu**. Nie są automatyczną kontrolą położenia napisów.
+- Lista Openverse pokazuje wyraźny czas **całego utworu**, również w odtwarzaczu próbki. Czas próbki nadal wynosi do 30 sekund. Gdy serwis nie poda długości, aplikacja jej nie zgaduje.
+- Okno ustawień jest ponad podglądem i przejściami. Klawiatura pozostaje w oknie, Escape je zamyka.
+- SmartCut, automatyka głośności, fade i nowy nagłówek nie należą do tej paczki. Najbliższy kolejny priorytet: nagłówek i Zapisz/Zapisz jako z issue #2.
+
+Nowe pliki implementacji: `src/useVideoProxies.ts`, `src/SafeZones.tsx`, `src-tauri/src/proxy.rs`, `src-tauri/src/proxy_commands.rs`. Testy: `tests/media14.test.ts`, `.test-core/tests/proxy_video.rs`, syntetyczne próbki HEVC/VP9 w `.test-core/fixtures`.
+
+### Weryfikacja 0.14
+
+```powershell
+npm.cmd test
+npm.cmd run build
+cargo test --locked --manifest-path src-tauri/Cargo.toml
+# Po ustawieniu AUTONAPISY_FFMPEG i ROLVIXA_MLT:
+cargo test --locked --manifest-path .test-core/Cargo.toml --test proxy_video -- --ignored --nocapture
+```
+
+Testy z prawdziwymi FFmpeg/MLT obejmują obrót, 60 FPS, synchronizację dźwięku, przycięcie, ponowne odczytanie cache i eksport w rozdzielczości oryginału po usunięciu proxy; dodatkowo HEVC/MOV, VP9/WebM, VFR, 4K i brak audio. Syntetyczne próbki są wyłącznie fixtures testowymi, bez nagrań użytkowników. Windows CI sprawdza rzeczywistą instalację, tworzenie i przełączanie proxy w MLT oraz WebView2: siatkę, znaczniki użycia, nakładkę bez zmiany JSON, czas całej muzyki i okno ustawień. Widoki testowe: 1366×700 i 1920×1080.

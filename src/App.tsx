@@ -33,6 +33,8 @@ import FrameEditor from './FrameEditor';
 import TransformControls from './TransformControls';
 import LayersPanel from './LayersPanel';
 import { useMltPlayback } from "./useMltPlayback";
+import {useVideoProxies} from './useVideoProxies';
+import {useSafeZones,SafeZoneControls,SafeZoneOverlay} from './SafeZones';
 import { clipAt, editDuration, projectClips, compositionSegments, compositionProject, clipMedia, appendMedia } from "./editing";
 import { rendering, type ExportStatus } from "./rendering";
 import bebasLicense from "./assets/BebasNeue-OFL.txt?raw";
@@ -67,6 +69,7 @@ export default function App() {
     [],
   );
   const locked = busy || transcribing || exporting;
+  useEffect(()=>{if(!settings)return;const previous=document.activeElement;document.querySelector<HTMLButtonElement>('.modal button')?.focus();return()=>{if(previous instanceof HTMLElement&&previous.isConnected)previous.focus();};},[settings]);
   const captionSurface = useRef<HTMLDivElement>(null);
   const stage=useRef<HTMLDivElement>(null);
   const [stageSize,setStageSize]=useState({width:0,height:0}),[aspect,setAspect]=useState(16/9);
@@ -80,7 +83,9 @@ export default function App() {
   const [inspectorTab,setInspectorTab]=useState<'video'|'captions'|'layers'>('video'),[selectedClip,setSelectedClip]=useState(''),[selectedCaption,setSelectedCaption]=useState(''),[selectedTransition,setSelectedTransition]=useState('');
   const [effectChoice,setEffectChoice]=useState<EffectChoice>({kind:'fade',duration:.4});
   const captionInput=useRef<HTMLTextAreaElement>(null);
-  const playback = useMltPlayback(project);
+  const proxies=useVideoProxies(project,sources),safeZones=useSafeZones();
+  const playback = useMltPlayback(project,proxies.revision);
+  useEffect(()=>{if(playback.error&&proxies.active)void proxies.fallback();},[playback.error,proxies.revision]);
   const {time,playing,seek} = playback;
   const toggle=playback.toggle;
   useEffect(()=>{setAspect(playback.aspect);},[playback.aspect]);
@@ -277,7 +282,7 @@ export default function App() {
           {label:'Importuj audio',keys:'Ctrl+Shift+I',disabled:locked,run:()=>importMedia('audio')},
           {label:'Eksport MP4',disabled:locked||!project.media||!duration,run:()=>void exportMp4()},
           {label:'Eksport SRT',disabled:locked||!displayedSegments.length,run:exportSrt},
-          {label:'Ustawienia',disabled:locked,run:()=>{setSettings(true);void run(loadSettings);}},
+          {label:'Ustawienia',disabled:locked,run:()=>{playback.pause();setSettings(true);void run(loadSettings);}},
         ]}/>
       </header>
       {exporting && (
@@ -314,7 +319,7 @@ export default function App() {
           </div>
           {leftTab==='audio'&&<AudioLibrary project={project} locked={locked} timelinePlaying={playing} onImport={()=>importMedia('audio')} onRegister={registerAudio} onPause={playback.pause} onAdd={id=>{try{playback.pause();changeProject(insertLibraryItem(latestProject.current,id,time));setMessage('Dodano audio na oś czasu.');}catch(e){setMessage(String(e));}}}/>}
           {leftTab==='effects'&&<EffectsLibrary chosen={effectChoice} onChoose={setEffectChoice}/>}
-          {leftTab==='files'&&<MediaLibrary project={project} sources={sources} locked={locked} onImport={importVideo}
+          {leftTab==='files'&&<MediaLibrary project={project} sources={sources} locked={locked} onImport={importVideo} proxies={proxies} onClearCache={()=>{if(window.confirm('Usunąć wszystkie kopie proxy z cache? Oryginalne nagrania i projekt zostaną zachowane.'))void playback.suspend().then(()=>new Promise(r=>setTimeout(r,200))).then(()=>proxies.clear()).then(()=>playback.retry()).catch(e=>setMessage(String(e)));}}
             onAdd={id=>{try{playback.pause();const next=insertLibraryItem(project,id,time);setProject(next);setDirty(true);setMessage('Dodano plik z biblioteki na oś czasu.');}catch(e){setMessage(String(e));}}}/>}
           <div className="captions-tab-content" role="tabpanel" id="captions-panel" aria-labelledby="captions-tab" hidden={leftTab!=='captions'}>
           <div className="transcription-controls">
@@ -387,15 +392,16 @@ export default function App() {
             <h2>Podgląd wideo</h2>
             <span>{project.media?.name ?? "Brak filmu"}</span>
           </div>
-          <div className="preview-toolbar"><label>Format<select aria-label="Format obrazu" disabled={locked} value={project.canvas?`${project.canvas.width}x${project.canvas.height}`:'source'} onChange={e=>{playback.pause();const [width,height]=e.target.value.split('x').map(Number);changeProject({...project,canvas:e.target.value==='source'?null:{width,height}});}}><option value="source">Źródłowy</option><option value="1080x1920">9:16 · Rolka</option><option value="1920x1080">16:9 · Poziomo</option><option value="1080x1080">1:1 · Kwadrat</option></select></label><button aria-pressed={inspectorTab==='layers'} onClick={()=>setInspectorTab('layers')}><Icon name="layers" size={13}/>Warstwy</button></div>
+          <div className="preview-toolbar"><label>Format<select aria-label="Format obrazu" disabled={locked} value={project.canvas?`${project.canvas.width}x${project.canvas.height}`:'source'} onChange={e=>{playback.pause();const [width,height]=e.target.value.split('x').map(Number);changeProject({...project,canvas:e.target.value==='source'?null:{width,height}});}}><option value="source">Źródłowy</option><option value="1080x1920">9:16 · Rolka</option><option value="1920x1080">16:9 · Poziomo</option><option value="1080x1080">1:1 · Kwadrat</option></select></label><SafeZoneControls value={safeZones} portrait={Math.abs(canvasAspect-9/16)<.01}/><button aria-pressed={inspectorTab==='layers'} onClick={()=>setInspectorTab('layers')}><Icon name="layers" size={13}/>Warstwy</button></div>
           <div className="stage" ref={stage}>
             {libraryItems(project).length ? (
               <div className="composition-surface" ref={captionSurface} style={{width:surfaceWidth,height:surfaceWidth/canvasAspect}}>
                 <video ref={playback.video} className="mlt-video" preload="auto" playsInline/>
                 {playback.loading&&<span className="transition-preparing">Przygotowywanie podglądu MLT…</span>}
                 {playback.error&&<div className="preview-error" role="alert"><strong>Podgląd niedostępny</strong><p>{playback.error}</p><button onClick={playback.retry}>Ponów podgląd</button></div>}
-                <FrameEditor project={project} time={Math.min(time,Math.max(0,duration-1/30))} playing={playing} locked={locked} selectedId={selected?.id??''} onSelect={id=>{setSelectedClip(id);setSelectedTransition('');setInspectorTab('layers');}} onPause={playback.pause} onChange={changeProject} onAspects={setFrameAspects}/>
+                <FrameEditor project={project} proxyRevision={proxies.revision} time={Math.min(time,Math.max(0,duration-1/30))} playing={playing} locked={locked} selectedId={selected?.id??''} onSelect={id=>{setSelectedClip(id);setSelectedTransition('');setInspectorTab('layers');}} onPause={playback.pause} onChange={changeProject} onAspects={setFrameAspects}/>
                 <CaptionOverlay video={captionSurface} project={displayed} time={time} compositionCanvas />
+                <SafeZoneOverlay value={safeZones} portrait={Math.abs(canvasAspect-9/16)<.01}/>
                 {gap && <span className="gap-label">{duration?'Przerwa między ujęciami':'Dodaj film z biblioteki na oś czasu'}</span>}
               </div>
             ) : (
@@ -634,7 +640,7 @@ export default function App() {
 
       </footer>
       {settings && (
-        <div className="overlay">
+        <div className="overlay" onKeyDown={e=>{e.stopPropagation();if(e.key==='Escape'){e.preventDefault();setSettings(false);}if(e.key==='Tab'){const items=Array.from(e.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),summary')).filter(el=>el.getClientRects().length);const first=items[0],last=items[items.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}}}>
           <section
             className="modal"
             role="dialog"

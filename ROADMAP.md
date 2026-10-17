@@ -12,6 +12,18 @@
 - [ ] Testy 1366×768, Full HD, skrótów, menu i edycji tytułu, projektu świeżego i otwartego, anulowania i błędów zapisu, danych niezapisanych podczas zapisywania; zachować kompatybilność starszych projektów.
 - [ ] Ukończyć jako osobną, przetestowaną zmianę/PR, **nie doklejać do trwającego proxy**. Docelowy panel z presetami eksportu to **[odłożone issue #1](https://github.com/ankelmarek/AutoNapisy/issues/1)**, bez zmiany zakresu tego zadania.
 
+## Wykonane w 0.14 — proxy i biblioteka
+
+- [x] Proxy SDR H.264/AAC: diagnostyka FFprobe, automatyczne przygotowanie wymagających źródeł, profile 540p/720p, kolejka, rzeczywisty postęp i anulowanie.
+- [x] Trwały cache z identyfikacją źródeł, limitem 8 GiB, kontrolą miejsca i czyszczeniem; przełączanie oryginał/proxy w podglądzie MLT i miniaturach.
+- [x] Eksport i transkrypcja z oryginałów; proxy nie zmienia projektu ani czasów montażu.
+- [x] Siatka miniaturek i zielony znacznik użycia źródła, aktualizowany z osi oraz Undo/Redo.
+- [x] Regulowane, przybliżone strefy Reels/TikTok/Shorts w podglądzie 9:16, poza eksportem.
+- [x] Czytelna pełna długość utworu Openverse i poprawiona warstwa okna ustawień.
+- [ ] Rozszerzenie proxy o świadomą konwersję HDR→SDR i dalsze pomiary wydajności. 0.14 pozostawia wykryte PQ/HLG na oryginale.
+
+Kryteria i ograniczenia profilu 0.14 oraz instrukcja użytkownika są w README. Następny etap pozostaje **P1 z issue #2**, jako osobna zmiana.
+
 ## Biblioteka audio — wykonane w 0.12, rozszerzone w 0.13
 
 - [x] Muzyka Openverse: wyszukiwanie frazą, pobieranie i dane autora/licencji.
@@ -26,9 +38,9 @@
 
 Openverse łączy się z internetem po wyszukaniu frazy; dostęp realizują kontrolowane komendy Rust. Odsłuch nie dodaje pliku ani klipu do projektu. Kenney i własne pliki działają offline.
 
-## Następny priorytet wydajnościowy
+## Kolejność po proxy
 
-Proxy wideo ma pierwszeństwo przed SmartCut; szczegółowy zakres znajduje się poniżej.
+Proxy SDR wdrożono w 0.14; najbliższy etap to P1 (nagłówek i zapis) powyżej. SmartCut pozostaje późniejszym etapem.
 
 ## SmartCut: inteligentny podgląd i propozycje cięcia (planowane)
 
@@ -60,7 +72,7 @@ Cel: przyspieszyć precyzyjny montaż bez zastępowania decyzji użytkownika. Sm
 
 Status: **do zaplanowania i implementacji**, bez zmiany priorytetów bieżących prac nad stabilizacją RolVixa.
 
-## Proxy wideo: inteligentny import i płynny montaż (wysoki priorytet, TODO)
+## Proxy wideo: inteligentny import i płynny montaż (SDR wdrożone w 0.14)
 
 **Cel:** płynny montaż popularnych formatów (MOV, MP4, MKV, WEBM, AVI, M4V), w szczególności wymagających kodeków HEVC/H.265, ProRes, rozdzielczości 4K i nagrań 50/60 FPS. Praca na lekkich kopiach lokalnych, a finalny eksport z **oryginalnych źródeł**. Samo rozszerzenie pliku nie gwarantuje poprawnego dekodowania.
 
@@ -93,7 +105,7 @@ Status: **do zaplanowania i implementacji**, bez zmiany priorytetów bieżących
 4. Nie zmieniać źródeł i nie blokować dotychczasowego importu w razie awarii generatora.
 5. Dodać testy integracyjne FFmpeg/MLT i testy UI do CI, bez zmuszania użytkownika do ręcznej konwersji.
 
-Status: **do implementacji po ustabilizowaniu bieżącego wydania**. Wysoki priorytet ze względu na płynność pracy oraz obsługę nagrań z telefonów.
+Status: **profil SDR wdrożony w 0.14**. Zarządzanie barwami HDR i dalsze pomiary pozostają rozszerzeniem; szczegóły i ograniczenia wydania w README.
 
 ## Edycja audio i siatka mediów: usprawnienia UI/UX (TODO)
 
@@ -116,14 +128,14 @@ Cztery uzgodnione kierunki: automatyka głośności przez Alt+klik, płynne fade
 - „Inteligentne” ułatwienia: opcjonalna podpowiedź/ciche przyciąganie do sensownych miejsc na podstawie poziomu audio, bez samoczynnego stosowania; użytkownik może ręcznie ustawić dokładny czas albo wyłączyć przyciąganie. Priorytetem jest kontrola, a nie AI.
 - Nie mylić uchwytów fade z uchwytami przycinania klipu ani z punktami automatyki; odpowiednie obszary chwytania, kursor, tooltip, focus i blokada zdarzeń rodzica.
 
-### C. Siatka miniaturek w zakładce Pliki
+### C. Siatka miniaturek w zakładce Pliki — wykonane w 0.14
 
 - Zastąpić pionową listę plików **responsywną siatką kart** w panelu mediów, z możliwie dużymi miniaturami 16:9, skróconą nazwą pliku (maksymalnie dwa wiersze/ellipsis) i pełną nazwą oraz ścieżką w podpowiedzi.
 - Karty powinny zawierać zwięzłe dane (np. czas trwania), a ikonę **+** dodawania na oś pokazywać w czytelnym miejscu lub po najechaniu/focusie. Zachować dotychczasowy drag-and-drop i obsługę klawiatury.
 - Siatka ma dopasowywać liczbę kolumn do szerokości panelu (np. 2–4 bez poziomego przewijania), zachować wyszukiwarkę, powiadomienie o niedostępnym źródle, miniatury audio i przewijanie. Utrzymać lazy loading/cache miniaturek, uwzględnić proxy przy dostępności.
 - Opcjonalnie przełącznik „Siatka / Lista” jako preferencja, jeśli okaże się przydatny; **domyślny widok: Siatka**.
 
-### D. Zielony znacznik użycia filmu na osi czasu
+### D. Zielony znacznik użycia filmu na osi czasu — wykonane w 0.14
 
 - W **prawym górnym rogu miniatury** pliku wideo w panelu Pliki pokazywać **mały zielony okrąg z białym znakiem ✓** wtedy i tylko wtedy, gdy źródło ma co najmniej jedno wystąpienie na osi czasu. To znacznik **„użyty w montażu”**, nie status dostępności/proxy.
 - Liczyć automatycznie na podstawie obecnego `libraryItems(project).uses` zamiast osobnej zapisywanej flagi. Znacznik aktualizuje się po dodaniu, usunięciu i cofnięciu/ponowieniu; wiele użyć nadal pokazuje pojedynczy znacznik. Liczba użyć może być w tooltipie.
@@ -168,7 +180,7 @@ Użytkownik zatwierdził z poprzedniej listy **punkty 1, 2, 3, 4, 6, 7, 8, 9**. 
 - Jawnie zdefiniować wpływ na V1/V2, A1/A2, napisy, przejścia, rozdzielone audio i elementy powiązane. Zapewnić możliwość ograniczenia do wybranych/odblokowanych torów i ochronę innych. Konflikty oraz nakładanie sygnalizować przed zastosowaniem.
 - Przetestować Undo/Redo, cofanie dużych operacji, cięcia wielu klipów, puste przerwy, koniec montażu, synchronizację dźwięku i napisów.
 
-### 6. Bezpieczne strefy Reels / Shorts / TikTok
+### 6. Bezpieczne strefy Reels / Shorts / TikTok — wykonane w 0.14
 
 - Opcjonalna nakładka **safe zones** na podglądzie formatu 9:16, z presetami Reels, TikTok i Shorts, wskazująca obszary potencjalnie zasłonięte przez elementy platformy.
 - Przezroczysta nakładka jest wyłącznie pomocą edycyjną i **nie trafia do eksportu**. Ma skalować się razem z kadrem i nie przechwytywać gestów transformacji i zaznaczania napisów.
@@ -204,4 +216,3 @@ Użytkownik zatwierdził z poprzedniej listy **punkty 1, 2, 3, 4, 6, 7, 8, 9**. 
 5. Każdy etap wymaga testów TypeScript/Rust oraz realnego podglądu MLT i porównania z eksportem; potwierdzić migracje schematów, Undo/Redo, działania przy brakującym źródle i bez internetu.
 
 **Status:** zaakceptowane do TODO; bez rozpoczęcia implementacji. Punkt 5 (kolorowe znaczniki na osi czasu) celowo pominięty.
-

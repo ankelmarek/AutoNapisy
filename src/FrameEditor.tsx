@@ -6,7 +6,7 @@ import {transformOf,changeTransform,frameRect,type Transform} from './framing';
 import {videoHidden} from './trackControls';
 type Frame={id:string;png:string;sourceAspect:number};
 type Frames={width:number;height:number;layers:Frame[]};
-type Props={project:Project;time:number;playing:boolean;locked:boolean;selectedId:string;onSelect:(id:string)=>void;onPause:()=>void;onChange:(p:Project)=>void;onAspects:(value:Record<string,number>)=>void};
+type Props={project:Project;time:number;playing:boolean;locked:boolean;selectedId:string;proxyRevision?:string;onSelect:(id:string)=>void;onPause:()=>void;onChange:(p:Project)=>void;onAspects:(value:Record<string,number>)=>void};
 export default function FrameEditor(p:Props){
  const [frames,setFrames]=useState<Frames|null>(null),[hint,setHint]=useState(''),[draft,setDraft]=useState<{id:string;value:Transform}|null>(null);
  const root=useRef<HTMLDivElement>(null),current=useRef(p);current.current=p;
@@ -14,7 +14,7 @@ export default function FrameEditor(p:Props){
  const clips=projectClips(p.project),key=JSON.stringify([Math.floor(p.time*30),p.project.canvas,p.project.media?.path,p.project.assets.map(a=>[a.id,a.path]),clips.map(({transform:_,volume:__,...c})=>c),p.project.tracks.V1?.hidden,p.project.tracks.V2?.hidden,p.project.transitions]);
  useEffect(()=>{setFrames(null);setHint('');if(p.playing||!clips.length)return;let alive=true;const timer=setTimeout(()=>{
   void invoke<Frames>('layer_frames',{json:JSON.stringify(current.current.project),time:current.current.time}).then(v=>{if(!alive)return;setFrames(v);current.current.onAspects(Object.fromEntries(v.layers.map(f=>[f.id,f.sourceAspect])));}).catch(e=>{if(alive)setHint(String(e));});
- },120);return()=>{alive=false;clearTimeout(timer);};},[key,p.playing]);
+ },120);return()=>{alive=false;clearTimeout(timer);};},[key,p.playing,p.proxyRevision]);
  const active=frames?.layers.map(f=>({frame:f,clip:clips.find(c=>c.id===f.id)})).filter((f):f is {frame:Frame;clip:Clip}=>!!f.clip&&!videoHidden(p.project,f.clip))??[];
  const selected=active.find(f=>f.clip.id===p.selectedId);
  const start=(e:PointerEvent,id:string,kind:'move'|'scale')=>{

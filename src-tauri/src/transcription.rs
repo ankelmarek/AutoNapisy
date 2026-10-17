@@ -102,12 +102,14 @@ pub struct Status {
 pub struct Job {
     pub cancel: AtomicBool,
     pub status: Mutex<Status>,
+    pub progress_duration: Mutex<Option<f64>>,
     child: Mutex<Option<Child>>,
 }
 impl Job {
     pub fn new(id: u64) -> Self {
         Self {
             cancel: AtomicBool::new(false),
+            progress_duration: Mutex::new(None),
             child: Mutex::new(None),
             status: Mutex::new(Status {
                 id,
@@ -191,6 +193,18 @@ pub(crate) fn run_process_capture(
     cwd: &Path,
     capture: Option<&Path>,
 ) -> Result<(), String> {
+    run_process_inner(job, program, args, whisper, cwd, capture, None)
+}
+pub(crate) fn run_process_bounded(
+    job: &Arc<Job>, program: &Path, args: &[std::ffi::OsString], cwd: &Path,
+    output: &Path, max_bytes: u64,
+) -> Result<(), String> {
+    run_process_inner(job, program, args, false, cwd, None, Some((output, max_bytes)))
+}
+fn run_process_inner(
+    job: &Arc<Job>, program: &Path, args: &[std::ffi::OsString], whisper: bool,
+    cwd: &Path, capture: Option<&Path>, limit: Option<(&Path, u64)>,
+) -> Result<(), String> {
     job.check()?;
     let mut command = Command::new(program);
     crate::mlt::configure(&mut command, program);
@@ -251,8 +265,10 @@ pub(crate) fn run_process_capture(
                 {
                     let mut status = reporter.status.lock().unwrap();
                     if status.state == "rendering" {
-                        if let Some(info) = &status.export_info {
-                            let percent = ((value / 1_000_000.0 / info.duration) * 100.0)
+                        let duration = status.export_info.as_ref().map(|info|info.duration)
+                            .or(*reporter.progress_duration.lock().unwrap());
+                        if let Some(duration) = duration {
+                            let percent = ((value / 1_000_000.0 / duration) * 100.0)
                                 .clamp(0.0, 99.0) as u8;
                             status.progress = Some(status.progress.unwrap_or(0).max(percent));
                         }
@@ -278,6 +294,10 @@ pub(crate) fn run_process_capture(
     let result = loop {
         let mut slot = job.child.lock().unwrap();
         let child = slot.as_mut().ok_or("Proces nie istnieje")?;
+        if limit.is_some_and(|(path, max)| fs::metadata(path).is_ok_and(|m|m.len()>max)) {
+            let _ = child.kill(); let _ = child.wait(); slot.take();
+            break Err("Przekroczono limit miejsca dla proxy. Zwolnij cache i ponów.".into());
+        }
         if bounded_preview
             && fs::metadata(cwd.join("preview.mp4")).is_ok_and(|m| m.len() > 512 * 1024 * 1024)
         {
