@@ -82,3 +82,46 @@ Status: **do zaplanowania i implementacji**, bez zmiany priorytetów bieżących
 5. Dodać testy integracyjne FFmpeg/MLT i testy UI do CI, bez zmuszania użytkownika do ręcznej konwersji.
 
 Status: **do implementacji po ustabilizowaniu bieżącego wydania**. Wysoki priorytet ze względu na płynność pracy oraz obsługę nagrań z telefonów.
+
+## Edycja audio i siatka mediów: usprawnienia UI/UX (TODO)
+
+Cztery uzgodnione kierunki: automatyka głośności przez Alt+klik, płynne fade in/out z uchwytów, zielony znacznik klipu użytego na osi i siatka miniaturek zamiast listy w zakładce Pliki. Zaplanować jako odrębny etap bez ingerowania w aktualne prace Codex nad proxy. Nowe kontrolki wykorzystują istniejący styl Tabler Icons.
+
+### A. Punkty głośności na osi audio (volume keyframes)
+
+- **Alt+klik** na linii głośności klipu audio dodaje punkt w dokładnym czasie kliknięcia, bez przesuwania klipu i głowicy. Obsługiwać również dźwięk powiązany z klipem wideo na A1/A2.
+- Punkt można przeciągać **pionowo** (poziom) i **poziomo** (czas), z ograniczeniem do długości klipu i kolejności sąsiadujących punktów. Pokazywać czas oraz realną głośność (procent, opcjonalnie dB). Wymagana precyzyjna edycja, obsługa klawiatury i usuwanie punktu z menu kontekstowego/Delete.
+- Linia ma przedstawiać rzeczywistą obwiednię; odcinki między punktami na początek interpolowane liniowo. Dodanie punktu bez przesunięcia nie może zmienić dźwięku. Brak punktów zachowuje aktualne działanie pojedynczej wartości `clip.volume`.
+- Model danych powinien rozdzielać bazową głośność klipu, punkty automatyki i fade. Proponowana semantyka: `wynik = clip.volume × envelope(t) × fadeIn(t) × fadeOut(t)` (oraz istniejące mute ścieżek). Definicje i wyświetlana linia powinny być spójne w frontendzie, MLT, eksporcie i transkrypcji.
+- Zapis i odczyt w nowym schemacie projektu z migracją starszych projektów. Uwzględnić Undo/Redo (jeden gest to jeden krok), kopię/duplikowanie, przesuwanie, przycinanie, dzielenie, zmianę prędkości jeśli dojdzie, oraz powrót po ponownym otwarciu.
+- Podczas przeciągania zapewnić responsywny podgląd linii i wskazania, bez wielokrotnego kosztownego renderowania MLT. Weryfikacja audio po zatwierdzeniu gestu; jeśli dostępny jest odsłuch na żywo, nie może rozmijać się z finalnym eksportem.
+
+### B. Fade in / fade out na uchwytach audio
+
+- Dwa małe, dostępne myszą i klawiaturą **okrągłe uchwyty** przy początku i końcu ścieżki audio. Przeciąganie lewego w prawo ustala czas narastania, prawego w lewo ustala czas wyciszenia. Wizualizować krzywe na przebiegu dźwięku bez zmiany skali samego waveform.
+- Fade ma działać na osobnych klipach audio oraz audio połączonym z wideo; wartości domyślnie zerowe (bez automatycznego wyciszania). Kształt krzywej początkowo łagodny, później możliwe presety liniowy/łagodny (np. equal-power tam, gdzie uzasadnione).
+- Fade i keyframes muszą się **łączyć**, a nie nadpisywać; wynikiem jest jedna widoczna i renderowana obwiednia. Długości fade nie przekraczają klipu. Jeżeli dwa fade nachodzą na siebie, jasno określić sposób połączenia (mnożenie ramp) i utrzymać podgląd zgodny z eksportem.
+- „Inteligentne” ułatwienia: opcjonalna podpowiedź/ciche przyciąganie do sensownych miejsc na podstawie poziomu audio, bez samoczynnego stosowania; użytkownik może ręcznie ustawić dokładny czas albo wyłączyć przyciąganie. Priorytetem jest kontrola, a nie AI.
+- Nie mylić uchwytów fade z uchwytami przycinania klipu ani z punktami automatyki; odpowiednie obszary chwytania, kursor, tooltip, focus i blokada zdarzeń rodzica.
+
+### C. Siatka miniaturek w zakładce Pliki
+
+- Zastąpić pionową listę plików **responsywną siatką kart** w panelu mediów, z możliwie dużymi miniaturami 16:9, skróconą nazwą pliku (maksymalnie dwa wiersze/ellipsis) i pełną nazwą oraz ścieżką w podpowiedzi.
+- Karty powinny zawierać zwięzłe dane (np. czas trwania), a ikonę **+** dodawania na oś pokazywać w czytelnym miejscu lub po najechaniu/focusie. Zachować dotychczasowy drag-and-drop i obsługę klawiatury.
+- Siatka ma dopasowywać liczbę kolumn do szerokości panelu (np. 2–4 bez poziomego przewijania), zachować wyszukiwarkę, powiadomienie o niedostępnym źródle, miniatury audio i przewijanie. Utrzymać lazy loading/cache miniaturek, uwzględnić proxy przy dostępności.
+- Opcjonalnie przełącznik „Siatka / Lista” jako preferencja, jeśli okaże się przydatny; **domyślny widok: Siatka**.
+
+### D. Zielony znacznik użycia filmu na osi czasu
+
+- W **prawym górnym rogu miniatury** pliku wideo w panelu Pliki pokazywać **mały zielony okrąg z białym znakiem ✓** wtedy i tylko wtedy, gdy źródło ma co najmniej jedno wystąpienie na osi czasu. To znacznik **„użyty w montażu”**, nie status dostępności/proxy.
+- Liczyć automatycznie na podstawie obecnego `libraryItems(project).uses` zamiast osobnej zapisywanej flagi. Znacznik aktualizuje się po dodaniu, usunięciu i cofnięciu/ponowieniu; wiele użyć nadal pokazuje pojedynczy znacznik. Liczba użyć może być w tooltipie.
+- Rozdzielić wygląd znaczników „użyty”, „proxy gotowe” i „brak źródła”; nie zakrywać nimi podstawowych informacji na miniaturze. Ikona ma własną etykietę dostępną dla czytnika ekranu.
+
+### Kryteria odbioru i testy
+
+- Alt+klik dodaje wyłącznie punkt automatyki, zwykłe kliknięcia nadal zaznaczają/przewijają; gesty fade, klipów i trimmingu nie kolidują.
+- Poprawny wynik audio i identyczne rampy w podglądzie, eksporcie MP4 i wejściu do transkrypcji; testy rzeczywistego MLT/FFmpeg z pomiarem poziomów na początkach, końcach i wokół punktów.
+- Serializacja/migracja projektów, Undo/Redo, split/trim, nakładające się ścieżki, mute i audio z wideo nie powodują utraty automatyki.
+- Status użycia miniatur jest zgodny z rzeczywistym projektem; siatka działa dla paneli wąskich, wielu mediów i plików niedostępnych, bez regresji przeciągania na oś.
+- Wdrożyć w kolejności: **(1) siatka i znacznik użycia, (2) fade, (3) punkty automatyki i synchronizacja audio z MLT**, o ile pomiar pracochłonności nie wskaże korzystniejszej kolejności połączenia fade z obwiednią.
+
