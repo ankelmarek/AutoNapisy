@@ -9,6 +9,8 @@ Push-Location $root
 try {
   & $bash -lc './scripts/build-bundled-ffmpeg.sh'
   if ($LASTEXITCODE) { throw 'Budowanie FFmpeg nie powiodło się' }
+  & $bash -lc './scripts/build-bundled-mlt.sh'
+  if ($LASTEXITCODE) { throw 'Budowanie MLT nie powiodło się' }
   & "$PSScriptRoot/build-bundled-whisper.ps1"
   & "$PSScriptRoot/license-report.ps1"
 } finally { Pop-Location }

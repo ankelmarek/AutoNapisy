@@ -103,6 +103,7 @@ pub async fn choose_component(
 }
 #[tauri::command]
 pub fn start_transcription(
+    mlt: State<'_, crate::mlt_commands::MltState>,
     path: Option<String>,
     json: Option<String>,
     access: State<'_, Access>,
@@ -164,6 +165,11 @@ pub fn start_transcription(
     } else {
         None
     };
+    let melt = if timeline.is_some() {
+        Some(mlt.path()?)
+    } else {
+        None
+    };
     let tools = tools.0.lock().unwrap().validated()?;
     let mut current = tasks.current.lock().unwrap();
     if current.as_ref().is_some_and(|j| j.active()) {
@@ -179,7 +185,7 @@ pub fn start_transcription(
         .name("autonapisy-transcription".into())
         .spawn(move || {
             let result = if let Some(p) = timeline {
-                transcription::execute_timeline(Arc::clone(&running), tools, p)
+                transcription::execute_timeline_mlt(Arc::clone(&running), tools, p, melt.unwrap())
             } else {
                 transcription::execute(Arc::clone(&running), tools, media.unwrap())
             };

@@ -18,6 +18,7 @@ struct Session {
     project: Project,
     media: PathBuf,
     ffmpeg: PathBuf,
+    melt: PathBuf,
     target: PathBuf,
     original: Option<Fingerprint>,
     dir: tempfile::TempDir,
@@ -60,6 +61,7 @@ fn failed(job: &Arc<Job>, error: String) {
 }
 #[tauri::command]
 pub async fn begin_video_export(
+    mlt: State<'_, crate::mlt_commands::MltState>,
     json: String,
     captions: Option<String>,
     access: State<'_, Access>,
@@ -67,6 +69,7 @@ pub async fn begin_video_export(
     tasks: State<'_, Tasks>,
     exports: State<'_, ExportState>,
 ) -> Result<Option<u64>, String> {
+    let melt = mlt.path()?;
     if json.len() > 16 * 1024 * 1024 {
         return Err("Projekt przekracza 16 MB".into());
     }
@@ -157,6 +160,7 @@ pub async fn begin_video_export(
     let count = project.segments.len();
     let target_text = path_string(&target)?;
     *exports.0.lock().unwrap() = Some(Session {
+        melt,
         id,
         project,
         media,
@@ -321,7 +325,8 @@ pub fn finish_export_frames(
     let worker = std::thread::Builder::new()
         .name("autonapisy-video-export".into())
         .spawn(move || {
-            let result = rendering::render(
+            let result = rendering::render_mlt(
+                &session.melt,
                 &running,
                 &session.ffmpeg,
                 &session.media,

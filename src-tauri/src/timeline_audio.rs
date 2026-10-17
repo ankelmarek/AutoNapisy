@@ -222,3 +222,78 @@ mod tests {
         assert_eq!(mapped(&r, 3., false), 11.);
     }
 }
+/// Plan frame-aligned audible ranges for the shared MLT timeline, excluding unused library assets.
+pub fn plan(
+    job: &Arc<Job>,
+    ffmpeg: &Path,
+    p: &Project,
+    dir: &Path,
+) -> Result<Vec<AudioRange>, String> {
+    let clips = crate::effects::effective_clips(p);
+    let mut audible = HashMap::new();
+    let mut intervals = vec![];
+    for c in &clips {
+        if c.volume <= 0.0 {
+            continue;
+        }
+        let path = p.clip_path(c).ok_or("Brak źródła")?;
+        if !audible.contains_key(path) {
+            let capture = dir.join("probe-audio.json");
+            let mut a = args(&[
+                "-v",
+                "error",
+                "-protocol_whitelist",
+                "file,pipe",
+                "-show_entries",
+                "stream=codec_type",
+                "-of",
+                "json",
+            ]);
+            a.push(path.into());
+            run_process_capture(job, &ffprobe_path(ffmpeg)?, &a, false, dir, Some(&capture))?;
+            let raw = fs::read(&capture).map_err(|e| e.to_string())?;
+            if raw.len() > 65536 {
+                return Err("Zbyt obszerny wynik FFprobe".into());
+            }
+            let v: serde_json::Value = serde_json::from_slice(&raw).map_err(|e| e.to_string())?;
+            audible.insert(
+                path.to_string(),
+                v["streams"]
+                    .as_array()
+                    .is_some_and(|s| s.iter().any(|s| s["codec_type"] == "audio")),
+            );
+        }
+        if audible[path] {
+            let start = crate::mlt::frame(c.start);
+            let end = crate::mlt::frame(c.end());
+            if end > start {
+                intervals.push((start, end));
+            }
+        }
+    }
+    intervals.sort_unstable();
+    let mut merged: Vec<(i64, i64)> = vec![];
+    for (a, b) in intervals {
+        if let Some(last) = merged.last_mut() {
+            if a <= last.1 {
+                last.1 = last.1.max(b);
+                continue;
+            }
+        }
+        merged.push((a, b));
+    }
+    let mut offset = 0;
+    let mut result = vec![];
+    for (a, b) in merged {
+        result.push(AudioRange {
+            audio_start: offset as f64 / 30.,
+            timeline_start: a as f64 / 30.,
+            duration: (b - a) as f64 / 30.,
+        });
+        offset += b - a;
+    }
+    if result.is_empty() {
+        return Err("Na osi nie ma słyszalnego dźwięku do rozpoznania".into());
+    }
+    Ok(result)
+}

@@ -16,6 +16,16 @@ pub fn render(
     t: &Transition,
     dir: &Path,
 ) -> Result<PathBuf, String> {
+    render_sized(job, ffmpeg, p, t, dir, Some(540))
+}
+pub fn render_sized(
+    job: &Arc<Job>,
+    ffmpeg: &Path,
+    p: &Project,
+    t: &Transition,
+    dir: &Path,
+    max_size: Option<u32>,
+) -> Result<PathBuf, String> {
     let clips = p.clips.as_deref().ok_or("Brak montażu")?;
     let a = clips
         .iter()
@@ -28,7 +38,9 @@ pub fn render(
         Path::new(&p.media.as_ref().ok_or("Brak filmu")?.path),
         dir,
     )?;
-    let scale = (540.0 / meta.width.max(meta.height) as f64).min(1.0);
+    let scale = max_size
+        .map(|v| (v as f64 / meta.width.max(meta.height) as f64).min(1.0))
+        .unwrap_or(1.0);
     let width = ((meta.width as f64 * scale / 2.0).round() as u32 * 2).max(2);
     let height = ((meta.height as f64 * scale / 2.0).round() as u32 * 2).max(2);
     let mut args: Vec<OsString> = [

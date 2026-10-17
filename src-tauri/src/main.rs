@@ -4,6 +4,7 @@ mod bundled;
 mod commands;
 mod effects;
 mod export_commands;
+mod mlt_commands;
 mod montage;
 mod preview_commands;
 mod project;
@@ -182,7 +183,10 @@ struct Diagnostics {
     components: Vec<Component>,
 }
 #[tauri::command]
-fn diagnostics(tools: State<'_, commands::ToolState>) -> Diagnostics {
+fn diagnostics(
+    tools: State<'_, commands::ToolState>,
+    mlt: State<'_, mlt_commands::MltState>,
+) -> Diagnostics {
     let tools = tools.0.lock().unwrap().clone();
     let component_status = |kind: &str, path: Option<&Path>| match path {
         None => "Nie wybrano pliku — ustaw w sekcji Transkrypcja".to_owned(),
@@ -208,8 +212,15 @@ fn diagnostics(tools: State<'_, commands::ToolState>) -> Diagnostics {
         memory_bytes: system.total_memory(),
         components: vec![
             Component {
+                name: "Silnik MLT".into(),
+                status: mlt
+                    .path()
+                    .map(|p| format!("Gotowy: {}", p.display()))
+                    .unwrap_or_else(|e| e),
+            },
+            Component {
                 name: "Podgląd".into(),
-                status: "Odtwarzacz systemowy; obsługa kodeka sprawdzana przy imporcie".into(),
+                status: "MLT → strumień H.264/AAC → WebView2".into(),
             },
             Component {
                 name: "whisper.cpp".into(),
@@ -233,6 +244,7 @@ fn diagnostics(tools: State<'_, commands::ToolState>) -> Diagnostics {
 fn main() {
     let app = tauri::Builder::default()
         .manage(Access::default())
+        .manage(mlt_commands::MltState::default())
         .manage(preview_commands::PreviewState::default())
         .manage(analysis_commands::AnalysisState::default())
         .manage(commands::ToolState::default())
@@ -241,11 +253,20 @@ fn main() {
         .setup(|app| {
             *app.state::<commands::ToolState>().0.lock().unwrap() =
                 commands::load_tools(app.handle());
+            *app.state::<mlt_commands::MltState>().engine.lock().unwrap() = app
+                .path()
+                .resource_dir()
+                .ok()
+                .and_then(|p| mlt::executable(&p).ok());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             import_video,
+            mlt_commands::start_mlt_preview,
+            mlt_commands::read_mlt_preview,
+            mlt_commands::cancel_mlt_preview,
             analysis_commands::audio_waveform,
+            analysis_commands::media_info,
             prepare_preview,
             preview_commands::prepare_transition_preview,
             open_project,
@@ -271,6 +292,7 @@ fn main() {
                 .state::<analysis_commands::AnalysisState>()
                 .shutdown();
             handle.state::<preview_commands::PreviewState>().shutdown();
+            handle.state::<mlt_commands::MltState>().shutdown();
             handle.state::<commands::Tasks>().shutdown();
             handle.state::<export_commands::ExportState>().shutdown();
         }
@@ -278,3 +300,5 @@ fn main() {
 }
 
 mod timeline_audio;
+
+mod mlt;

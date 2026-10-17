@@ -1,6 +1,6 @@
 {
   "name": "rolvixa",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -20,6 +20,7 @@
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^4.7.0",
+    "playwright-core": "^1.56.1",
     "typescript": "^5.9.0",
     "vite": "^6.3.0",
     "vitest": "^5.0.5"

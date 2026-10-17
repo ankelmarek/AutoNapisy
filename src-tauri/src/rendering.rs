@@ -283,13 +283,53 @@ pub fn render(
     project: &Project,
     meta: &Metadata,
 ) -> Result<(), String> {
+    render_inner(
+        None, job, ffmpeg, media, target, original, dir, project, meta,
+    )
+}
+pub fn render_mlt(
+    melt: &Path,
+    job: &Arc<Job>,
+    ffmpeg: &Path,
+    media: &Path,
+    target: &Path,
+    original: &Option<Fingerprint>,
+    dir: &Path,
+    project: &Project,
+    meta: &Metadata,
+) -> Result<(), String> {
+    render_inner(
+        Some(melt),
+        job,
+        ffmpeg,
+        media,
+        target,
+        original,
+        dir,
+        project,
+        meta,
+    )
+}
+fn render_inner(
+    melt: Option<&Path>,
+    job: &Arc<Job>,
+    ffmpeg: &Path,
+    media: &Path,
+    target: &Path,
+    original: &Option<Fingerprint>,
+    dir: &Path,
+    project: &Project,
+    meta: &Metadata,
+) -> Result<(), String> {
     let target_text = target
         .to_str()
         .ok_or("Ścieżka nie jest Unicode")?
         .to_owned();
     job.check()?;
     let intervals = timeline(project, meta.duration);
-    let assembled = if project.clips.is_some() {
+    let assembled = if let Some(melt) = melt {
+        Some(crate::mlt::assemble(job, melt, ffmpeg, project, meta, dir)?)
+    } else if project.clips.is_some() {
         Some(crate::montage::assemble(
             job, ffmpeg, media, dir, project, meta,
         )?)

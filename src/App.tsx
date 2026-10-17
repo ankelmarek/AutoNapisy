@@ -21,14 +21,14 @@ import EffectsLibrary,{type EffectChoice} from './EffectsLibrary';
 import VideoProperties from './VideoProperties';
 import {visuals,videoFilter,reconcileTransitions,applyTransition} from './effects';
 import {editCaption,resizeCaption} from './captionEditing';
-import LocalMedia from "./LocalMedia";
-import TransitionPreview,{useTransitionPreviews} from "./TransitionPreview";
+
+
 import MediaLibrary from "./MediaLibrary";
 import Icon from "./Icons";
 import rolvixaIcon from "./assets/rolvixa-icon.png";
 import {libraryItems,insertLibraryItem,registerMedia} from "./library";
 import { useProjectHistory } from "./useHistory";
-import { usePlayback } from "./usePlayback";
+import { useMltPlayback } from "./useMltPlayback";
 import { clipAt, editDuration, projectClips, compositionSegments, compositionProject, clipMedia, appendMedia } from "./editing";
 import { rendering, type ExportStatus } from "./rendering";
 import bebasLicense from "./assets/BebasNeue-OFL.txt?raw";
@@ -74,11 +74,10 @@ export default function App() {
   const [inspectorTab,setInspectorTab]=useState<'video'|'captions'>('video'),[selectedClip,setSelectedClip]=useState(''),[selectedCaption,setSelectedCaption]=useState(''),[selectedTransition,setSelectedTransition]=useState('');
   const [effectChoice,setEffectChoice]=useState<EffectChoice>({kind:'fade',duration:.4});
   const captionInput=useRef<HTMLTextAreaElement>(null);
-  const playback = usePlayback(elements,project,source);
+  const playback = useMltPlayback(project);
   const {time,playing,seek} = playback;
-  const transitionPreviews=useTransitionPreviews(project);
-  const toggle=()=>{if(!playing&&transitionPreviews.pending){setMessage(transitionPreviews.error||"Przygotowywanie przejść…");return;}playback.toggle();};
-  useEffect(()=>{if(transitionPreviews.pending&&playing)playback.pause();},[transitionPreviews.pending]);
+  const toggle=playback.toggle;
+  useEffect(()=>{setAspect(playback.aspect);},[playback.aspect]);
   const duration = editDuration(project);
   const displayed = useMemo(()=>compositionProject(project),[project]);
   const displayedSegments = useMemo(()=>compositionSegments(project),[project]);
@@ -116,11 +115,7 @@ export default function App() {
     let next=latestProject.current;const prepared:Record<string,string>={},failed:string[]=[];let added=0;
     for(const media of files){try{
       const url=await preview.prepare(media.path);
-      const metadata=await new Promise<number>((resolve,reject)=>{
-        const el=document.createElement(kind==='video'?'video':'audio');let done=false;
-        const finish=(d?:number)=>{if(done)return;done=true;clearTimeout(timer);el.onloadedmetadata=null;el.onerror=null;el.removeAttribute('src');el.load();d&&Number.isFinite(d)?resolve(d):reject(Error('Nieobsługiwany kodek lub czas pliku'));};
-        const timer=window.setTimeout(()=>finish(),15000);el.preload='metadata';el.onloadedmetadata=()=>finish(el.duration);el.onerror=()=>finish();el.src=url;
-      });
+      const info=await invoke<{duration:number}>('media_info',{path:media.path,kind});const metadata=info.duration;
       const updated=registerMedia(next,{...media,duration:metadata},kind);if(updated!==next)added++;next=updated;prepared[media.path]=url;
     }catch(e){failed.push(`${media.name}: ${String(e)}`);}}
     if(added){setProject(next);setDirty(true);}setSources(prev=>({...prev,...prepared}));setSource(previous=>previous||Object.values(prepared)[0]||'');
@@ -385,15 +380,10 @@ export default function App() {
             <span>{project.media?.name ?? "Brak filmu"}</span>
           </div>
           <div className="stage" ref={stage}>
-            {source ? (
+            {libraryItems(project).length ? (
               <div className="composition-surface" ref={captionSurface} style={{width:surfaceWidth,height:surfaceWidth/aspect}}>
-                {playback.runs.map(c=>{
-                  const media=clipMedia(project,c),url=media?sources[media.path]:undefined;
-                  const isVideo=c.kind!=='audio',visual=picture.find(v=>c.clipIds.includes(v.id)),visible=!!visual,activeClip=projectClips(project).find(x=>c.clipIds.includes(x.id)&&x.start<=time&&time<x.start+x.sourceOut-x.sourceIn)??c;
-                  return <LocalMedia key={c.id} id={c.id} video={isVideo} visible={visible} filter={videoFilter(activeClip)} translate={visual?.translate??0} opacity={visual?.opacity??1} warm={c.start<=time+5&&c.start+c.sourceOut-c.sourceIn>=time-.25} onElement={el=>{if(el){elements.current.set(c.id,el);}else elements.current.delete(c.id);}} src={url}
-                    onMetadata={el=>{if(isVideo&&!c.assetId){const v=el as HTMLVideoElement;if(v.videoWidth&&v.videoHeight)setAspect(v.videoWidth/v.videoHeight);}playback.prepare(c.id);}} onError={()=>setMessage(`Nie można odtworzyć: ${media?.name}. WebView2 wymaga obsługi kodeka (zalecany H.264 / AAC).`)} />;
-                })}
-                {project.transitions.map(t=>{const to=projectClips(project).find(c=>c.id===t.toId)!;const active=time>=to.start-t.duration&&time<to.start&&picture.some(v=>v.id===t.toId);const src=transitionPreviews.urls[t.id];return src?<TransitionPreview key={t.id} src={src} start={to.start-t.duration} duration={t.duration} time={time} playing={playing} active={active}/>:active?<span key={t.id} className="transition-preparing">{transitionPreviews.error||'Przygotowywanie przejścia…'}</span>:null;})}
+                <video ref={playback.video} className="mlt-video" preload="auto" playsInline/>
+                {playback.loading&&<span className="transition-preparing">Przygotowywanie podglądu MLT…</span>}
                 <CaptionOverlay video={captionSurface} project={displayed} time={time} compositionCanvas />
                 {gap && <span className="gap-label">{duration?'Przerwa między ujęciami':'Dodaj film z biblioteki na oś czasu'}</span>}
               </div>

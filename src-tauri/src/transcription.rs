@@ -193,6 +193,7 @@ pub(crate) fn run_process_capture(
 ) -> Result<(), String> {
     job.check()?;
     let mut command = Command::new(program);
+    crate::mlt::configure(&mut command, program);
     command
         .args(args)
         .current_dir(cwd)
@@ -505,6 +506,50 @@ pub fn execute_timeline(
         .map(crate::project::Clip::end)
         .fold(0.0, f64::max);
     Ok((crate::timeline_audio::remap(segments, &ranges), duration))
+}
+pub fn execute_timeline_mlt(
+    job: Arc<Job>,
+    tools: Tools,
+    p: crate::project::Project,
+    melt: PathBuf,
+) -> Result<(Vec<Segment>, f64), String> {
+    let temp = tempfile::Builder::new()
+        .prefix("rolvixa-mlt-transcript-")
+        .tempdir()
+        .map_err(|e| e.to_string())?;
+    let ranges = crate::timeline_audio::plan(
+        &job,
+        tools.ffmpeg.as_deref().ok_or("Brak FFmpeg")?,
+        &p,
+        temp.path(),
+    )?;
+    let bounds: Vec<_> = ranges
+        .iter()
+        .map(|r| {
+            (
+                crate::mlt::frame(r.timeline_start),
+                crate::mlt::frame(r.timeline_start + r.duration),
+            )
+        })
+        .collect();
+    let frames: i64 = bounds.iter().map(|(a, b)| b - a).sum();
+    let meta = crate::rendering::Metadata {
+        width: 2,
+        height: 2,
+        duration: frames as f64 / 30.,
+        has_audio: true,
+    };
+    fs::write(
+        temp.path().join("timeline.mlt"),
+        crate::mlt::xml(&p, &meta, &[], Some(&bounds))?,
+    )
+    .map_err(|e| e.to_string())?;
+    crate::mlt::run(&job, &melt, temp.path(), 0, frames - 1, false, true)?;
+    let (segments, _) = recognize(job, tools, temp.path())?;
+    Ok((
+        crate::timeline_audio::remap(segments, &ranges),
+        crate::project::composition_duration(&p),
+    ))
 }
 fn recognize(job: Arc<Job>, tools: Tools, dir: &Path) -> Result<(Vec<Segment>, f64), String> {
     let wav = dir.join("audio.wav");

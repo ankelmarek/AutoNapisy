@@ -1,4 +1,4 @@
-# RolVixa 0.10 — polska mowa → polskie napisy
+# RolVixa 0.11 — polska mowa → polskie napisy
 
 RolVixa (wcześniej AutoNapisy) to lokalna aplikacja Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Rozpoznaje polską mowę przez whisper.cpp, bez tłumaczenia. Nie wysyła nagrań, nie zawiera klienta HTTP ani telemetrii.
 
@@ -208,7 +208,7 @@ Wersja 0.6 poprawia też kompilację dołączonego FFmpeg: zawiera statycznie li
 Testy 0.7: jednostkowe TypeScript i Rust; rzeczywisty FFmpeg sprawdza warstwy czerwony/niebieski, jednoczesne tony 440/880/1320 Hz, muzykę nad czarną przerwą, głośność, Unicode i niezmienność źródeł. Opcjonalny `scripts/test-editor.mjs` sprawdza import, cztery pasy, połączony montaż, niezależne audio, odtwarzanie i układ w 1366×768 oraz 1920×1080 (Playwright instalowany osobno do `.tools/browser`). Windows CI uruchamia test realnego miksu także z FFmpeg dołączonym do instalatora.
 
 
-## RolVixa 0.10 — pliki, linia głośności i odtwarzanie
+## RolVixa 0.11 — pliki, linia głośności i odtwarzanie
 
 - Lewy panel otwiera się na zakładce **Pliki**. Pokazuje filmy i audio, czas trwania, pełną ścieżkę lokalną, dostępność oraz liczbę użyć. Wyszukiwarka filtruje nazwy i ścieżki. **+** na karcie dodaje istniejące źródło do montażu w pozycji głowicy; nie kopiuje nagrania. Usunięcie klipu z osi nie usuwa źródła z biblioteki. Ikona napisów przełącza na **Napisy** danego filmu.
 - Narzędzia osi są ikonami z podpowiedziami i nazwami dla czytników ekranu. Skróty C, V, Ctrl+Z i Ctrl+Shift+Z nadal działają.
@@ -245,3 +245,14 @@ Test interfejsu: `node scripts/test-editor9.mjs` przy uruchomionym Vite i lokaln
 - Schemat v6: `schemas/project-v6.schema.json`. Zachowaj kopię JSON przed zapisaniem, jeśli potrzebujesz wracać do starszej aplikacji.
 
 Regresje obejmują rzeczywisty eksport i podgląd wszystkich 20 efektów, przygotowanie skróconego audio z pominięciem nieużytego źródła i pustych przerw, prawdziwy Whisper na krótkim próbku testowym, zachowanie przejść przy zapisie rozpoznania i przeciąganie mediów w interfejsie.
+
+
+## Silnik montażu MLT — 0.11
+
+MLT 7.42.0 jest dołączany do instalatora. Rust generuje kontrolowany opis XML z walidowanego projektu JSON; frontend nie przekazuje XML, nazw usług ani argumentów systemowych. MLT składa warstwy obrazu, cięcia, przerwy, połączony dźwięk i samodzielne audio. Ten sam graf jest używany do podglądu, montażu MP4 i miksu do Whispera. Napisy nadal zachowują dotychczasowy wygląd i są nanoszone w końcowym etapie eksportu FFmpeg. 20 przejść xfade pozostaje obsługiwanych przez krótkie klipy efektów przygotowane w FFmpeg i umieszczone na odpowiedniej warstwie MLT.
+
+Podgląd jest jednym strumieniem H.264/AAC z MLT, odbieranym przez kontrolowane IPC i MediaSource WebView2. Po zmianie montażu lub przewinięciu poza bufor podgląd wymaga krótkiego przygotowania. Rozdzielczość robocza wynosi maksymalnie 540 px na dłuższym boku; eksport zachowuje rozdzielczość projektu. Bufor sesji ma limit 512 MB; przewinięcie rozpoczyna nowy bufor. Klipy i miks pracują w bazie 30 klatek/s. Głośność po przeciągnięciu linii aktualizuje się po zatwierdzeniu gestu i przebudowie podglądu. Do pełnego MLT w instalatorze dołączone są źródła, receptura budowania i licencje.
+
+Napisy: **klik** zaznacza bez otwierania edycji, **Delete** ukrywa zaznaczony napis, **dwuklik / Enter** otwiera edycję po prawej. **Ctrl+Z** cofa usunięcie. Importowane filmy i efekty można przeciągać z galerii na oś. Wyłączono natywne Tauri drag-and-drop, które na Windows przechwytuje zdarzenia HTML5. Windows CI sprawdza przeciąganie w rzeczywistej, zainstalowanej aplikacji WebView2 przez CDP; fixture IPC jest kontrolowanym zamiennikiem dialogów na czas testu. Osobne testy Rust sprawdzają rzeczywisty MLT, kodeki, warstwy, audio, cięcia, przejścia, korekcję i Unicode.
+
+Ze źródeł: pełne komponenty buduje `scripts/prepare-bundle.ps1`; MLT można zbudować oddzielnie w MSYS2 MINGW64 przez `scripts/build-bundled-mlt.sh`. W trybie deweloperskim `ROLVIXA_MLT` może wskazywać lokalny `melt`/`melt.exe`. W wydaniu instalacyjnym używany jest wyłącznie silnik z zasobów aplikacji. Dla testów: `ROLVIXA_MLT=/ścieżka/melt AUTONAPISY_FFMPEG=/ścieżka/ffmpeg cargo test --manifest-path .test-core/Cargo.toml --test mlt_engine -- --ignored --nocapture`. Projekt pozostaje w formacie v6.

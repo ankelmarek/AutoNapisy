@@ -25,3 +25,6 @@ pub mod timeline_audio;
 
 #[path = "../../src-tauri/src/transition_preview.rs"]
 pub mod transition_preview;
+
+#[path = "../../src-tauri/src/mlt.rs"]
+pub mod mlt;
