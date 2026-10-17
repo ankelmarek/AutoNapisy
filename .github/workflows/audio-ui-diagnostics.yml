@@ -20,7 +20,11 @@ jobs:
           run-id: 39066339364
           github-token: ${{ github.token }}
           path: src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis
-      - run: ./scripts/test-installer.ps1
+      - run: |
+          $installer = Get-ChildItem 'src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*setup.exe' | Select-Object -First 1
+          $destination = Join-Path $env:RUNNER_TEMP 'RolVixa test Łódź'
+          $installed = Start-Process $installer.FullName -ArgumentList '/S', "/D=$destination" -Wait -PassThru
+          if($installed.ExitCode -ne 0){throw 'Tool installation failed'}
       - name: Test frontend in Windows Edge while native build runs
         shell: pwsh
         run: |
