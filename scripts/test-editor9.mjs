@@ -66,7 +66,7 @@ try{for(const [width,height]of[[1366,700],[1920,1080]]){
  await page.getByRole('tab',{name:'Audio',exact:true}).click();await page.getByRole('textbox',{name:'Szukaj muzyki w Openverse'}).fill('piano');await page.getByRole('button',{name:'Szukaj',exact:true}).click();
  const remote=page.locator('.remote-audio');await remote.getByRole('button',{name:'Odsłuchaj: Próba odsłuchu'}).click();
  await page.waitForFunction(()=>{const a=document.querySelector('.audio-library audio');return a&&!a.paused&&a.currentTime>.05;});
- await page.getByRole('slider',{name:'Głośność odsłuchu'}).fill('.4');assert(Math.abs(await page.locator('.audio-library audio').evaluate(a=>a.volume)-.4)<.01);
+ await page.getByRole('slider',{name:'Głośność odsłuchu'}).fill('0.4');assert(Math.abs(await page.locator('.audio-library audio').evaluate(a=>a.volume)-.4)<.01);
  await page.getByRole('button',{name:'Wstrzymaj odsłuch',exact:true}).click();await page.getByRole('slider',{name:'Pozycja odsłuchu'}).fill('3');await page.getByRole('button',{name:'Wznów odsłuch',exact:true}).click();
  await page.waitForFunction(()=>document.querySelector('.audio-library audio').currentTime>3);
  await page.getByRole('button',{name:'Zatrzymaj odsłuch',exact:true}).click();await action('Zapisz');const afterAudition=await page.evaluate(()=>window.__saved);assert.deepEqual(afterAudition.assets,beforeAudition.assets);assert.deepEqual(afterAudition.clips,beforeAudition.clips);

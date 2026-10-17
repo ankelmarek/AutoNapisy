@@ -108,7 +108,7 @@ try{
   await page.waitForFunction(()=>{const a=document.querySelector('.audio-library audio');return (a&&!a.paused&&a.currentTime>.05)||document.querySelector('.audio-library-error');},{},{timeout:45000});
   assert.equal(await page.locator('.audio-library-error').count(),0,'Available music source must support its temporary audition');
   const previewDuration=await page.locator('.audio-library audio').evaluate(a=>a.duration);assert(previewDuration>0&&previewDuration<=30.05);
-  await page.getByRole('slider',{name:'Głośność odsłuchu'}).fill('.35');assert(Math.abs(await page.locator('.audio-library audio').evaluate(a=>a.volume)-.35)<.01);
+  await page.getByRole('slider',{name:'Głośność odsłuchu'}).fill('0.35');assert(Math.abs(await page.locator('.audio-library audio').evaluate(a=>a.volume)-.35)<.01);
   await page.getByRole('button',{name:'Wstrzymaj odsłuch',exact:true}).click();assert(await page.locator('.audio-library audio').evaluate(a=>a.paused));
   await page.getByRole('slider',{name:'Pozycja odsłuchu'}).fill('5');await page.getByRole('button',{name:'Wznów odsłuch',exact:true}).click();
   await page.waitForFunction(()=>document.querySelector('.audio-library audio').currentTime>5);
