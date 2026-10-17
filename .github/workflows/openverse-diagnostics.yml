@@ -1,0 +1,26 @@
+name: Openverse diagnostics
+on:
+  push:
+    branches: [test/openverse-library]
+permissions:
+  contents: read
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  search:
+    runs-on: windows-latest
+    steps:
+      - name: Inspect public Openverse audio responses
+        shell: pwsh
+        run: |
+          $queries = @('q=piano&page_size=20&filter_dead=true&category=music&license=cc0', 'q=piano&page_size=20&filter_dead=true&category=music&license_type=commercial,modification', 'q=piano&page_size=20', 'q=music&page_size=20&license=cc0')
+          foreach ($query in $queries) {
+            try {
+              $response = Invoke-RestMethod -Uri ("https://api.openverse.org/v1/audio/?" + $query) -UserAgent 'RolVixa/0.12 (+https://github.com/ankelmarek/AutoNapisy)' -TimeoutSec 25
+              Write-Output ("QUERY " + $query)
+              Write-Output ("COUNTS " + $response.result_count + " / page " + $response.results.Count)
+              $response.results | Select-Object -First 3 id,title,filetype,duration,license,license_url,url,foreign_landing_url | ConvertTo-Json -Depth 4 -Compress | Write-Output
+            } catch { Write-Output ("API ERROR " + $query + " " + $_.Exception.Message) }
+            Start-Sleep -Seconds 2
+          }
