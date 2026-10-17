@@ -121,6 +121,10 @@ fn actual_mlt_tracks() {
     let raw = fs::read(&stream).unwrap();
     assert!(raw.windows(4).any(|b| b == b"moof"));
     if let Ok(dest) = std::env::var("ROLVIXA_CAPTURE_PREVIEW") {
+        let dest = PathBuf::from(dest);
+        if let Some(parent) = dest.parent() {
+            fs::create_dir_all(parent).unwrap();
+        }
         fs::copy(&stream, dest).unwrap();
     }
     let audiodir = dir.path().join("audio");
