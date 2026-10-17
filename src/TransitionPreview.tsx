@@ -3,7 +3,7 @@ import {invoke,convertFileSrc} from '@tauri-apps/api/core';
 import type {Project} from './model';
 export function useTransitionPreviews(project:Project){
  const [result,setResult]=useState<{key:string;urls:Record<string,string>;error:string}>({key:'',urls:{},error:''});
- const key=JSON.stringify([project.media,project.assets.map(({segments:_,...a})=>a),project.clips?.map(({volume:_,...c})=>c),project.transitions]);
+ const key=JSON.stringify([project.media?.path,project.transitions.map(t=>[t,[t.fromId,t.toId].map(id=>{const c=project.clips?.find(c=>c.id===id);return c&&[c.id,c.sourceIn,c.sourceOut,c.adjustments,c.assetId?project.assets.find(a=>a.id===c.assetId)?.path:project.media?.path];})])]);
  useEffect(()=>{let alive=true;const urls:Record<string,string>={};setResult({key,urls:{},error:''});const timer=window.setTimeout(()=>{void(async()=>{for(const t of project.transitions){if(!alive)return;try{const path=await invoke<string>('prepare_transition_preview',{json:JSON.stringify(project),id:t.id});urls[t.id]=convertFileSrc(path);if(alive)setResult({key,urls:{...urls},error:''});}catch(e){if(alive)setResult({key,urls:{...urls},error:`Nie można przygotować przejścia: ${String(e)}`});return;}}})();},300);return()=>{alive=false;clearTimeout(timer);};},[key]);
  return {urls:result.key===key?result.urls:{},pending:project.transitions.length>Object.keys(result.key===key?result.urls:{}).length,error:result.key===key?result.error:''};
 }
