@@ -15,14 +15,16 @@ export async function testUx020(page,setup,stream,width,height){
  await left.focus();await page.keyboard.press('End');await right.focus();await page.keyboard.press('End');
  assert((await page.locator('.preview').boundingBox()).width>=279);assert((await page.locator('.styling').boundingBox()).width>=259);
  await bottom.focus();await page.keyboard.press('Home');assert.equal(await box(bottom),220);assert((await page.locator('.workspace-panels').boundingBox()).height>=249);
+ const body=page.locator('.timeline-body');await body.evaluate(el=>el.scrollTop=60);assert(await body.evaluate(el=>el.scrollTop)>30);assert(Math.abs((await page.locator('.track-heads').boundingBox()).y-(await page.locator('.edit-canvas').boundingBox()).y)<2,'Track headers and clips must scroll together');await body.evaluate(el=>el.scrollTop=0);
  await left.focus();await page.keyboard.press('Enter');await right.focus();await page.keyboard.press('Enter');await bottom.focus();await page.keyboard.press('Enter');
  await right.focus();await page.keyboard.press('ArrowLeft');const persisted=await box(right);
  await page.reload();await page.evaluate(setup,stream);await page.waitForFunction(()=>document.querySelector('.brand-icon')?.naturalWidth>0);assert(Math.abs(await box(right)-persisted)<2,'Layout must survive actual WebView reload');
  await right.dblclick();await page.waitForTimeout(80);assert(Math.abs(await box(right)-rb)<3);
  assert.equal(await page.evaluate(()=>window.__saved),null,'Layout must never save or modify the project');
+ const stage=await page.locator('.stage').boundingBox(),importButton=await page.locator('.stage').getByRole('button',{name:'Wybierz film',exact:true}).boundingBox();assert(importButton.y>=stage.y&&importButton.y+importButton.height<=stage.y+stage.height+1,'Empty preview must keep the import control inside the stage');
  await page.getByRole('tab',{name:'Efekty',exact:true}).click();assert.equal(await page.locator('.effect-card').count(),20);
  const card=page.getByRole('button',{name:'W lewo',exact:true});const tile=await card.boundingBox();assert(Math.abs(tile.width-tile.height)<2,'Transition tiles must be square');
- await card.focus();await card.hover();await page.waitForFunction(()=>document.querySelector('.effect-demo-video')?.readyState>=2);assert.equal(await page.locator('.effect-demo-video').count(),1);assert((await page.locator('.effect-demo-video').getAttribute('src')).endsWith('/slideleft.mp4'));
+ await card.focus();await card.hover();await page.waitForFunction(()=>{const v=document.querySelector('.effect-demo-video');return v?.readyState>=2&&!v.paused&&v.currentTime>.01;});assert.equal(await page.locator('.effect-demo-video').count(),1);assert((await page.locator('.effect-demo-video').getAttribute('src')).endsWith('/slideleft.mp4'));
  for(const name of ['Rozmycie','Przez czerń']){const c=page.getByRole('button',{name,exact:true});await c.focus();await c.hover();await page.waitForFunction(()=>document.querySelector('.effect-demo-video')?.readyState>=2);assert.equal(await page.locator('.effect-demo-video').count(),1);}
  await page.getByRole('button',{name:'Wstrzymaj podglądy przejść',exact:true}).click();assert.equal(await page.locator('.effect-demo-video').count(),0);
  await page.getByRole('button',{name:'Włącz podglądy przejść',exact:true}).click();await card.focus();await card.hover();await page.waitForSelector('.effect-demo-video');

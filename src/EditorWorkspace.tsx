@@ -23,7 +23,7 @@ export default function EditorWorkspace({children}:{children:ReactNode}){
   }}><span/></div>;
  };
  const [library,preview,inspector,timeline]=Children.toArray(children);
- return <div ref={root} className={`editor-workspace ${compact?'compact-workspace':''} ${resizing?'resizing-workspace':''}`} style={{'--timeline-height':`${fit.timeline}px`} as CSSProperties}>
+ return <div ref={root} className={`editor-workspace ${compact?'compact-workspace':''} ${size.height-fit.timeline-10<330?'short-panels':''} ${resizing?'resizing-workspace':''}`} style={{'--timeline-height':`${fit.timeline}px`} as CSSProperties}>
   <main className="workspace-panels" style={compact?undefined:{gridTemplateColumns:`${fit.left}px 10px minmax(280px,1fr) 10px ${fit.right}px`}}>{library}{separator('left')}{preview}{separator('right')}{inspector}</main>
   {separator('timeline')}<div className="workspace-timeline">{timeline}</div>
  </div>;

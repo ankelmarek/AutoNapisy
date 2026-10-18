@@ -154,3 +154,13 @@ footer{display:flex;gap:12px;align-items:center;justify-content:space-between}fo
 .effect-demo-badge{top:5px;bottom:auto}
 .effect-tooltip{position:absolute;inset:30% 3px auto;background:#111827ed;border:1px solid #8999bd;border-radius:4px;padding:5px 3px;color:#edf2ff;font-size:9px;line-height:1.5;z-index:4;visibility:hidden;pointer-events:none}
 .effect-card:focus-visible .effect-tooltip{visibility:visible}
+/* Keep first-use controls inside a short preview rather than under transport. */
+.workspace-panels .stage>.empty{max-height:100%;overflow:auto}
+.short-panels .stage>.empty{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:6px 10px}
+.short-panels .stage>.empty>*{flex-shrink:0}
+.short-panels .stage>.empty .symbol{display:flex;line-height:1}
+.short-panels .stage>.empty .symbol svg{width:22px;height:22px}
+.short-panels .stage>.empty h3{font-size:12px;margin:4px 0}
+.short-panels .stage>.empty p{font-size:11px;line-height:1.3;margin:4px 0}
+.short-panels .stage>.empty button{font-size:11px;padding:5px 9px}
+.short-panels .stage>.empty small{display:none}
