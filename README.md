@@ -1,7 +1,21 @@
-# RolVixa 0.19 — polska mowa → polskie napisy
+# RolVixa 0.20 — polska mowa → polskie napisy
 
-**Instalator 0.19:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39113930634/artifacts/12131567187), rozpakuj i uruchom `RolVixa_0.19.0_x64-setup.exe`. Pobranie z Actions wymaga zalogowania na GitHub.
+**Poprzedni stabilny instalator 0.19 (0.20 w weryfikacji):** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39113930634/artifacts/12131567187), rozpakuj i uruchom `RolVixa_0.19.0_x64-setup.exe`. Pobranie z Actions wymaga zalogowania na GitHub.
 RolVixa (wcześniej AutoNapisy) to lokalna aplikacja Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Rozpoznaje polską mowę przez whisper.cpp, bez tłumaczenia. Transkrypcja i montaż działają na komputerze. Opcjonalna biblioteka muzyki łączy się z Openverse po wpisaniu frazy wyszukiwania; nie wysyła nagrań użytkownika.
+
+## Wersja 0.20 — regulowany układ i galeria przejść, UX B
+
+Przeciągnij granicę między biblioteką, podglądem i właściwościami, aby zmienić ich szerokości. Poziomy uchwyt nad osią ustawia jej wysokość. Każdy uchwyt obsługuje strzałki (Shift: większy krok), Home/End, Enter i dwuklik przywracające domyślny rozmiar; Escape anuluje aktywne przeciąganie. Minimalne rozmiary chronią podgląd i kontrolki. Przy niskiej osi tory przewijają się wspólnie z nagłówkami. Układ jest zapamiętywany lokalnie, poza JSON-em projektu i historią Undo; dopasowuje się do mniejszego okna.
+
+**Efekty** mają kompaktowe, kwadratowe kafelki. Dwa własne obrazy A/B oraz 20 małych klipów demonstracyjnych pokazują rzeczywiste filtry xfade używane przez montaż i eksport. Podgląd uruchamia najechanie lub fokus klawiatury; jednocześnie istnieje najwyżej jeden dekoder. Długość przejścia dostosowuje tempo demonstracji. Przycisk pauzy oraz Escape zatrzymują podglądy; systemowe ograniczenie ruchu wyłącza animacje. Enter/klik wybiera efekt, a przeciąganie na łączenie sąsiednich klipów i dotychczasowa regulacja długości pozostają dostępne.
+
+Usunięto redundantną zakładkę **Warstwy**, polecenie w pasku podglądu i nieczynne „Dodaj warstwę”. Skala, pozycja, dopasowanie i kadrowanie pozostają pod **Film / audio**. Nadal można przeciągać obraz i uchwyty w podglądzie, nakładać V2 na V1 oraz sterować widocznością torów (także T). Schemat projektu pozostaje **v10**.
+
+Ograniczenia: demonstracje galerii pokazują własne obrazy A/B, nie klatki aktualnego montażu; bez audio. Przy wąskim oknie poniżej 820 px panele przechodzą w układ pionowy. Docelowe okno desktopowe ma minimum 960×640. Historia 6 ostatnich projektów (UX C), dynamiczne V3/A3, SmartCut oraz Export Studio pozostają osobnymi etapami.
+
+Nowe pliki: `src/EditorWorkspace.tsx`, `src/workspaceLayout.ts`, `src/TransitionDemo.tsx`, `tests/workspaceLayout.test.ts`, `scripts/test-ux020.mjs`, `scripts/build-transition-demos.py`, `scripts/test-transition-demos.mjs`, `.test-core/tests/transition_gallery.rs` i `public/transition-demos/` (obrazy A/B, 20 MP4, manifest i opis pochodzenia). Usunięto nieużywany `src/LayersPanel.tsx`; zachowano `FrameEditor` i `TransformControls`. Wykorzystano istniejące Tabler Icons v3.35.0 i ich licencję MIT.
+
+Weryfikacja 0.20: lokalne testy oraz odbiór Windows/WebView2 w toku; link powyżej prowadzi do poprzedniej stabilnej wersji.
 
 ## Wersja 0.19 — porządki interfejsu, UX A
 

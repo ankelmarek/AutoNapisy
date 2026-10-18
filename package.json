@@ -1,12 +1,12 @@
 {
   "name": "rolvixa",
-  "version": "0.19.0",
+  "version": "0.20.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc && vite build",
-    "test": "vitest run",
+    "test": "node scripts/test-transition-demos.mjs && vitest run",
     "tauri": "tauri"
   },
   "dependencies": {
