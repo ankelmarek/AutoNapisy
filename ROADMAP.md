@@ -298,14 +298,14 @@ Użytkownik zatwierdził z poprzedniej listy **punkty 1, 2, 3, 4, 6, 7, 8, 9**. 
 - Przezroczysta nakładka jest wyłącznie pomocą edycyjną i **nie trafia do eksportu**. Ma skalować się razem z kadrem i nie przechwytywać gestów transformacji i zaznaczania napisów.
 - Presety mają charakter przybliżony, mogą zmieniać się wraz z interfejsem platform. Udostępnić możliwość dostosowania marginesów i wyłączenia warstwy; unikać deklaracji „gwarantowanej bezpiecznej strefy”.
 
-### 7. „Zastąp źródło” bez utraty montażu
+### 7. „Zastąp źródło” bez utraty montażu — implementacja 0.23, odbiór w toku
 
 - Akcja dla pliku w bibliotece: zamiana odwołania do źródła przy zachowaniu tożsamości klipów, ich pozycji, ręcznych cięć, kadrowania, transformacji i efektów tam, gdzie wynik pozostaje poprawny.
 - Najpierw sprawdzić zgodność nowego pliku przez FFprobe (czas, liczba i typ strumieni, proporcje/obrót, FPS, audio). Jeśli wymiana skróci materiał poniżej użytych `sourceOut`, pokazać konkretne konflikty i zaoferować anulowanie albo jawne, kontrolowane dopasowanie.
 - Dotychczasowe napisy/transkrypcje źródłowe wymagają odświeżenia lub świadomego zachowania, gdy nie odpowiadają nowemu nagraniu; nie przenosić ich po cichu na obcą wypowiedź.
 - Unieważniać stare proxy, miniatury, waveforms i cache źródła; zachować dane autorskie/licencje audio z prawidłowym przypisaniem. Testy wielu wystąpień jednego źródła i cofania zamiany.
 
-### 8. Kontrola jakości przed eksportem (preflight)
+### 8. Kontrola jakości przed eksportem (preflight) — podstawowy raport w 0.23
 
 - Przed eksportem zaoferować raport z **ostrzeżeniami, nie automatyczną ingerencją**: brakujące źródła, możliwy clipping/przesterowanie audio, nieoczekiwana cisza, puste/czarne przerwy, napisy i grafiki poza wskazaną strefą, potencjalnie niewłaściwy format/kadr.
 - Wynik ma zawierać **lokalizację na osi czasu i przejście do problemu**. Rozdzielać błędy blokujące poprawny eksport od sugestii, z opcją „Eksportuj mimo ostrzeżeń”.
@@ -330,3 +330,10 @@ Użytkownik zatwierdził z poprzedniej listy **punkty 1, 2, 3, 4, 6, 7, 8, 9**. 
 
 **Status:** punkty 1, 2, 3, 4, 6 i 9 wykonane. Dynamiczne V3/A3 wykonano w 0.22; zatwierdzone UX A/B/C z issue #4 wykonano w 0.19–0.21 jako osobne zmiany. Pozostałe rozszerzenia nadal planowane. Punkt 5 (kolorowe znaczniki na osi czasu) celowo pominięty.
 
+
+
+## 0.23 — źródła i podstawowy preflight (odbiór w toku)
+
+Odnajdywanie plików i zastępowanie źródła z wyborem polityki napisów, ochroną licencji i blokad, zgodnością FFprobe, pełną walidacją zakresów i pojedynczym Undo. Zbyt krótki plik można anulować lub zastąpić innym; bez automatycznych zmian ujęć. Pojedynczy plik, bez batch relink. Tożsamość klipów i schemat v11 pozostają bez zmian. Odświeżane proxy, miniatury i waveforms, jednorazowa akceptacja identyfikatora backendu z ponownym sprawdzeniem odcisku pliku.
+
+Raport przed eksportem sprawdza dostępność i parametry źródeł oraz luki bez obrazu na widocznych torach; oddziela blokady od ostrzeżeń i pozwala przejść do pliku/czasu. To podstawowa część punktu 8: **pomiary miksu, clippingu, ciszy, czarnych klatek, stref i kadrowania nadal planowane**. Nie deklarować tych analiz jako wdrożonych. SmartCut/Export Studio nadal osobno.

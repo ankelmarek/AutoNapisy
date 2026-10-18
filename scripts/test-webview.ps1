@@ -6,6 +6,7 @@ $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = '--remote-debugging-port=9222 --dis
 $env:ROLVIXA_WEBVIEW_CDP = 'http://127.0.0.1:9222'
 $env:AUTONAPISY_FFMPEG = Join-Path $destination 'vendor/ffmpeg.exe'
 $env:ROLVIXA_TEST_PROJECT = Join-Path $env:RUNNER_TEMP 'RolVixa prawdziwy podgląd Łódź/projekt.json'
+$env:ROLVIXA_TEST_REPLACEMENT = Join-Path $env:RUNNER_TEMP 'RolVixa prawdziwy podgląd Łódź/Zamiennik Łódź.mp4'
 $env:ROLVIXA_TEST_HISTORY = Join-Path $env:RUNNER_TEMP 'RolVixa historia Łódź'
 $env:ROLVIXA_TEST_RECOVERY = Join-Path $env:RUNNER_TEMP 'RolVixa odzyskiwanie Łódź'
 node scripts/test-native-preview.mjs --prepare

@@ -1,3 +1,5 @@
+import {testSourceAuthorization023,testMissingRelink023} from './test-sources023-native.mjs';
+import {testSources023} from './test-sources023.mjs';
 import {testTracks022} from './test-tracks022.mjs';
 // Real installed app, real native commands, real MLT, incremental file reads and MSE.
 // Only the OS project dialog is replaced in the separately compiled ui-tests binary.
@@ -13,6 +15,7 @@ if(process.argv.includes('--prepare')){
  assert(projectPath);fs.mkdirSync(path.dirname(projectPath),{recursive:true});
  const source=path.join(path.dirname(projectPath),'Film pionowy Łódź.mp4');
  execFileSync(process.env.AUTONAPISY_FFMPEG,['-v','error','-y','-f','lavfi','-i','testsrc2=s=360x640:r=30:d=8','-f','lavfi','-i','sine=frequency=440:duration=8','-c:v','libx264','-preset','ultrafast','-pix_fmt','yuv420p','-c:a','aac',source]);
+ for(const [label,duration] of [['long',20],['short',1]])execFileSync(process.env.AUTONAPISY_FFMPEG,['-v','error','-y','-f','lavfi','-i',`color=c=blue:s=360x640:r=30:d=${duration}`,'-f','lavfi','-i',`sine=frequency=880:duration=${duration}`,'-c:v','libx264','-preset','ultrafast','-pix_fmt','yuv420p','-c:a','aac',path.join(path.dirname(projectPath),`replacement-${label}.mp4`)]);
  fs.writeFileSync(projectPath,JSON.stringify({schemaVersion:6,name:'Prawdziwy podgląd',media:{path:path.toNamespacedPath(source),name:path.basename(source),duration:8},assets:[],clips:[{id:'first',sourceIn:0,sourceOut:4,start:0,kind:'video',volume:1},{id:'second',sourceIn:4,sourceOut:8,start:4,kind:'video',volume:1}],transitions:[],segments:[],styles:{default:{fontFamily:'Arial',fontSize:42,color:'#ffffff',background:'#000000',position:'bottom'}},createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()}));
  process.exit(0);
 }
@@ -205,6 +208,9 @@ try{
  const srtPath19=projectPath.replace(/\.json$/i,'.srt');for(let n=0;n<100&&!fs.existsSync(srtPath19);n++)await page.waitForTimeout(100);assert(fs.existsSync(srtPath19),'Native SRT export did not write the selected file');const srtBytes19=fs.readFileSync(srtPath19,'utf8');assert(srtBytes19.includes('Zażółć gęślą'));assert(srtBytes19.includes('00:00:01,250 --> 00:00:02,500'));await page.waitForFunction(()=>!document.querySelector('.header-project-name').disabled);
  assert.equal((await page.locator('.header-export').innerText()).trim(),'Eksportuj');await page.screenshot({path:'.tools/native-ux019.png'});console.log('Real 0.19 SRT: empty source transcript, montage captions, keyboard activation, Unicode and actual atomically saved file: OK');
  await testTracks022(page,async()=>{await page.locator('.header-save').click();await page.waitForFunction(()=>document.querySelector('.header-save')?.dataset.saveStatus==='saved');},()=>JSON.parse(fs.readFileSync(projectPath,'utf8')),'.tools/native-tracks022.png');
+ await testSourceAuthorization023(page,projectPath,process.env.ROLVIXA_TEST_REPLACEMENT);
+ await testSources023(page,async()=>{await page.locator('.header-save').click();await page.waitForFunction(()=>document.querySelector('.header-save')?.dataset.saveStatus==='saved');},()=>JSON.parse(fs.readFileSync(projectPath,'utf8')),async variant=>{fs.copyFileSync(path.join(path.dirname(projectPath),`replacement-${variant}.mp4`),process.env.ROLVIXA_TEST_REPLACEMENT);},'.tools/native-sources023.png');
+ await testMissingRelink023(page,projectPath);
  await testRecentNative(page);
  // Leave a real recovery copy for the forced process-restart test in PowerShell.
  await page.locator('.header-project-name').click();await page.getByRole('textbox',{name:'Nazwa projektu',exact:true}).fill('Przed awarią procesu 0.17');await page.keyboard.press('Enter');await waitSnapshotName('Przed awarią procesu 0.17');

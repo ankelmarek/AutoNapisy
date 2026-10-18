@@ -31,6 +31,11 @@ import {visuals,videoFilter,reconcileTransitions,applyTransition} from './effect
 import {editCaption,resizeCaption} from './captionEditing';
 
 
+import SourceReplacementDialog from './SourceReplacementDialog';
+import PreflightDialog from './PreflightDialog';
+import {replaceSource,type Replacement,type ReplacementPolicy} from './sourceReplacement';
+import {preflightIssues,type SourceCheck,type PreflightIssue} from './preflight';
+import {invalidateMedia} from './mediaRevision';
 import MediaLibrary from "./MediaLibrary";
 import Icon from "./Icons";
 import rolvixaIcon from "./assets/rolvixa-icon.png";
@@ -100,7 +105,10 @@ export default function App() {
   useEffect(()=>{if(recoveryReady&&!recoveryInfo&&homeMode!=='closed'&&!recent.ready)void recent.refresh();},[recoveryReady,recoveryInfo,homeMode]);
   useEffect(()=>{if(homeMode==='startup'&&recoveryReady&&!recoveryInfo&&recent.ready)setHomeMode(recent.showOnStartup?'initial':'closed');},[homeMode,recoveryReady,recoveryInfo,recent.ready]);
   const [timelineModal,setTimelineModal]=useState(false);
-  const locked = timelineModal || busy || transcribing || exporting || !recoveryReady || !!recoveryInfo;
+  const [replacement,setReplacement]=useState<{id:string;locate:boolean;candidate:Replacement;project:Project}|null>(null),[replacementError,setReplacementError]=useState('');
+  const [preflight,setPreflight]=useState<{project:Project;issues:PreflightIssue[]}|null>(null);
+  const [sourceRevision,bumpSourceRevision]=useReducer((n:number)=>n+1,0),[highlightSource,setHighlightSource]=useState('');
+  const locked = !!replacement || !!preflight || timelineModal || busy || transcribing || exporting || !recoveryReady || !!recoveryInfo;
   useEffect(()=>{let alive=true;startup.current??=invoke<RecoveryInfo>('recovery_status');void startup.current.then(info=>{if(!alive)return;saver.accept(latestProject.current,'',info.session);if(info.available)setRecoveryInfo(info);if(info.warning){if(info.available)setRecoveryError(info.warning);else setMessage('Odzyskiwanie: '+info.warning);}setRecoveryReady(true);}).catch(e=>{if(alive){setRecoveryError(String(e));setRecoveryReady(true);}});return()=>{alive=false;};},[]);
   useEffect(()=>{
     const needed=saveState.baseline===null?(recovered.current||revision!==pristineRevision.current):dirty;
@@ -143,8 +151,8 @@ export default function App() {
   const sourceViewerItem=libraryItems(project).find(m=>m.id===sourceViewerId&&m.duration!=null&&!!sources[m.path]);
   const chosenSourceRange=useMemo(()=>{if(!sourceViewerItem)return null;try{return sourceRange(sourceViewerItem.duration!,sourceRanges.current.get(sourceViewerItem.path));}catch{return sourceRange(sourceViewerItem.duration!);}},[sourceViewerItem?.path,sourceViewerItem?.duration,sourceRangeRevision]);
   const viewSource=(id:string)=>{playback.pause();setSourceViewerId(id);};
-  const proxies=useVideoProxies(project,sources),safeZones=useSafeZones();
-  const playback = useMltPlayback(project,proxies.revision,!sourceViewerItem&&!homeVisible);
+  const proxies=useVideoProxies(project,sources,sourceRevision),safeZones=useSafeZones();
+  const playback = useMltPlayback(project,proxies.revision+sourceRevision,!sourceViewerItem&&!homeVisible);
   useEffect(()=>{if(playback.error&&proxies.active)void proxies.fallback();},[playback.error,proxies.revision]);
   const {time,playing,seek} = playback;
   const toggle=playback.toggle;
@@ -299,15 +307,51 @@ export default function App() {
       );
       if (path) setMessage(`Zapisano napisy SRT: ${path}`);
     });
-  const exportMp4 = async () => {
-    if (exportController.current || locked) return;
+  const closeReplacement=()=>{if(busy)return;const token=replacement?.candidate.token;setReplacement(null);setReplacementError('');if(token)void invoke('discard_source_replacement',{token}).catch(()=>{});};
+  const chooseReplacement=(id:string,locate:boolean)=>run(async()=>{
+    playback.pause();setSourceViewerId('');setReplacementError('');
+    const current=latestProject.current;
+    try{const candidate=await invoke<Replacement|null>('choose_source_replacement',{json:serializeProject(current),id});
+      if(candidate)setReplacement({id,locate,candidate,project:current});
+    }catch(e){setReplacementError(String(e));throw e;}
+  });
+  const applyReplacement=(policy:ReplacementPolicy)=>run(async()=>{
+    if(!replacement)return;
+    try{
+      if(latestProject.current!==replacement.project)throw Error('Projekt zmienił się podczas wyboru. Wybierz źródło ponownie.');
+      const next=replaceSource(replacement.project,replacement.id,replacement.candidate,policy);
+      await playback.suspend();
+      const path=await invoke<string>('confirm_source_replacement',{token:replacement.candidate.token});
+      if(path!==replacement.candidate.path)throw Error('Nieprawidłowe potwierdzenie źródła.');
+      if(latestProject.current!==replacement.project)throw Error('Projekt zmienił się podczas zatwierdzania. Wybierz źródło ponownie.');
+      const old=libraryItems(replacement.project).find(m=>m.id===replacement.id)!;
+      sourceRanges.current.delete(old.path);sourceRanges.current.delete(path);
+      invalidateMedia(old.path);if(old.path!==path)invalidateMedia(path);
+      setSources(prev=>({...prev,[path]:convertFileSrc(path)}));bumpSourceRevision();setFrameAspects({});
+      writeProject(next);latestProject.current=next;setReplacement(null);setReplacementError('');
+      setMessage('Źródło podmienione. Sprawdź podgląd i synchronizację. Ctrl+Z przywraca cały poprzedni stan.');
+    }catch(e){setReplacementError(String(e));throw e;}
+  });
+  const exportMp4=()=>run(async()=>{
+    if(exportController.current||locked)return;
+    playback.pause();setSourceViewerId('');setHighlightSource('');
+    const current=latestProject.current;
+    const checks=await invoke<SourceCheck[]>('check_project_sources',{json:serializeProject(current)});
+    setSources(prev=>{const next={...prev};for(const m of libraryItems(current)){if(!checks.find(c=>c.id===m.id)?.available)delete next[m.path];}return next;});
+    if(latestProject.current!==current)throw Error("Projekt zmienił się podczas sprawdzania. Uruchom sprawdzenie ponownie.");
+    setPreflight({project:current,issues:preflightIssues(current,checks)});
+  });
+  const performExport = async (snapshot:Project) => {
+
+    if (exportController.current) return;
+    if(latestProject.current!==snapshot){setMessage("Projekt zmienił się. Sprawdź go ponownie przed eksportem.");return;}
     const abort = new AbortController();
     exportController.current = abort;
     setExporting(true);
     setExportStatus(null);
     try {
       const path = await rendering.render(
-        project,
+        snapshot,
         abort.signal,
         setExportStatus,
       );
@@ -407,7 +451,7 @@ export default function App() {
           </div>
           {leftTab==='audio'&&<AudioLibrary project={project} locked={locked} timelinePlaying={playing} onImport={()=>importMedia('audio')} onRegister={registerAudio} onPause={playback.pause} onAdd={id=>{try{playback.pause();changeProject(insertLibraryItem(latestProject.current,id,time));setMessage('Dodano audio na oś czasu.');}catch(e){setMessage(String(e));}}}/>}
           {leftTab==='effects'&&<EffectsLibrary chosen={effectChoice} onChoose={setEffectChoice}/>}
-          {leftTab==='files'&&<MediaLibrary project={project} sources={sources} locked={locked} onView={viewSource} onImport={importVideo} proxies={proxies} onClearCache={()=>{if(window.confirm('Usunąć wszystkie kopie proxy z cache? Oryginalne nagrania i projekt zostaną zachowane.'))void playback.suspend().then(()=>new Promise(r=>setTimeout(r,200))).then(()=>proxies.clear()).then(()=>playback.retry()).catch(e=>setMessage(String(e)));}}
+          {leftTab==='files'&&<MediaLibrary project={project} sources={sources} locked={locked} onReplace={chooseReplacement} highlightId={highlightSource} onView={viewSource} onImport={importVideo} proxies={proxies} onClearCache={()=>{if(window.confirm('Usunąć wszystkie kopie proxy z cache? Oryginalne nagrania i projekt zostaną zachowane.'))void playback.suspend().then(()=>new Promise(r=>setTimeout(r,200))).then(()=>proxies.clear()).then(()=>playback.retry()).catch(e=>setMessage(String(e)));}}
             onAdd={id=>{try{playback.pause();const next=insertLibraryItem(project,id,time);changeProject(next);setMessage('Dodano plik z biblioteki na oś czasu.');}catch(e){setMessage(String(e));}}}/>}
           <div className="captions-tab-content" role="tabpanel" id="captions-panel" aria-labelledby="captions-tab" hidden={leftTab!=='captions'}>
           <div className="transcription-controls" role="group" aria-label="Tworzenie i eksport napisów">
@@ -475,7 +519,7 @@ export default function App() {
           </div>
         </section>
         <section className="panel preview">
-          {sourceViewerItem&&chosenSourceRange&&<SourceViewer key={sourceViewerItem.path} item={sourceViewerItem} range={chosenSourceRange} keyHandler={sourceKeys} proxyRevision={JSON.stringify([proxies.records[sourceViewerItem.path]?.previewPath,proxies.records[sourceViewerItem.path]?.enabled])} locked={locked||settings} onRange={r=>{sourceRanges.current.set(sourceViewerItem.path,r);bumpSourceRange();}} onClose={()=>setSourceViewerId('')} onAdd={range=>{try{const next=insertLibraryItem(latestProject.current,sourceViewerItem.id,time,undefined,range);setSourceViewerId('');changeProject(next);setMessage('Dodano zaznaczony fragment na oś czasu.');}catch(e){setMessage(String(e));}}}/>}
+          {sourceViewerItem&&chosenSourceRange&&<SourceViewer key={sourceViewerItem.path+sourceRevision} item={sourceViewerItem} range={chosenSourceRange} keyHandler={sourceKeys} proxyRevision={JSON.stringify([proxies.records[sourceViewerItem.path]?.previewPath,proxies.records[sourceViewerItem.path]?.enabled])} locked={locked||settings} onRange={r=>{sourceRanges.current.set(sourceViewerItem.path,r);bumpSourceRange();}} onClose={()=>setSourceViewerId('')} onAdd={range=>{try{const next=insertLibraryItem(latestProject.current,sourceViewerItem.id,time,undefined,range);setSourceViewerId('');changeProject(next);setMessage('Dodano zaznaczony fragment na oś czasu.');}catch(e){setMessage(String(e));}}}/>}
           <div className="montage-preview" hidden={!!sourceViewerItem}>
           <div className="panelhead">
             <h2>Podgląd wideo</h2>
@@ -488,7 +532,7 @@ export default function App() {
                 <video ref={playback.video} className="mlt-video" preload="auto" playsInline/>
                 {playback.loading&&<span className="transition-preparing">Przygotowywanie podglądu MLT…</span>}
                 {playback.error&&<div className="preview-error" role="alert"><strong>Podgląd niedostępny</strong><p>{playback.error}</p><button onClick={playback.retry}>Ponów podgląd</button></div>}
-                <FrameEditor project={project} proxyRevision={proxies.revision} time={Math.min(time,Math.max(0,duration-1/30))} playing={playing} locked={locked} selectedId={selected?.id??''} onSelect={id=>{setSelectedClip(id);setSelectedTransition('');setInspectorTab('video');}} onPause={playback.pause} onChange={changeProject} onAspects={setFrameAspects}/>
+                <FrameEditor project={project} proxyRevision={proxies.revision+sourceRevision} time={Math.min(time,Math.max(0,duration-1/30))} playing={playing} locked={locked} selectedId={selected?.id??''} onSelect={id=>{setSelectedClip(id);setSelectedTransition('');setInspectorTab('video');}} onPause={playback.pause} onChange={changeProject} onAspects={setFrameAspects}/>
                 <CaptionOverlay video={captionSurface} project={displayed} time={time} compositionCanvas />
                 <SafeZoneOverlay value={safeZones} portrait={Math.abs(canvasAspect-9/16)<.01}/>
                 {gap && <span className="gap-label">{duration?'Przerwa między ujęciami':'Dodaj film z biblioteki na oś czasu'}</span>}
@@ -551,7 +595,7 @@ export default function App() {
               {name:'Zielone podświetlenie',effect:'highlight',color:'#10140c',background:'#b4ff58',outlineColor:'#000000',outlineWidth:0},
               {name:'Fioletowe podświetlenie',effect:'highlight',color:'#ffffff',background:'#742cff',outlineColor:'#12092a',outlineWidth:1},
             ].map(preset=><button key={preset.name} disabled={locked} onClick={()=>updateStyle({effect:preset.effect as 'box'|'outline'|'highlight',color:preset.color,background:preset.background,outlineColor:preset.outlineColor,outlineWidth:preset.outlineWidth})}>{preset.name}</button>)}</div>
-            <fieldset className="style-fields" disabled={exporting}>
+            <fieldset className="style-fields" disabled={locked}>
               <p className="eyebrow">STYL DOMYŚLNY</p>
               <label>Wygląd<select aria-label="Wygląd napisów" value={style.effect??'box'} onChange={e=>updateStyle({effect:e.target.value as 'box'|'outline'|'highlight'})}><option value="box">Plansza</option><option value="outline">Obrys</option><option value="highlight">Podświetlenie</option></select></label>
               <label>Grubość obrysu <b>{style.outlineWidth??0}</b><input aria-label="Grubość obrysu" type="range" min={0} max={8} step={.5} value={style.outlineWidth??0} onChange={e=>updateStyle({outlineWidth:Number(e.target.value)})}/></label>
@@ -732,6 +776,8 @@ export default function App() {
         {recent.warning&&<span className="recent-editor-warning" title={recent.warning}>Historia projektów: {recent.warning}</span>}
       </footer>
       </div>
+      {replacement&&<SourceReplacementDialog key={replacement.candidate.token} project={replacement.project} id={replacement.id} candidate={replacement.candidate} locate={replacement.locate} busy={busy} error={replacementError} onClose={closeReplacement} onChoose={()=>void chooseReplacement(replacement.id,replacement.locate)} onApply={applyReplacement}/>}
+      {preflight&&<PreflightDialog issues={preflight.issues} onClose={()=>setPreflight(null)} onExport={()=>{const snapshot=preflight.project;setPreflight(null);void performExport(snapshot);}} onSeek={t=>{setPreflight(null);setSourceViewerId('');seek(t);}} onLocate={id=>{setPreflight(null);setLeftTab('files');setHighlightSource(id);}}/>}
       {recoveryInfo&&<RecoveryDialog info={recoveryInfo} busy={busy} error={recoveryError} onChoose={resolveRecovery}/>}
       {settings && (
         <div className="overlay" onKeyDown={e=>{e.stopPropagation();if(e.key==='Escape'){e.preventDefault();setSettings(false);}if(e.key==='Tab'){const items=Array.from(e.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),summary')).filter(el=>el.getClientRects().length);const first=items[0],last=items[items.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}}}>
