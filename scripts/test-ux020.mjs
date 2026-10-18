@@ -1,3 +1,4 @@
+import {settleEditor} from './test-start021.mjs';
 import assert from 'node:assert/strict';
 export async function testUx020(page,setup,stream,width,height){
  const split=axis=>page.getByRole('separator',{name:axis,exact:true});
@@ -19,7 +20,7 @@ export async function testUx020(page,setup,stream,width,height){
  const body=page.locator('.timeline-body');await body.evaluate(el=>el.scrollTop=60);assert(await body.evaluate(el=>el.scrollTop)>30);assert(Math.abs((await page.locator('.track-heads').boundingBox()).y-(await page.locator('.edit-canvas').boundingBox()).y)<2,'Track headers and clips must scroll together');await body.evaluate(el=>el.scrollTop=0);
  await left.focus();await page.keyboard.press('Enter');await right.focus();await page.keyboard.press('Enter');await bottom.focus();await page.keyboard.press('Enter');
  await right.focus();await page.keyboard.press('ArrowLeft');const persisted=await box(right);
- await page.reload();await page.evaluate(setup,stream);await page.waitForFunction(()=>document.querySelector('.brand-icon')?.naturalWidth>0);assert(Math.abs(await box(right)-persisted)<2,'Layout must survive actual WebView reload');
+ await page.reload();await page.evaluate(setup,stream);await page.waitForFunction(()=>document.querySelector('.brand-icon')?.naturalWidth>0);await settleEditor(page);assert(Math.abs(await box(right)-persisted)<2,'Layout must survive actual WebView reload');
  await right.dblclick();await page.waitForTimeout(80);assert(Math.abs(await box(right)-rb)<3);
  assert.equal(await page.evaluate(()=>window.__saved),null,'Layout must never save or modify the project');
  const stage=await page.locator('.stage').boundingBox(),importButton=await page.locator('.stage').getByRole('button',{name:'Wybierz film',exact:true}).boundingBox();assert(importButton.y>=stage.y&&importButton.y+importButton.height<=stage.y+stage.height+1,'Empty preview must keep the import control inside the stage');

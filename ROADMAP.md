@@ -1,5 +1,15 @@
 # Kolejne etapy RolVixa
 
+## Wersja 0.21 — UX C (odbiór Windows w toku)
+
+- [x] Ekran startowy, sześć ostatnich projektów, Nowy/Otwórz, usuwanie wpisu i preferencja startowa.
+- [x] Backendowy rejestr ID, atomowy zapis i blokada; błędy historii nie blokują zapisu projektu.
+- [x] Pierwszeństwo odzyskiwania i ochrona przed spóźnioną odpowiedzią historii; schemat nadal v10.
+- [x] Testy rejestru, brakujących/nowszych plików, restartu, klawiatury i dwóch rozdzielczości.
+- [ ] Pełny odbiór Windows/WebView2, przegląd zrzutów i instalator; osobny PR C.
+
+Karty używają symboli Tabler do czasu powstania cache miniatur projektów. Po odbiorze kolejnym dużym etapem pozostają dynamiczne V3/A3 (issue #3).
+
 ## Wykonane w 0.20 — UX B (ukończone)
 
 - [x] Regulowane szerokości trzech paneli i wysokość osi; minima, klawiatura, Escape, reset i lokalny zapis układu poza projektem.

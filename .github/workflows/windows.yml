@@ -188,10 +188,12 @@ jobs:
         with:
           name: RolVixa-UI-Preview
           path: |
+            docs/start021-*.png
             docs/ux020-*.png
             docs/ux019-*.png
             docs/editor9-*.png
             .tools/native-ux019.png
+            .tools/native-recent021.png
             .tools/editor-failure.png
           include-hidden-files: true
           if-no-files-found: ignore

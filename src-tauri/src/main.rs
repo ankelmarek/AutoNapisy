@@ -14,6 +14,7 @@ mod montage;
 mod preview_commands;
 mod project;
 mod project_file;
+mod recent_projects;
 mod recovery;
 mod source_preview;
 mod project_commands;
@@ -239,6 +240,11 @@ fn main() {
             project_commands::new_project,
             project_commands::open_project,
             project_commands::save_project,
+            project_commands::recent_projects,
+            project_commands::open_recent_project,
+            project_commands::remove_recent_project,
+            project_commands::set_startup_screen,
+            project_commands::clear_recent_projects,
             project_commands::recovery_status,
             project_commands::write_recovery,
             project_commands::clear_recovery,
