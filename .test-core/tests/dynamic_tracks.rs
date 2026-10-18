@@ -230,6 +230,18 @@ fn three_video_three_audio_routing_transitions_and_proxy() {
         let px = pixel(&ff, &out, "2.25");
         assert!(px[1] > 40 && px[2] > 40, "{tag} V3 transition: {px:?}");
     }
+    let mut framed = p.clone();
+    framed.clips.as_mut().unwrap()[2].transform = Some(project::Transform {
+        scale: 0.5,
+        x: 0.,
+        y: 0.,
+    });
+    let framed_out = render("mlt-three-layer-framing", &framed, true);
+    let px = pixel(&ff, &framed_out, "2.2");
+    assert!(
+        px[2] > 140 && px[1] > 35,
+        "Scaled V3 must leave V2 visible behind it: {px:?}"
+    );
     let info = proxy::inspect(&job, &ff, &files[2], dir.path()).unwrap();
     let stamp = proxy::stamp(&files[2]).unwrap();
     let cache = dir.path().join("Proxy Łódź");
