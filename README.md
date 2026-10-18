@@ -1,9 +1,11 @@
 # RolVixa 0.25 — polska mowa → polskie napisy
 
-**Instalator 0.24:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39159998515/artifacts/12148458846), rozpakuj i uruchom `RolVixa_0.24.0_x64-setup.exe`. Pobranie z Actions wymaga zalogowania na GitHub.
+**Instalator 0.25:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39163940646/artifacts/12149598498), rozpakuj i uruchom `RolVixa_0.25.0_x64-setup.exe`. Pobranie z Actions wymaga zalogowania na GitHub.
 RolVixa (wcześniej AutoNapisy) to lokalna aplikacja Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Rozpoznaje polską mowę przez whisper.cpp, bez tłumaczenia. Transkrypcja i montaż działają na komputerze. Opcjonalna biblioteka muzyki łączy się z Openverse po wpisaniu frazy wyszukiwania; nie wysyła nagrań użytkownika.
 
-## Wersja 0.25 — prostsze Ripple (odbiór w toku)
+## Wersja 0.25 — prostsze Ripple (ukończona)
+
+**Osobny [PR #12](https://github.com/ankelmarek/AutoNapisy/pull/12) połączony.** Pełny zielony [Windows run 39163940646](https://github.com/ankelmarek/AutoNapisy/actions/runs/39163940646), również równoległy 39163938036: **209 testów TypeScript, 85 Rust, 17 rzeczywistych integracyjnych**, kompilacja produkcyjna, instalacja i WebView2. Sprawdzono zrzuty nowego Ripple i niemodalnego konfliktu w 1366×700 oraz 1920×1080 i rzeczywisty zdekodowany podgląd MLT. Potwierdzone bezpośrednie cięcie, muzyka na tym samym busie, zaawansowane ustawienia bez restartu dekodera, brak cichego zwykłego cięcia przy konflikcie, anulowanie / jawne cięcie / unieważnienie planu, pojedynczy Undo/Redo i zapis projektu. Regresje normalizacji, źródeł, napisów, eksportu, historii i crash/restart także zielone. Lokalnie 209 TS, 82 Rust core, build frontendu i rzeczywisty nowy miks MLT/FFmpeg. ZIP: **81 240 645 B**, SHA-256 `ea9a296aed89b0d586e9ccc7566bba8aa547ac365bf3e130097cfc818da9d23f`. Narzędzia i licencje są dołączone; model Whisper nadal wybiera się osobno jak dotychczas.
 
 - **Ripple wł./wył.** na osi: przycięcie lub usunięcie dosuwa od razu, gdy plan jest bezpieczny. Cała operacja to jeden **Ctrl+Z**; zwykłe przesuwanie i żyletka nie włączają dosuwania.
 - Automatycznie uczestniczą wyłącznie tory **V rozpoczynające się od 00:00** (tolerancja pół klatki). Puste i późne tory pozostają na miejscu. **Samodzielna muzyka nie przesuwa się automatycznie**, również od 00:00 i na busie A współdzielonym z dźwiękiem filmu.
