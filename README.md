@@ -1,6 +1,6 @@
 # RolVixa 0.19 — polska mowa → polskie napisy
 
-**Poprzedni stabilny instalator 0.18 (0.19 w weryfikacji):** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39105640931/artifacts/12128183979), rozpakuj i uruchom `RolVixa_0.18.0_x64-setup.exe`. Pobranie z Actions wymaga zalogowania na GitHub.
+**Instalator 0.19:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39113930634/artifacts/12131567187), rozpakuj i uruchom `RolVixa_0.19.0_x64-setup.exe`. Pobranie z Actions wymaga zalogowania na GitHub.
 RolVixa (wcześniej AutoNapisy) to lokalna aplikacja Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Rozpoznaje polską mowę przez whisper.cpp, bez tłumaczenia. Transkrypcja i montaż działają na komputerze. Opcjonalna biblioteka muzyki łączy się z Openverse po wpisaniu frazy wyszukiwania; nie wysyła nagrań użytkownika.
 
 ## Wersja 0.19 — porządki interfejsu, UX A
@@ -13,7 +13,9 @@ Podczas odbioru poprawiono eksport SRT transkrypcji montażu: brak napisów źr�
 
 Zakres to etap A z [issue #4](https://github.com/ankelmarek/AutoNapisy/issues/4). Warstwy/przejścia/splittery (B) i ostatnie projekty (C) pozostają osobnymi zmianami; dynamiczne V3/A3 pozostają kolejnym dużym etapem montażu.
 
-Weryfikacja 0.19: lokalnie 150 TS, 62 Rust core i build frontendu; pełna kompilacja, instalacja oraz odbiór WebView2 na Windows w toku. Lista zmienionych obszarów: `src/App.tsx`, `src/Timeline.tsx`, `src/style.css`, walidacja SRT w `src-tauri/src/subtitles.rs` / `commands.rs`, istniejące skrypty odbioru oraz manifesty wersji. Ikony i licencja Tabler MIT pochodzą z dotychczasowego podzbioru v3.35.0.
+Odbiór 0.19: **[pełny zielony przebieg Windows 39113930634](https://github.com/ankelmarek/AutoNapisy/actions/runs/39113930634)** — **150 testów TypeScript, 64 Rust i 12 rzeczywistych integracyjnych**, produkcyjna kompilacja, instalator NSIS i próba instalacji. WebView2 potwierdził natywny plik SRT UTF-8 z polskimi znakami i czasami montażu przy pustej transkrypcji źródła, wywołania SRT/MP4 klawiaturą, widoczny eksport przy 600 px oraz układy 1366×700 obszaru roboczego laptopa i 1920×1080. Zrzuty sprawdzono wizualnie. Ponownie przeszły scenariusze MLT, transkrypcji, proxy, Ripple/J/L-cut, Undo, zapisu i odzyskiwania po wymuszonym zakończeniu procesu. Lokalnie: 150 TS, 62 Rust core i build frontendu. Instalator ma wyłączone DevTools i testowe dialogi; instrumentacja jest osobnym binarium. Lista zmienionych obszarów: `src/App.tsx`, `src/Timeline.tsx`, `src/style.css`, walidacja SRT w `src-tauri/src/subtitles.rs` / `commands.rs`, istniejące skrypty odbioru oraz manifesty wersji. Ikony i licencja Tabler MIT pochodzą z dotychczasowego podzbioru v3.35.0.
+
+ZIP instalatora 0.19: **80 829 342 bajty**, SHA-256 `e91ab1349375743ba38eabfff0dabf4ebf3b22c3023b178528b5a1b325c49df9`. Zmiany połączono przez osobny [PR #5](https://github.com/ankelmarek/AutoNapisy/pull/5). B/C pozostają do realizacji.
 
 ## Wersja 0.18 — Ripple i odłączanie audio
 
@@ -63,7 +65,7 @@ Ripple i odłączanie audio/J/L-cut wykonano w 0.18; następny priorytet: dynami
 
 ## Aktualizacja i uruchomienie ze źródeł
 
-Zachowaj projekty i nagrania. Pobierz ZIP z GitHuba i rozpakuj do nowego folderu, np. `C:\RolVixa-0.18`. Nie kopiuj starych `node_modules`, `dist` i `src-tauri/target`. Aplikacja 0.18 otwiera projekty v1–v10 i zapisuje format v10. Przed zapisaniem zachowaj kopię JSON, jeśli chcesz wrócić do starszej wersji aplikacji.
+Zachowaj projekty i nagrania. Pobierz ZIP z GitHuba i rozpakuj do nowego folderu, np. `C:\RolVixa-0.19`. Nie kopiuj starych `node_modules`, `dist` i `src-tauri/target`. Aplikacja 0.19 otwiera projekty v1–v10 i zapisuje format v10. Przed zapisaniem zachowaj kopię JSON, jeśli chcesz wrócić do starszej wersji aplikacji.
 
 Wymagania: Node.js 22 lub 24, Rust stable ≥1.89 x64 MSVC (blokada pliku kopii odzyskiwania), Visual Studio Build Tools z „Desktop development with C++” i Windows SDK oraz WebView2 Runtime.
 

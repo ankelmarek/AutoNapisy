@@ -1,13 +1,13 @@
 # Kolejne etapy RolVixa
 
-## Wdrożenie 0.19 — UX A (odbiór Windows w toku)
+## Wykonane w 0.19 — UX A (ukończone)
 
 - [x] Kompaktowe akcje napisów: istniejące ikony Tabler i tekst, postęp/anulowanie w jednym obszarze.
 - [x] Krótki empty-state, zachowany osobny stan pustej osi, bez technicznych objaśnień o silniku.
 - [x] Usunięte dekoracyjne MONTAŻ i opis V1/V2/audio; kontrolki i semantyka osi zachowane.
 - [x] Widoczny podpis Eksportuj na żółtym przycisku, z dopasowaniem do mniejszego okna.
 - [x] Naprawiony warunek eksportu SRT z transkrypcji montażu, test pustego źródłowego transcriptu i granic.
-- [ ] Odbiór Windows/WebView2, instalator i osobny PR A. Etapy B/C oraz V3/A3 pozostają poza tą wersją.
+- [x] Pełny zielony Windows/WebView2 run 39113930634: 150 TS, 64 Rust, 12 integracyjnych; instalator 12131567187, rzeczywisty plik SRT UTF-8 i zrzuty 1366/Full HD. Osobny PR A: #5, połączony. Etapy B/C oraz V3/A3 pozostają poza tą wersją.
 
 
 ## Wykonane w 0.18 — Ripple i niezależne audio (ukończone)
@@ -28,7 +28,7 @@ Zakres: Ripple przy usuwaniu i przycinaniu klipów, bez automatycznego cięcia p
 
 **Zebrano i zamknięto uwagi użytkownika 18.10.2026.** Pełna, techniczna specyfikacja wraz z kryteriami testów: **[issue #4 - poprawki interfejsu](https://github.com/ankelmarek/AutoNapisy/issues/4)**. Nie wdrażać wszystkiego naraz i nie zakłócać prac nad silnikiem montażu.
 
-- **Etap A, najbliższe szybkie poprawki:** uprościć zakładkę napisów, usunąć zbędny tekst o zakresie montażu i o Whisperze w empty-state; dodać czytelne ikony Tabler do „Transkrybuj po polsku” i „Eksport SRT”, zachowując tekst; usunąć etykietę „MONTAŻ” na dolnej osi oraz stale wyświetlane objaśnienie V1/V2 i audio; do żółtego przycisku w nagłówku dopisać „Eksportuj”.
+- **Etap A, wykonany w 0.19 / PR #5:** uprościć zakładkę napisów, usunąć zbędny tekst o zakresie montażu i o Whisperze w empty-state; dodać czytelne ikony Tabler do „Transkrybuj po polsku” i „Eksport SRT”, zachowując tekst; usunąć etykietę „MONTAŻ” na dolnej osi oraz stale wyświetlane objaśnienie V1/V2 i audio; do żółtego przycisku w nagłówku dopisać „Eksportuj”.
 - **Etap B, ważna ergonomia:** usunąć mylącą zakładkę/polecenie „Warstwy” i niedziałające „Dodaj warstwę” (bez usuwania warstw obrazu, transformacji i ukrywania torów); zachować kadrowanie pod „Film / audio”. Przerobić duże karty efektów na siatkę kompaktowych kwadratowych kafli, z dwoma obrazami demo i faktycznym, lekkim podglądem danego przejścia. Dodać bezpieczne, ograniczone przeciąganie granic paneli z zapisem układu lokalnie.
 - **Etap C, osobny moduł:** galeria **6 ostatnich projektów** po uruchomieniu RolVixa, z kartami i akcjami „Nowy” / „Otwórz”. Okno odzyskiwania po awarii z 0.17 ma pierwszeństwo; historia opiera się o bezpieczny, backendowy rejestr plików, bez przenoszenia mediów.
 - [ ] Przegląd layoutu i dostępności 1366×768 / Full HD, klawiatura, ARIA, brak regresji MLT, transkrypcji, SRT, MP4 oraz save/recovery.

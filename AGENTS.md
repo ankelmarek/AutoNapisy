@@ -33,3 +33,7 @@ Użytkownik zakończył zbieranie ośmiu uwag do interfejsu. Dokładna specyfika
 
 
 Ctrl+O/Nowy sprawdzają bieżące `saver.state` i `latestProject.current`, bez stanu z poprzedniego handlera klawiatury. R i blokady nie należą do klucza strumienia MLT (tylko mute/widoczność): ich przełączanie nie powinno restartować dekodera. Blokada chroni też docelowy tor przy przenoszeniu istniejącego klipu.
+
+## Wykonane w 0.19 — UX A
+
+Uproszczono napisy i pusty stan, dodano istniejące ikony Tabler z tekstem akcji i podpis Eksportuj, usunięto MONTAŻ i stały opis V1/V2. Eksport SRT sprawdza faktyczne napisy montażu także przy pustym project.segments; zachować walidację granic i atomowy zapis UTF-8. Schemat nadal v10. Osobny PR #5 połączony. Pełny zielony Windows run 39113930634: 150 TS, 64 Rust, 12 integracyjnych, instalacja, natywny plik SRT z polskimi znakami i WebView2 1366/Full HD (zrzuty sprawdzone). Instalator: 12131567187. UX B i C pozostają do realizacji w osobnych PR; dynamiczne V3/A3 pozostają następnym dużym etapem montażu.
