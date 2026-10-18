@@ -15,7 +15,7 @@ export const clipLocked=(p:Project,c:Clip)=>clipTracks(c).some(t=>p.tracks[t]?.l
 /** Enforce edit locks at the common project boundary, including inspector and clipboard operations. */
 export function assertUnlockedEdit(before:Project,next:Project){
  for(const c of projectClips(before)){if(clipLocked(before,c)&&JSON.stringify(c)!==JSON.stringify(projectClips(next).find(x=>x.id===c.id)))throw Error('Klip znajduje się na zablokowanej ścieżce.');}
- for(const c of projectClips(next)){const old=projectClips(before).find(x=>x.id===c.id);if(!old&&clipLocked(before,c))throw Error('Nie można dodać klipu na zablokowaną ścieżkę.');}
+ for(const c of projectClips(next)){const old=projectClips(before).find(x=>x.id===c.id);if(clipLocked(before,c)&&(!old||JSON.stringify(old)!==JSON.stringify(c)))throw Error('Nie można przenieść ani dodać klipu na zablokowaną ścieżkę.');}
  for(const t of before.transitions){if(projectClips(before).some(c=>(c.id===t.fromId||c.id===t.toId)&&clipLocked(before,c))&&JSON.stringify(t)!==JSON.stringify(next.transitions.find(n=>n.id===t.id)))throw Error('Przejście znajduje się na zablokowanej ścieżce.');}
  if(before.tracks.T?.locked&&(JSON.stringify(before.timelineSegments)!==JSON.stringify(next.timelineSegments)||JSON.stringify(before.captionEdits)!==JSON.stringify(next.captionEdits)||JSON.stringify(compositionSegments(before))!==JSON.stringify(compositionSegments(next))))throw Error('Ścieżka napisów jest zablokowana.');
 }

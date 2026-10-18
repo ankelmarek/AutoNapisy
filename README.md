@@ -14,9 +14,11 @@ RolVixa (wcześniej AutoNapisy) to lokalna aplikacja Windows x64: Tauri 2, React
 - Odłączając dźwięk filmu z przejściem, zachowujemy jego liniowy miks w źródłowej obwiedni. Można ją jawnie usunąć w panelu audio; późniejsza zmiana przejścia wideo nie steruje odłączonym dźwiękiem.
 - Operacja zatwierdzona to **jeden krok Undo/Redo**. R, blokady, powiązania i odłączenie zapisują się w **schemacie v10**; import v1–v9 automatycznie wyłącza globalne Ripple. Starsza aplikacja nie otworzy v10 — przed nadpisaniem zachowaj kopię projektu.
 
-Ograniczenia 0.18: nadal V1/V2 i A1/A2, 100 klipów i 30 FPS. Ripple działa przy usuwaniu oraz przycinaniu klipów, nie przy importowaniu/przesuwaniu ani przy samym skracaniu kart napisów. Nie przycina po cichu klipów innych torów przecinających usuwany przedział. Takie konflikty wymagają ręcznego cięcia lub wyłączenia R. Nie łączy ponownie audio z wideo w jeden klip; dostępne jest wyrównanie synchronizacji. SmartCut i dynamiczne V3/A3 pozostają następnymi osobnymi etapami.
+Ograniczenia 0.18: nadal V1/V2 i A1/A2, 100 klipów i 30 FPS. Ripple działa przy usuwaniu oraz przycinaniu klipów, nie przy importowaniu/przesuwaniu ani przy samym skracaniu kart napisów. Nie przycina po cichu klipów innych torów przecinających usuwany przedział. Takie konflikty wymagają ręcznego cięcia lub wyłączenia R. Napisy pochodzące ze źródła nadal odnoszą się do obrazu; po zmianie treści słyszalnej przez J/L-cut warto ponownie transkrybować końcowy montaż. Niezależne napisy T wymagają odpowiedniego R lub ręcznej korekty. Nie łączy ponownie audio z wideo w jeden klip; dostępne jest wyrównanie synchronizacji. SmartCut i dynamiczne V3/A3 pozostają następnymi osobnymi etapami.
 
 Weryfikacja 0.18: testy TypeScript, Rust oraz rzeczywisty miks J/L-cut MLT/FFmpeg; odbiór Windows i link do instalatora zostaną uzupełnione po zielonym przebiegu CI.
+
+Nowe pliki 0.18: `src/ripple.ts`, `src/RipplePreview.tsx`, `src/detachedAudio.ts`, `schemas/project-v10.schema.json`, `tests/ripple.test.ts`, `scripts/test-edit018.mjs`. Zmodyfikowano model i parser TS/Rust, oś, inspektor, ochronę kadrowania, wspólny model audio oraz testy MLT/FFmpeg i WebView2. Użyte ikony kłódek pochodzą z tego samego oficjalnego Tabler Icons v3.35.0 (MIT); licencja pozostaje w `licenses/Tabler-Icons-MIT.txt`.
 
 ## Wersja 0.17 — odzyskiwanie i wybór ujęć
 
