@@ -1,5 +1,15 @@
 # Kolejne etapy RolVixa
 
+## Plan kolejnych etapów - ustalona kolejność
+
+1. **Autozapis i odzyskiwanie sesji** - zabezpieczenie pracy przed utratą danych.
+2. **Podgląd źródeł i In/Out** - podgląd miniaturek, podgląd filmu źródłowego i wstawianie wybranego fragmentu.
+3. **Ripple Edit oraz odłączanie audio / J-cut / L-cut** - **najpierw** na obecnych V1/V2 i A1/A2. Reguły Ripple per ścieżka, automatyczna ochrona torów zaczynających się po 00:00, świadoma kontrola synchronizacji. Projektować algorytm bez założenia stałej liczby torów.
+4. **Dynamiczne V3/A3 i kolejne tory** - **istotny priorytet po Ripple/J/L-cut**, domyślnie zachować prostą oś 2+2; nowe tory dodawane niezależnie przyciskami. Rozszerzyć już działające zasady Ripple na nowe tory.
+5. **Dalsze funkcje** - zastępowanie źródeł, kontrola przed eksportem, SmartCut i Export Studio w osobnych etapach.
+
+Kolejność 3 → 4 jest wyraźną decyzją użytkownika: **najpierw Ripple, potem więcej ścieżek**. [Issue #3 - dynamiczne tory](https://github.com/ankelmarek/AutoNapisy/issues/3) nie może blokować prac nad Ripple.
+
 ## Wykonane w 0.16 — fade i automatyka głośności
 
 - [x] Obwiednia w schemacie v9, źródłowe czasy i zachowanie po trim/split/copy/Undo.
@@ -157,9 +167,9 @@ Siatkę i znacznik użycia wdrożono w 0.14; fade in/out oraz automatykę przez 
 - Status użycia miniatur jest zgodny z rzeczywistym projektem; siatka działa dla paneli wąskich, wielu mediów i plików niedostępnych, bez regresji przeciągania na oś.
 - Wdrożyć w kolejności: **(1) siatka i znacznik użycia, (2) fade, (3) punkty automatyki i synchronizacja audio z MLT**, o ile pomiar pracochłonności nie wskaże korzystniejszej kolejności połączenia fade z obwiednią.
 
-## Plan do rozważenia: ścieżki dodawane na żądanie (V3 / A3)
+## Istotny etap: ścieżki dodawane na żądanie (V3 / A3) - po Ripple
 
-**Nowy pomysł użytkownika:** niektóre montaże wymagają trzeciej ścieżki wideo lub trzeciej ścieżki audio. To kierunek do doprecyzowania i zatwierdzenia przed implementacją; nie przestawia samodzielnie bieżącego harmonogramu.
+**Zatwierdzone jako istotne rozszerzenie - [issue #3](https://github.com/ankelmarek/AutoNapisy/issues/3).** Niektóre montaże wymagają V3 lub A3. **Najpierw wdrażamy Ripple Edit oraz odłączanie audio / J-cut i L-cut na obecnych torach**, a następnie dynamiczne dokładanie V3/A3. Przy implementacji Ripple unikać założenia stałej liczby torów. Ta kolejność jest decyzją użytkownika.
 
 - **Bez sztywnego limitu dwóch:** domyślnie zachować prosty układ V1/V2 i A1/A2, z przyciskiem `+ Dodaj ścieżkę wideo` lub `+ Dodaj ścieżkę audio`. W pierwszej iteracji zapewnić co najmniej V3 i A3, ale model danych zaprojektować tak, aby późniejsze V4/A4 nie wymagały kolejnej przebudowy. Dodanie wideo **nie dodaje automatycznie** ścieżki audio i odwrotnie.
 - **Ergonomia:** dodane tory dopiero na żądanie; V3 nad V2 nad V1, niezależne A1/A2/A3, T ponad obrazem. Pionowy scroll obszaru ścieżek, możliwość zwinięcia/zmiany wysokości audio, przewijanie poziome zsynchronizowane z podziałką. Na każdym torze opcje mute/ukryj (dla wideo), blokada, docelowo Solo oraz osobne R dla Ripple; jednoznaczne podpisy i podpowiedzi.
@@ -167,7 +177,7 @@ Siatkę i znacznik użycia wdrożono w 0.14; fade in/out oraz automatykę przez 
 - **Ripple:** osobne domyślne ustawienia `auto/on/off` na każdym torze, zgodnie z regułą: pierwszy klip od `00:00` może uczestniczyć; pierwszy klip później lub pusty tor ma R domyślnie wyłączone. Manualne R nadpisuje automat. Blokady i powiązania synchronizacji (szczególnie odłączone audio i napisy) mają pierwszeństwo przed niekontrolowanym przesunięciem.
 - **Dane i silnik:** obecna wersja ma typ `track: 0|1` w TS, ograniczenie `track <= 1` w Rust, sztywny `tracksSchema` V1/V2/A1/A2/T oraz wyliczane bezpośrednio w pikselach współrzędne torów w `Timeline.tsx`; MLT przechodzi `for lane in 0..2`. Wymaga to wspólnego, stabilnego opisu torów (ID/typ/kolejność/ustawienia) oraz migracji v9 w przód; nie wystarczy dorysować przycisku „V3”. Implementacja obejmuje kompozycję warstw, miks, import, drag/drop, klipy, przejścia, napisy, podgląd MLT, eksport FFmpeg/MLT i walidację JSON po obu stronach.
 - **Bezpieczeństwo:** nowe, usuwane lub przestawiane tory muszą zachować Undo/Redo. Usunięcie toru z klipami wymaga świadomego potwierdzenia albo przeniesienia klipów; nigdy cichej utraty. Limit jednoczesnego montażu należy dobrać do wydajności i sprawdzić na materiałach z 3 źródeł obrazu oraz 3 niezależnych źródeł audio, również gdy część źródeł korzysta z proxy.
-- **Kolejność techniczna:** rozbudować model torów **przed** implementacją docelowego wielościeżkowego Ripple i pełnej obsługi odłączania audio/J-cut/L-cut; nie łączyć migracji z bieżącym stabilizowaniem wydania.
+- **Kolejność techniczna:** najpierw wdrożyć Ripple i odłączanie audio/J-cut/L-cut na obecnych torach V1/V2/A1/A2, projektując je tak, aby późniejsze V3/A3 nie wymagały zmiany semantyki. **Dopiero później** rozbudować liczbę ścieżek i dostosować algorytm do nowych torów; nie łączyć dużych migracji ze stabilizacją bieżącego wydania.
 
 ## Kolejna paczka ergonomii montażu: zatwierdzone funkcje (TODO)
 
@@ -236,8 +246,9 @@ Użytkownik zatwierdził z poprzedniej listy **punkty 1, 2, 3, 4, 6, 7, 8, 9**. 
 
 1. Najpierw **9 (odzyskiwanie)**, aby zmniejszyć ryzyko utraty pracy podczas dalszej rozbudowy.
 2. Następnie **1 + 2 (biblioteka źródeł)**, najlepiej po ustabilizowaniu proxy. Zachować kompatybilność z siatką miniaturek i zielonym znacznikiem wykorzystania źródła.
-3. Następnie **3 + 4 (J/L-cut i Ripple)**: zaplanować wspólne reguły powiązania audio z obrazem, przesunięć na osi oraz napisów, by nie utracić synchronizacji.
-4. Niezależnie dodać **6 (strefy bezpieczne)**, **7 (zastępowanie źródła)** oraz **8 (preflight)**; zastępowanie źródła uwzględnia mechanizm proxy, a preflight wymaga stabilnego i sprawdzalnego eksportu.
-5. Każdy etap wymaga testów TypeScript/Rust oraz realnego podglądu MLT i porównania z eksportem; potwierdzić migracje schematów, Undo/Redo, działania przy brakującym źródle i bez internetu.
+3. Następnie **3 + 4 (J/L-cut i Ripple)** na obecnych torach: zaplanować wspólne reguły powiązania audio z obrazem, przesunięć na osi oraz napisów, by nie utracić synchronizacji. Algorytm Ripple projektować niezależnie od liczby ścieżek.
+4. **Po Ripple/J/L-cut - dynamiczne V3/A3** ([issue #3](https://github.com/ankelmarek/AutoNapisy/issues/3)), z zachowaniem reguł montażu i synchronizacji.
+5. Niezależnie dodać **6 (strefy bezpieczne)**, **7 (zastępowanie źródła)** oraz **8 (preflight)**; zastępowanie źródła uwzględnia mechanizm proxy, a preflight wymaga stabilnego i sprawdzalnego eksportu.
+6. Każdy etap wymaga testów TypeScript/Rust oraz realnego podglądu MLT i porównania z eksportem; potwierdzić migracje schematów, Undo/Redo, działania przy brakującym źródle i bez internetu.
 
 **Status:** zaakceptowane do TODO; bez rozpoczęcia implementacji. Punkt 5 (kolorowe znaczniki na osi czasu) celowo pominięty.
