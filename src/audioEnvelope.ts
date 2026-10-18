@@ -13,7 +13,8 @@ export function envelopeGain(c:Clip,t:number):number {
  return points.at(-1)!.gain;
 }
 export function fadeGain(c:Clip,t:number){const a=c.audio;return (a?.fadeIn?smooth((t-a.fadeIn.anchor)/a.fadeIn.duration):1)*(a?.fadeOut?smooth((a.fadeOut.anchor-t)/a.fadeOut.duration):1);}
-export const audioGain=(c:Clip,t:number)=>(c.volume??1)*envelopeGain(c,t)*fadeGain(c,t);
+export function crossfadeGain(c:Clip,t:number){const f=c.crossfade;return (f?.fadeIn?clamp((t-f.fadeIn.anchor)/f.fadeIn.duration):1)*(f?.fadeOut?clamp((f.fadeOut.anchor-t)/f.fadeOut.duration):1);}
+export const audioGain=(c:Clip,t:number)=>(c.audioDetached?0:c.volume??1)*envelopeGain(c,t)*fadeGain(c,t)*crossfadeGain(c,t);
 export function setFade(c:Clip,edge:'in'|'out',duration:number):Clip {
  duration=clamp(duration,0,c.sourceOut-c.sourceIn);
  const audio:AudioEnvelope={...c.audio,points:c.audio?.points??[]},key=edge==='in'?'fadeIn':'fadeOut';
@@ -36,7 +37,7 @@ export function visibleFade(c:Clip,edge:'in'|'out'):number {const f=edge==='in'?
 /** Adaptive gain polyline: short fades remain visible even on hours of source audio. */
 export function curveSamples(c:Clip,zoom:number):{time:number;gain:number}[]{
  const a=c.audio;
- const bounds=[c.sourceIn,c.sourceOut,...(a?.points??[]).map(p=>p.time),...(a?.fadeIn?[a.fadeIn.anchor,a.fadeIn.anchor+a.fadeIn.duration]:[]),...(a?.fadeOut?[a.fadeOut.anchor-a.fadeOut.duration,a.fadeOut.anchor]:[])].filter(t=>t>=c.sourceIn&&t<=c.sourceOut).sort((a,b)=>a-b).filter((t,i,all)=>!i||t-all[i-1]>1e-9);
+ const bounds=[c.sourceIn,c.sourceOut,...Object.entries(c.crossfade??{}).flatMap(([key,f])=>[f.anchor,f.anchor+(key==='fadeIn'?f.duration:-f.duration)]),...(a?.points??[]).map(p=>p.time),...(a?.fadeIn?[a.fadeIn.anchor,a.fadeIn.anchor+a.fadeIn.duration]:[]),...(a?.fadeOut?[a.fadeOut.anchor-a.fadeOut.duration,a.fadeOut.anchor]:[])].filter(t=>t>=c.sourceIn&&t<=c.sourceOut).sort((a,b)=>a-b).filter((t,i,all)=>!i||t-all[i-1]>1e-9);
  const out=[{time:c.sourceIn,gain:audioGain(c,c.sourceIn)}];
  const split=(lo:number,hi:number,depth=0)=>{const g0=audioGain(c,lo),g1=audioGain(c,hi);const bad=[.25,.5,.75].some(r=>Math.abs(audioGain(c,lo+(hi-lo)*r)-(g0+(g1-g0)*r))>.002);
   if(bad&&(hi-lo)*zoom>.25&&depth<24){const mid=(lo+hi)/2;split(lo,mid,depth+1);split(mid,hi,depth+1);}else out.push({time:hi,gain:g1});

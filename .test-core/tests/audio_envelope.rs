@@ -229,3 +229,147 @@ fn actual_linked_audio_mix_overlapping_fades_and_mute() {
     }
     assert!(timeline_audio::plan(&job, &ff, &p, d.path()).is_err());
 }
+
+#[test]
+#[ignore = "requires ROLVIXA_MLT and AUTONAPISY_FFMPEG"]
+fn detached_j_l_audio_matches_preview_both_exports_and_transcription_without_duplication() {
+    let ff = PathBuf::from(std::env::var("AUTONAPISY_FFMPEG").unwrap());
+    let melt = fs::canonicalize(std::env::var("ROLVIXA_MLT").unwrap()).unwrap();
+    let d = tempfile::tempdir().unwrap();
+    let source = d.path().join("Odłączony Łódź 日本.mp4");
+    let out = std::process::Command::new(&ff)
+        .args([
+            "-v",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=red:s=128x128:r=30:d=8",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=1000:sample_rate=48000:duration=8",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "ultrafast",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&source)
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    let original = fs::read(&source).unwrap();
+    let p=project::parse(&serde_json::json!({"schemaVersion":10,"rippleEnabled":true,"name":"J-cut L-cut","media":{"path":source,"name":"Film","duration":8},"clips":[{"id":"v","kind":"video","start":1,"sourceIn":2,"sourceOut":6,"audioDetached":true,"syncGroup":"pair","volume":0.4},{"id":"a","kind":"audio","start":0,"sourceIn":1,"sourceOut":7,"syncGroup":"pair","volume":0.4,"crossfade":{"fadeOut":{"anchor":7,"duration":1}},"audio":{"points":[{"id":"p","time":3,"gain":0.7}],"fadeIn":{"anchor":1,"duration":1}}}],"segments":[],"styles":{"default":{"fontFamily":"Arial","fontSize":40,"color":"#ffffff","background":"#000000","position":"bottom"}},"createdAt":"2026-10-18T00:00:00Z","updatedAt":"2026-10-18T00:00:00Z"}).to_string()).unwrap();
+    let job = Arc::new(Job::new(1));
+    let meta = rendering::Metadata {
+        width: 128,
+        height: 128,
+        duration: 6.,
+        has_audio: true,
+    };
+    let decode = |input: &Path, label: &str| {
+        let wav = d.path().join(format!("{label}.wav"));
+        let o = std::process::Command::new(&ff)
+            .args(["-v", "error", "-y", "-i"])
+            .arg(input)
+            .args(["-vn", "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le"])
+            .arg(&wav)
+            .output()
+            .unwrap();
+        assert!(o.status.success());
+        wav
+    };
+    let preview = |name: &str, p: &project::Project| {
+        let dir = d.path().join(name);
+        fs::create_dir(&dir).unwrap();
+        fs::write(
+            dir.join("timeline.mlt"),
+            mlt::xml(p, &meta, &[], None).unwrap(),
+        )
+        .unwrap();
+        mlt::run(&job, &melt, &dir, 0, 179, false, true).unwrap()
+    };
+    let mut reference = p.clone();
+    reference.clips.as_mut().unwrap().remove(0);
+    let base = preview("reference", &reference);
+    let actual = preview("preview", &p);
+    for t in [0.5, 1.5, 3., 4.5, 5.5] {
+        let ratio = rms(&actual, t) / rms(&base, t);
+        assert!(
+            (ratio - 1.).abs() < 0.025,
+            "Duplicated/missing sound at {t}: {ratio}"
+        );
+    }
+    let dir = d.path().join("transcription");
+    fs::create_dir(&dir).unwrap();
+    let ranges = timeline_audio::plan(&job, &ff, &p, &dir).unwrap();
+    assert_eq!(ranges.len(), 1);
+    assert_eq!(ranges[0].timeline_start, 0.);
+    assert!((ranges[0].duration - 6.).abs() < 1e-6);
+    for kind in ["mlt", "ffmpeg"] {
+        let dir = d.path().join(kind);
+        fs::create_dir(&dir).unwrap();
+        let mp4 = if kind == "mlt" {
+            mlt::assemble(&job, &melt, &ff, &p, &meta, &dir).unwrap()
+        } else {
+            autonapisy_core_tests::montage::assemble(&job, &ff, &source, &dir, &p, &meta).unwrap()
+        };
+        let wav = decode(&mp4, kind);
+        // WAV monitoring and MP4 use different channel layouts; compare like-for-like exports.
+        let reference_dir = d.path().join(format!("{kind}-reference"));
+        fs::create_dir(&reference_dir).unwrap();
+        let reference_mp4 = if kind == "mlt" {
+            mlt::assemble(&job, &melt, &ff, &reference, &meta, &reference_dir).unwrap()
+        } else {
+            autonapisy_core_tests::montage::assemble(
+                &job,
+                &ff,
+                &source,
+                &reference_dir,
+                &reference,
+                &meta,
+            )
+            .unwrap()
+        };
+        let reference_wav = decode(&reference_mp4, &format!("{kind}-reference"));
+        for t in [0.5, 1.5, 3., 4.5, 5.5] {
+            let ratio = rms(&wav, t) / rms(&reference_wav, t);
+            assert!(
+                (ratio - 1.).abs() * audio_envelope::gain(&p.clips.as_ref().unwrap()[1], 1. + t)
+                    < 0.025,
+                "{kind} sound {t}: {ratio}"
+            );
+        }
+        for (t, red) in [("0.5", false), ("2", true), ("5.5", false)] {
+            let o = std::process::Command::new(&ff)
+                .args(["-v", "error", "-ss", t, "-i"])
+                .arg(&mp4)
+                .args([
+                    "-vf",
+                    "scale=1:1",
+                    "-frames:v",
+                    "1",
+                    "-pix_fmt",
+                    "rgb24",
+                    "-f",
+                    "rawvideo",
+                    "pipe:1",
+                ])
+                .output()
+                .unwrap();
+            assert!(o.status.success());
+            assert_eq!(o.stdout[0] > 150, red, "{kind} picture {t}");
+        }
+    }
+    let mut silent = p.clone();
+    silent.tracks.a1.muted = true;
+    let muted = preview("muted", &silent);
+    assert!(rms(&muted, 3.) < 1.);
+    assert!(timeline_audio::plan(&job, &ff, &silent, &dir).is_err());
+    assert_eq!(fs::read(source).unwrap(), original);
+}

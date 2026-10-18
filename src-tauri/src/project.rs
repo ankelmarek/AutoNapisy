@@ -5,6 +5,8 @@ use std::collections::{HashMap, HashSet};
 pub struct Project {
     pub schema_version: u32,
     #[serde(default)]
+    pub ripple_enabled: bool,
+    #[serde(default)]
     pub canvas: Option<Canvas>,
     #[serde(default)]
     pub tracks: TrackControls,
@@ -50,13 +52,17 @@ pub struct Provenance {
     pub source_url: String,
     pub attribution: String,
 }
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct TrackState {
     #[serde(default)]
     pub muted: bool,
     #[serde(default)]
     pub hidden: bool,
+    #[serde(default)]
+    pub locked: bool,
+    #[serde(default = "auto_ripple")]
+    pub ripple: String,
 }
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -72,6 +78,19 @@ pub struct TrackControls {
     #[serde(rename = "T", default)]
     pub captions: TrackState,
 }
+impl Default for TrackState {
+    fn default() -> Self {
+        Self {
+            muted: false,
+            hidden: false,
+            locked: false,
+            ripple: "auto".into(),
+        }
+    }
+}
+fn auto_ripple() -> String {
+    "auto".into()
+}
 impl TrackControls {
     pub fn video_hidden(&self, c: &Clip) -> bool {
         c.kind != "audio"
@@ -82,16 +101,18 @@ impl TrackControls {
             }
     }
     pub fn audio_muted(&self, c: &Clip) -> bool {
-        (if c.track == 0 {
-            self.a1.muted
-        } else {
-            self.a2.muted
-        }) || (c.kind != "audio"
-            && if c.track == 0 {
-                self.v1.muted
+        c.audio_detached
+            || (if c.track == 0 {
+                self.a1.muted
             } else {
-                self.v2.muted
+                self.a2.muted
             })
+            || (c.kind != "audio"
+                && if c.track == 0 {
+                    self.v1.muted
+                } else {
+                    self.v2.muted
+                })
     }
 }
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -111,6 +132,12 @@ pub struct Clip {
     pub volume: f64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub audio: Option<AudioEnvelope>,
+    #[serde(default)]
+    pub audio_detached: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sync_group: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub crossfade: Option<Crossfade>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub transform: Option<Transform>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -120,6 +147,14 @@ pub struct Clip {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AudioEnvelope {
     pub points: Vec<VolumePoint>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fade_in: Option<Fade>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fade_out: Option<Fade>,
+}
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Crossfade {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fade_in: Option<Fade>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -189,6 +224,10 @@ pub struct CaptionEdit {
     pub text: Option<String>,
     #[serde(default)]
     pub hidden: bool,
+    #[serde(default)]
+    pub locked: bool,
+    #[serde(default = "auto_ripple")]
+    pub ripple: String,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -291,7 +330,7 @@ pub fn parse(json: &str) -> Result<Project, String> {
     }
     let mut p: Project =
         serde_json::from_value(raw).map_err(|e| format!("Niepoprawny JSON projektu: {e}"))?;
-    if ![1, 2, 3, 4, 5, 6, 7, 8, 9].contains(&p.schema_version) {
+    if ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10].contains(&p.schema_version) {
         return Err("Nieobsługiwana wersja projektu".into());
     }
     if p.schema_version < 3 {
@@ -323,7 +362,21 @@ pub fn parse(json: &str) -> Result<Project, String> {
             .into();
         }
     }
-    p.schema_version = 9;
+    if p.schema_version < 10 {
+        p.ripple_enabled = false;
+    }
+    p.schema_version = 10;
+    for t in [
+        &p.tracks.v1,
+        &p.tracks.v2,
+        &p.tracks.a1,
+        &p.tracks.a2,
+        &p.tracks.captions,
+    ] {
+        if !["auto", "on", "off"].contains(&t.ripple.as_str()) {
+            return Err("Nieprawidłowy tryb Ripple".into());
+        }
+    }
     if p.canvas.as_ref().is_some_and(|v| {
         v.width < 128
             || v.height < 128
@@ -409,6 +462,14 @@ pub fn parse(json: &str) -> Result<Project, String> {
                 || !(0.0..=1.0).contains(&c.volume)
             {
                 return Err("Nieprawidłowe ujęcie".into());
+            }
+            if (c.audio_detached && c.kind == "audio")
+                || (c.crossfade.is_some() && c.kind != "audio")
+                || c.sync_group
+                    .as_ref()
+                    .is_some_and(|s| s.is_empty() || s.chars().count() > 100)
+            {
+                return Err("Nieprawidłowe powiązanie audio".into());
             }
             crate::audio_envelope::validate(c, duration)?;
             if c.kind == "video"
@@ -615,7 +676,7 @@ mod tests {
     #[test]
     fn migrate_v1_and_validate_layout() {
         let project = parse(&json()).unwrap();
-        assert_eq!(project.schema_version, 9);
+        assert_eq!(project.schema_version, 10);
         assert!(!project.styles["default"].uppercase);
         assert_eq!(project.styles["default"].max_lines, 2);
         let mut value = serde_json::to_value(project).unwrap();
@@ -707,5 +768,47 @@ mod tests {
         );
         encoded.as_object_mut().unwrap().remove("clips");
         assert!(parse(&encoded.to_string()).is_err());
+    }
+}
+
+#[cfg(test)]
+mod edit018_tests {
+    use super::*;
+    fn value() -> serde_json::Value {
+        serde_json::json!({"schemaVersion":10,"rippleEnabled":true,"name":"Łódź","media":{"path":"C:/Łódź.mp4","name":"Film","duration":10},"clips":[{"id":"v","start":0,"sourceIn":1,"sourceOut":5,"audioDetached":true,"syncGroup":"pair"},{"id":"a","kind":"audio","start":0,"sourceIn":1,"sourceOut":5,"syncGroup":"pair","crossfade":{"fadeIn":{"anchor":1,"duration":1}},"audio":{"points":[],"fadeOut":{"anchor":5,"duration":1}}}],"tracks":{"V1":{"ripple":"on","locked":true}},"segments":[],"styles":{"default":{"fontFamily":"Arial","fontSize":40,"color":"#ffffff","background":"#000000","position":"bottom"}},"createdAt":"2026-10-18T00:00:00Z","updatedAt":"2026-10-18T00:00:00Z"})
+    }
+    #[test]
+    fn edit_controls_detach_and_crossfade_roundtrip() {
+        let p = parse(&value().to_string()).unwrap();
+        assert!(p.ripple_enabled && p.tracks.v1.locked);
+        assert!(p.tracks.audio_muted(&p.clips.as_ref().unwrap()[0]));
+        let q = parse(&serde_json::to_string(&p).unwrap()).unwrap();
+        assert_eq!(q.schema_version, 10);
+        assert_eq!(q.tracks.v1.ripple, "on");
+        assert_eq!(q.clips.unwrap()[1].sync_group.as_deref(), Some("pair"));
+    }
+    #[test]
+    fn legacy_migration_disables_ripple_and_invalid_controls_rejected() {
+        let mut v = value();
+        v["schemaVersion"] = 9.into();
+        assert!(!parse(&v.to_string()).unwrap().ripple_enabled);
+        v["schemaVersion"] = 10.into();
+        v["tracks"]["V1"]["ripple"] = "guessed".into();
+        assert!(parse(&v.to_string()).is_err());
+        v = value();
+        v["clips"][0]["kind"] = "audio".into();
+        assert!(parse(&v.to_string()).is_err());
+        v = value();
+        v["clips"][1]["crossfade"]["fadeIn"]["duration"] = 11.into();
+        assert!(parse(&v.to_string()).is_err());
+    }
+    #[test]
+    fn detached_volume_fades_are_multiplicative_not_replaced() {
+        let p = parse(&value().to_string()).unwrap();
+        let clips = p.clips.unwrap();
+        assert_eq!(crate::audio_envelope::gain(&clips[0], 2.), 0.);
+        assert!((crate::audio_envelope::gain(&clips[1], 1.5) - 0.5).abs() < 1e-9);
+        assert!((crate::audio_envelope::gain(&clips[1], 4.5) - 0.5).abs() < 1e-9);
+        assert!(crate::audio_envelope::expression(&clips[1], "t").contains("clip"));
     }
 }

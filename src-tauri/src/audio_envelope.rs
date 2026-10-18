@@ -1,6 +1,25 @@
 //! The shared source-time gain model for MLT, FFmpeg export and transcription.
 use crate::project::Clip;
 pub fn validate(c: &Clip, duration: f64) -> Result<(), String> {
+    for (f, incoming) in c
+        .crossfade
+        .iter()
+        .flat_map(|x| [(&x.fade_in, true), (&x.fade_out, false)])
+    {
+        if let Some(f) = f {
+            if !f.anchor.is_finite()
+                || !f.duration.is_finite()
+                || f.duration <= 0.
+                || f.duration > 86400.
+                || f.anchor < 0.
+                || f.anchor > duration + 1e-6
+                || (incoming && f.anchor + f.duration > duration + 1e-6)
+                || (!incoming && f.anchor - f.duration < -1e-6)
+            {
+                return Err("Nieprawidłowa obwiednia przejścia audio".into());
+            }
+        }
+    }
     let Some(a) = &c.audio else { return Ok(()) };
     let mut ids = std::collections::HashSet::new();
     if a.points.len() > 64
@@ -40,7 +59,16 @@ pub fn smooth(x: f64) -> f64 {
     x * x * (3. - 2. * x)
 }
 pub fn gain(c: &Clip, t: f64) -> f64 {
-    let Some(a) = &c.audio else { return c.volume };
+    let base = if c.audio_detached { 0. } else { c.volume }
+        * c.crossfade.as_ref().map_or(1., |x| {
+            x.fade_in
+                .as_ref()
+                .map_or(1., |f| ((t - f.anchor) / f.duration).clamp(0., 1.))
+                * x.fade_out
+                    .as_ref()
+                    .map_or(1., |f| ((f.anchor - t) / f.duration).clamp(0., 1.))
+        });
+    let Some(a) = &c.audio else { return base };
     let points = &a.points;
     let env = if points.is_empty() {
         1.
@@ -52,8 +80,7 @@ pub fn gain(c: &Clip, t: f64) -> f64 {
         }
         g.clamp(0., 1.)
     };
-    c.volume
-        * env
+    base * env
         * a.fade_in
             .as_ref()
             .map_or(1., |f| smooth((t - f.anchor) / f.duration))
@@ -66,10 +93,21 @@ fn smooth_expr(x: String) -> String {
 }
 /// `time` is controlled adapter code, never user text; all inserted values passed validation.
 pub fn expression(c: &Clip, time: &str) -> String {
-    let Some(a) = &c.audio else {
-        return c.volume.to_string();
-    };
-    let mut factors = vec![c.volume.to_string()];
+    let mut factors = vec![if c.audio_detached {
+        "0".into()
+    } else {
+        c.volume.to_string()
+    }];
+    if let Some(x) = &c.crossfade {
+        if let Some(f) = &x.fade_in {
+            factors.push(format!("clip((({time})-{})/{},0,1)", f.anchor, f.duration));
+        }
+        if let Some(f) = &x.fade_out {
+            factors.push(format!("clip(({}-({time}))/{},0,1)", f.anchor, f.duration));
+        }
+    }
+    let empty = crate::project::AudioEnvelope::default();
+    let a = c.audio.as_ref().unwrap_or(&empty);
     if let Some(first) = a.points.first() {
         let mut env = first.gain.to_string();
         for pair in a.points.windows(2) {
@@ -112,13 +150,14 @@ fn db(gain: f64) -> f64 {
 /// differs by <=0.001, stopping at the editor's 30 fps timebase. This bounds XML
 /// size by curve complexity instead of creating millions of keys for long clips.
 pub fn mlt_level(c: &Clip, count: i64) -> String {
-    if c.audio.is_none() {
-        return db(c.volume).to_string();
+    if c.audio.is_none() && c.crossfade.is_none() {
+        return db(gain(c, c.source_in)).to_string();
     }
     let last = (count - 1).max(0);
     let sample = |f: i64| gain(c, c.source_in + f as f64 / 30.);
     let mut bounds = vec![0, last];
-    let a = c.audio.as_ref().unwrap();
+    let empty = crate::project::AudioEnvelope::default();
+    let a = c.audio.as_ref().unwrap_or(&empty);
     for p in &a.points {
         bounds.push(
             ((p.time - c.source_in) * 30.)
@@ -126,7 +165,14 @@ pub fn mlt_level(c: &Clip, count: i64) -> String {
                 .clamp(0., last as f64) as i64,
         );
     }
-    for (fade, incoming) in [(&a.fade_in, true), (&a.fade_out, false)] {
+    for (fade, incoming) in [(&a.fade_in, true), (&a.fade_out, false)]
+        .into_iter()
+        .chain(
+            c.crossfade
+                .iter()
+                .flat_map(|x| [(&x.fade_in, true), (&x.fade_out, false)]),
+        )
+    {
         if let Some(f) = fade {
             for t in [
                 f.anchor,

@@ -1,16 +1,23 @@
 import AudioProperties from './AudioProperties';
+import {detachAudio,realignAudio,syncOffset} from './detachedAudio';
+import {useState} from 'react';
 import {transitionKinds,transitionLabels} from './transitionCatalog';
 import type {Project} from './model';
 import {neutral,removeTransition,applyTransition} from './effects';
 import {clipMedia,projectClips,type Clip} from './editing';
 export default function VideoProperties({project,clip,locked,transitionId,onChange}:{project:Project;clip?:Clip;locked:boolean;transitionId?:string;onChange:(p:Project)=>void}){
+ const [audioError,setAudioError]=useState('');
  const t=project.transitions.find(t=>t.id===transitionId),a=clip?.adjustments??neutral;
  return <div className="video-properties">
   {t&&<fieldset disabled={locked}><legend>Przejście</legend><label>Rodzaj<select value={t.kind} onChange={e=>onChange(applyTransition(project,t.fromId,t.toId,e.target.value as typeof t.kind,t.duration))}>{transitionKinds.map(k=><option key={k} value={k}>{transitionLabels[k]}</option>)}</select></label><label>Długość: {t.duration.toFixed(2)} s<input aria-label="Długość przejścia" type="range" min={.1} max={Math.min(2,projectClips(project).find(c=>c.id===t.fromId)!.sourceOut-projectClips(project).find(c=>c.id===t.fromId)!.sourceIn,projectClips(project).find(c=>c.id===t.toId)!.sourceOut-projectClips(project).find(c=>c.id===t.toId)!.sourceIn+t.duration-.05)} step={.05} value={t.duration} onChange={e=>onChange(applyTransition(project,t.fromId,t.toId,t.kind,Number(e.target.value)))}/></label><button onClick={()=>onChange(removeTransition(project,t.id))}>Usuń przejście</button><p className="hint">Przejście zużywa początek następnego klipu i skraca ten pas montażu.</p></fieldset>}
   {!clip?<p className="hint">Zaznacz film na osi czasu, aby zmienić jego obraz.</p>:<fieldset disabled={locked}><legend>{clip.kind==='audio'?'Dźwięk':'Korekcja filmu'}</legend><p className="property-file">{clipMedia(project,clip)?.name}</p>
    {clip.kind!=='audio'&&<>{([['brightness','Jasność'],['contrast','Kontrast'],['saturation','Nasycenie']] as const).map(([key,label])=><label key={key}>{label}<b>{Math.round(a[key]*100)}%</b><input aria-label={label} type="range" min={key==='saturation'?0:.25} max={2} step={.01} value={a[key]} onChange={e=>onChange({...project,clips:projectClips(project).map(c=>c.id===clip.id?{...c,adjustments:{...a,[key]:Number(e.target.value)}}:c)})}/></label>)}<button onClick={()=>onChange({...project,clips:projectClips(project).map(c=>c.id===clip.id?{...c,adjustments:{...neutral}}:c)})}>Reset korekcji</button><p className="hint">Korekcja dotyczy zaznaczonego ujęcia, jest widoczna w podglądzie i zapisywana w MP4.</p></>}
-   <label>Głośność<b>{Math.round((clip.volume??1)*100)}%</b><input aria-label="Głośność w panelu właściwości" type="range" min={0} max={1} step={.01} value={clip.volume??1} onChange={e=>onChange({...project,clips:projectClips(project).map(c=>c.id===clip.id?{...c,volume:Number(e.target.value)}:c)})}/></label>
-   <AudioProperties key={clip.id} clip={clip} onChange={next=>onChange({...project,clips:projectClips(project).map(c=>c.id===clip.id?next:c)})}/>
+   <label>Głośność<b>{Math.round((clip.volume??1)*100)}%</b><input disabled={clip.audioDetached} aria-label="Głośność w panelu właściwości" type="range" min={0} max={1} step={.01} value={clip.volume??1} onChange={e=>onChange({...project,clips:projectClips(project).map(c=>c.id===clip.id?{...c,volume:Number(e.target.value)}:c)})}/></label>
+   {!clip.audioDetached&&<AudioProperties key={clip.id} clip={clip} onChange={next=>onChange({...project,clips:projectClips(project).map(c=>c.id===clip.id?next:c)})}/>}
+   {clip.kind!=='audio'&&!clip.audioDetached&&<div className="detach-controls"><b>Odłącz audio</b>{([0,1] as const).map(track=><button key={track} disabled={locked||project.tracks[track===0?'A1':'A2']?.locked} onClick={()=>{try{onChange(detachAudio(project,clip.id,track));setAudioError('');}catch(e){setAudioError(String(e));}}}>Odłącz audio → A{track+1}</button>)}</div>}
+   {clip.audioDetached&&<p className="hint">Dźwięk odłączony. Przycinaj obraz i osobny klip audio niezależnie.</p>}
+   {clip.kind==='audio'&&syncOffset(project,clip)!=null&&<div className="sync-controls"><p>Przesunięcie synchronizacji: <b>{syncOffset(project,clip)!.toFixed(3)} s</b></p><button onClick={()=>{try{onChange(realignAudio(project,clip.id));setAudioError('');}catch(e){setAudioError(String(e));}}}>Zsynchronizuj audio z obrazem</button><p className="hint">J-cut: rozciągnij lewy brzeg audio przed obraz. L-cut: rozciągnij prawy brzeg za obraz. Wyłącz Ripple przy niezależnym przycinaniu.</p></div>}
+   {audioError&&<p role="alert">{audioError}</p>}
   </fieldset>}
  </div>;
 }

@@ -75,7 +75,7 @@ try{
  await page.locator('.project-menu summary').click();await page.locator('.project-menu-popup').getByRole('button',{name:'Zapisz',exact:true}).click();await page.waitForFunction(()=>document.querySelector('.header-save').dataset.saveStatus==='saved');
  await page.waitForFunction(()=>!document.querySelector('select[aria-label="Format obrazu"]').disabled);
  const saved=JSON.parse(fs.readFileSync(process.env.ROLVIXA_TEST_PROJECT,'utf8'));
- assert.equal(saved.schemaVersion,9);assert.deepEqual(saved.canvas,{width:1080,height:1080});assert.equal(saved.clips[0].transform.scale,1.5);assert(Math.abs(saved.clips[0].transform.x-.2)<.02);
+ assert.equal(saved.schemaVersion,10);assert.deepEqual(saved.canvas,{width:1080,height:1080});assert.equal(saved.clips[0].transform.scale,1.5);assert(Math.abs(saved.clips[0].transform.x-.2)<.02);
  await page.getByRole('tab',{name:'Audio',exact:true}).click();
  await page.getByRole('button',{name:'Dźwięki',exact:true}).click();
  await page.waitForFunction(()=>document.querySelectorAll('.audio-library-item').length===100);
@@ -166,6 +166,19 @@ try{
  await page.locator('.header-project-name').click();await page.getByRole('textbox',{name:'Nazwa projektu',exact:true}).fill('Otwarty i zapisany');await page.keyboard.press('Enter');await page.keyboard.press('Control+s');await page.waitForFunction(()=>document.querySelector('.header-save').dataset.saveStatus==='saved');assert.equal(JSON.parse(fs.readFileSync(projectPath,'utf8')).name,'Otwarty i zapisany');assert.equal(JSON.parse(fs.readFileSync(copyPath,'utf8')).name,'Moja kopia 2');
  console.log('Real Windows atomic save, external-change conflict, Save As and opened/direct target switching: OK');
 
+
+ // 0.18: real IPC accepts detached audio, renders it and roundtrips schema v10.
+ const beforeDetach18=JSON.parse(fs.readFileSync(projectPath,'utf8'));
+ await page.locator('.edit-clip[data-clip-id="first"]:not(.audio-clip)').click({position:{x:22,y:12}});
+ await page.getByRole('button',{name:'Odłącz audio → A1',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelector('video.mlt-video')?.readyState>=2);
+ await page.locator('.header-save').click();await page.waitForFunction(()=>document.querySelector('.header-save').dataset.saveStatus==='saved');
+ const detached18=JSON.parse(fs.readFileSync(projectPath,'utf8'));assert.equal(detached18.schemaVersion,10);assert.equal(detached18.clips.length,beforeDetach18.clips.length+1);assert(detached18.clips.find(c=>c.id==='first').audioDetached);assert(detached18.clips.some(c=>c.kind==='audio'&&c.syncGroup));assert.equal(await page.locator('.edit-clip[data-clip-id="first"].audio-clip').count(),0);
+ await page.keyboard.press('Control+z');await page.locator('.header-save').click();await page.waitForFunction(()=>document.querySelector('.header-save').dataset.saveStatus==='saved');assert.deepEqual(JSON.parse(fs.readFileSync(projectPath,'utf8')).clips,beforeDetach18.clips);
+ await page.getByRole('button',{name:'Tryb Ripple',exact:true}).click();await page.locator('.edit-clip[data-clip-id="first"]:not(.audio-clip)').click({position:{x:22,y:12}});
+ await page.getByRole('spinbutton',{name:'Wyjście źródła',exact:true}).fill('3');await page.getByRole('spinbutton',{name:'Wyjście źródła',exact:true}).press('Enter');await page.getByRole('dialog',{name:'Podgląd Ripple',exact:true}).waitFor();await page.getByRole('button',{name:'Anuluj',exact:true}).click();await page.getByRole('button',{name:'Tryb Ripple',exact:true}).click();
+ await page.locator('.header-save').click();await page.waitForFunction(()=>document.querySelector('.header-save').dataset.saveStatus==='saved');assert.deepEqual(JSON.parse(fs.readFileSync(projectPath,'utf8')).clips,beforeDetach18.clips);
+ console.log('Real 0.18 detach / native MLT / v10 manual save / single Undo / Ripple preview and cancel: OK');
 
  // 0.17: real source viewer uses MLT, real Unicode thumbnail uses FFmpeg.
  await page.getByRole('tab',{name:/Pliki/}).click();await page.locator('.media-proxy[open]').evaluateAll(nodes=>nodes.forEach(n=>n.open=false));
