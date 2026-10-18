@@ -1,3 +1,4 @@
+import {testSourceAuthorization023,testMissingRelink023} from './test-sources023-native.mjs';
 import {testSources023} from './test-sources023.mjs';
 import {testTracks022} from './test-tracks022.mjs';
 // Real installed app, real native commands, real MLT, incremental file reads and MSE.
@@ -207,7 +208,9 @@ try{
  const srtPath19=projectPath.replace(/\.json$/i,'.srt');for(let n=0;n<100&&!fs.existsSync(srtPath19);n++)await page.waitForTimeout(100);assert(fs.existsSync(srtPath19),'Native SRT export did not write the selected file');const srtBytes19=fs.readFileSync(srtPath19,'utf8');assert(srtBytes19.includes('Zażółć gęślą'));assert(srtBytes19.includes('00:00:01,250 --> 00:00:02,500'));await page.waitForFunction(()=>!document.querySelector('.header-project-name').disabled);
  assert.equal((await page.locator('.header-export').innerText()).trim(),'Eksportuj');await page.screenshot({path:'.tools/native-ux019.png'});console.log('Real 0.19 SRT: empty source transcript, montage captions, keyboard activation, Unicode and actual atomically saved file: OK');
  await testTracks022(page,async()=>{await page.locator('.header-save').click();await page.waitForFunction(()=>document.querySelector('.header-save')?.dataset.saveStatus==='saved');},()=>JSON.parse(fs.readFileSync(projectPath,'utf8')),'.tools/native-tracks022.png');
+ await testSourceAuthorization023(page,projectPath,process.env.ROLVIXA_TEST_REPLACEMENT);
  await testSources023(page,async()=>{await page.locator('.header-save').click();await page.waitForFunction(()=>document.querySelector('.header-save')?.dataset.saveStatus==='saved');},()=>JSON.parse(fs.readFileSync(projectPath,'utf8')),async variant=>{fs.copyFileSync(path.join(path.dirname(projectPath),`replacement-${variant}.mp4`),process.env.ROLVIXA_TEST_REPLACEMENT);},'.tools/native-sources023.png');
+ await testMissingRelink023(page,projectPath);
  await testRecentNative(page);
  // Leave a real recovery copy for the forced process-restart test in PowerShell.
  await page.locator('.header-project-name').click();await page.getByRole('textbox',{name:'Nazwa projektu',exact:true}).fill('Przed awarią procesu 0.17');await page.keyboard.press('Enter');await waitSnapshotName('Przed awarią procesu 0.17');

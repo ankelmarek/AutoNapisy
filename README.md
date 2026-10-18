@@ -17,7 +17,7 @@ Zachowane są ID, pozycje i liczba klipów, cięcia, przejścia, trasowanie i od
 
 Ograniczenia: odnajdywanie pojedynczych plików, bez automatycznego przeszukiwania folderu; brak automatycznego dopasowania ujęć do zbyt krótkiego pliku. Cofnij przywraca odwołanie w projekcie, nie odtwarza nagrania usuniętego lub nadpisanego poza programem. Raport **nie mierzy** clippingu, ciszy ani czarnych klatek wewnątrz źródeł, nie sprawdza napisów poza strefą bezpieczną ani jakości kadrowania. Luki mogą być zamierzone. Pełna analiza jakości, SmartCut i Export Studio pozostają osobnymi etapami.
 
-Nowe pliki: `src/sourceReplacement.ts`, `src/SourceReplacementDialog.tsx`, `src/preflight.ts`, `src/PreflightDialog.tsx`, `src/TaskDialog.tsx`, `src/mediaRevision.ts`, `src-tauri/src/media_sources.rs`, `src-tauri/src/source_commands.rs`, `tests/sourceReplacement.test.ts`, `.test-core/tests/source_replace.rs`, `scripts/test-sources023.mjs`. Zmiany obejmują bibliotekę, podgląd, cache mediów, komendy Tauri i workflow odbioru Windows. Instrukcja budowania i wybór narzędzi pozostają jak poniżej.
+Nowe pliki: `src/sourceReplacement.ts`, `src/SourceReplacementDialog.tsx`, `src/preflight.ts`, `src/PreflightDialog.tsx`, `src/TaskDialog.tsx`, `src/mediaRevision.ts`, `src-tauri/src/media_sources.rs`, `src-tauri/src/source_commands.rs`, `tests/sourceReplacement.test.ts`, `.test-core/tests/source_replace.rs`, `scripts/test-sources023.mjs`, `scripts/test-sources023-native.mjs`. Zmiany obejmują bibliotekę, podgląd, cache mediów, komendy Tauri i workflow odbioru Windows. Instrukcja budowania i wybór narzędzi pozostają jak poniżej.
 
 ## Wersja 0.22 — dynamiczne tory
 
