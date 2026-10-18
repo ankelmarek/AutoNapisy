@@ -1,10 +1,12 @@
 import {useEffect,useRef,useState} from 'react';
+import {useMediaRevision} from './mediaRevision';
 import Icon from './Icons';
 import {thumbnailFrame} from './thumbnailFrames';
 export default function MediaThumbnail({path,duration,src,audio,cacheKey=''}:{path:string;duration:number|null;src?:string;audio:boolean;cacheKey?:string}){
  const host=useRef<HTMLDivElement>(null),[image,setImage]=useState<string>(),[scrub,setScrub]=useState<string>(),[hoverTime,setHoverTime]=useState<number|null>(null);
  const epoch=useRef(0),timer=useRef<ReturnType<typeof setTimeout>|undefined>(undefined),lastRequest=useRef(0);
- const identity=`${src}|${cacheKey}`;
+ const revision=useMediaRevision(path);
+ const identity=`${src}|${cacheKey}|${revision}`;
  useEffect(()=>{setImage(undefined);setScrub(undefined);setHoverTime(null);if(!src||audio||!duration)return;let alive=true,queued=false;const el=host.current;if(!el)return;
   const observer=new IntersectionObserver(entries=>{if(!entries.some(e=>e.isIntersecting)||queued)return;queued=true;observer.disconnect();void thumbnailFrame(path,Math.min(.2,duration/10),identity,()=>alive).then(url=>{if(alive&&url){setImage(url);}});},{rootMargin:'150px'});observer.observe(el);
   return()=>{alive=false;observer.disconnect();epoch.current++;clearTimeout(timer.current);};

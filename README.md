@@ -1,7 +1,23 @@
-# RolVixa 0.22 — polska mowa → polskie napisy
+# RolVixa 0.23 — polska mowa → polskie napisy
 
 **Instalator 0.22:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39135310340/artifacts/12140085502), rozpakuj i uruchom `RolVixa_0.22.0_x64-setup.exe`. Pobranie z Actions wymaga zalogowania na GitHub.
 RolVixa (wcześniej AutoNapisy) to lokalna aplikacja Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Rozpoznaje polską mowę przez whisper.cpp, bez tłumaczenia. Transkrypcja i montaż działają na komputerze. Opcjonalna biblioteka muzyki łączy się z Openverse po wpisaniu frazy wyszukiwania; nie wysyła nagrań użytkownika.
+
+## Wersja 0.23 — źródła i sprawdzenie eksportu
+
+W trakcie odbioru Windows; poprzedni zweryfikowany instalator jest podany wyżej. Schemat projektu pozostaje **v11**, bez migracji.
+
+**Pliki → Źródło → Odnajdź plik…** służy do wskazania przeniesionego nagrania. Trzeba potwierdzić, że to ten sam materiał: zachowane zostają napisy oraz dane autorstwa/licencji. **Zastąp źródło…** wymienia nagranie na inne; domyślnie usuwa jego napisy, a zachowanie tekstu wymaga jawnego zaznaczenia. Transkrypcja całego montażu nie ma przypisania do pojedynczych źródeł, dlatego jej wyczyszczenie obejmuje cały montaż i jest opisane przed zatwierdzeniem. Napisy źródłowe innych materiałów pozostają zachowane. Dane licencji poprzedniego pliku nie są przenoszone na nowe nagranie.
+
+FFprobe sprawdza czas, strumienie, rozmiar, obrót, FPS, kanały i częstotliwość audio. Dialog ostrzega o różnicach geometrii i dźwięku. Wskazuje każde ujęcie wymagające dłuższego pliku oraz źródłowe punkty/wyciszenia wychodzące poza zamiennik. Nie skraca niczego automatycznie: wybierz dłuższy zamiennik lub anuluj i popraw wskazane ujęcia. Blokady używanych torów chronią podmianę. Krótsze źródło jest dozwolone, jeśli mieści wszystkie używane zakresy, zachowywane napisy i obwiednie.
+
+Zachowane są ID, pozycje i liczba klipów, cięcia, przejścia, trasowanie i odłączenie audio, kadrowanie, korekcja i obwiednie. Dotyczy wszystkich wystąpień wybranego źródła. Podmiana jest jednym krokiem **Ctrl+Z / Ctrl+Shift+Z**, zapisywanym i odzyskiwanym jak pozostałe zmiany projektu. Miniatury, przebiegi audio i podgląd są odświeżane; proxy ma tożsamość nowego źródła. Wybór i odczyty systemowe realizuje backend; akceptacja używa jednorazowego identyfikatora i ponownie sprawdza odcisk wybranego pliku. Pliki nagrań nie są modyfikowane.
+
+**Eksportuj** najpierw pokazuje raport dostępności i parametrów źródeł oraz przerw bez widocznego filmu (z uwzględnieniem wszystkich widocznych torów). Błąd źródła blokuje eksport; ostrzeżenie o luce można zaakceptować przyciskiem **Eksportuj mimo ostrzeżeń**. Raport oferuje skok do czasu lub wskazanie pliku w bibliotece. W samym raporcie i podczas podmiany pozostałe okna są pod natywną warstwą modalną. Obecny eksport wymaga dostępności również źródeł pozostających w bibliotece poza osią — raport pokazuje je bez przypisania do czasu.
+
+Ograniczenia: odnajdywanie pojedynczych plików, bez automatycznego przeszukiwania folderu; brak automatycznego dopasowania ujęć do zbyt krótkiego pliku. Cofnij przywraca odwołanie w projekcie, nie odtwarza nagrania usuniętego lub nadpisanego poza programem. Raport **nie mierzy** clippingu, ciszy ani czarnych klatek wewnątrz źródeł, nie sprawdza napisów poza strefą bezpieczną ani jakości kadrowania. Luki mogą być zamierzone. Pełna analiza jakości, SmartCut i Export Studio pozostają osobnymi etapami.
+
+Nowe pliki: `src/sourceReplacement.ts`, `src/SourceReplacementDialog.tsx`, `src/preflight.ts`, `src/PreflightDialog.tsx`, `src/TaskDialog.tsx`, `src/mediaRevision.ts`, `src-tauri/src/media_sources.rs`, `src-tauri/src/source_commands.rs`, `tests/sourceReplacement.test.ts`, `.test-core/tests/source_replace.rs`, `scripts/test-sources023.mjs`. Zmiany obejmują bibliotekę, podgląd, cache mediów, komendy Tauri i workflow odbioru Windows. Instrukcja budowania i wybór narzędzi pozostają jak poniżej.
 
 ## Wersja 0.22 — dynamiczne tory
 

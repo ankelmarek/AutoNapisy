@@ -77,6 +77,11 @@ impl ProxyView {
     }
 }
 impl ProxyState {
+    pub fn invalidate(&self, path: &str) -> Result<(), String> {
+        let mut entries=self.entries.lock().map_err(|_|"Błąd cache proxy")?;
+        if let Some(e)=entries.remove(path){if let Some(j)=e.job{j.cancel();}}
+        Ok(())
+    }
     pub fn view(&self) -> ProxyView {
         ProxyView {
             entries: self.entries.clone(),

@@ -7,8 +7,8 @@ export type ProxyInfo={codec:string;profile:string;container:string;width:number
 export type ProxyRecord={path:string;status:'original'|'queued'|'building'|'ready'|'error';progress:number|null;message:string;enabled:boolean;profile:number;previewPath:string|null;sourceKey?:string;info?:ProxyInfo;recommended:boolean};
 export type ProxyCache={bytes:number;limit:number;path:string};
 export function proxyLabel(p?:ProxyRecord){if(!p)return 'Sprawdzanie…';if(p.status==='queued')return 'Proxy w kolejce';if(p.status==='building')return `Proxy ${p.progress==null?'…':`${p.progress}%`}`;if(p.status==='error')return 'Błąd proxy';if(p.previewPath&&p.enabled)return `Proxy ${p.profile}p`;if(p.status==='ready')return 'Oryginał · proxy gotowe';return 'Oryginał';}
-export function useVideoProxies(project:Project,sources:Record<string,string>){
- const paths=libraryItems(project).filter(m=>m.kind==='video'&&!!sources[m.path]).map(m=>m.path),key=JSON.stringify(paths);
+export function useVideoProxies(project:Project,sources:Record<string,string>,sourceRevision=0){
+ const paths=libraryItems(project).filter(m=>m.kind==='video'&&!!sources[m.path]).map(m=>m.path),key=JSON.stringify([paths,sourceRevision]);
  const [records,setRecords]=useState<Record<string,ProxyRecord>>({}),[error,setError]=useState(''),[cache,setCache]=useState<ProxyCache|null>(null);
  const latest=useRef(paths);latest.current=paths;const current=useRef(records);current.current=records;const mounted=useRef(true),fallbackRunning=useRef(false),autoTried=useRef(new Set<string>());
  const put=(r:ProxyRecord)=>{if(mounted.current&&latest.current.includes(r.path))setRecords(p=>({...p,[r.path]:r}));};
