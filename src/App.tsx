@@ -51,7 +51,7 @@ import {assertUnlockedEdit,clipLocked} from './trackControls';
 export default function App() {
   const history = useProjectHistory();
   const {project,setProject:writeProject} = history;
-  const setProject=(value:Project|((p:Project)=>Project))=>{try{const next=typeof value==='function'?value(latestProject.current):value;assertUnlockedEdit(latestProject.current,next);if(projectRevision(next)!==projectRevision(latestProject.current))writeProject(next);}catch(e){setMessage(String(e));}};
+  const setProject=(value:Project|((p:Project)=>Project))=>{try{const next=typeof value==='function'?value(latestProject.current):value;assertUnlockedEdit(latestProject.current,next);writeProject(next);}catch(e){setMessage(String(e));}};
   const [source, setSource] = useState(""),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState(

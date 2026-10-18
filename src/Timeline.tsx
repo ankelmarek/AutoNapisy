@@ -23,7 +23,7 @@ export default function Timeline(p:Props){
  const [tool,setTool]=useState<'select'|'razor'>('select'),[snap,setSnap]=useState(true),[zoom,setZoom]=useState(30),[selected,setSelected]=useState(''),[draft,setDraft]=useState<Clip[]|null>(null);
  const [preview,setPreview]=useState<RipplePlan|null>(null),[clipMenu,setClipMenu]=useState<{id:string;x:number;y:number}|null>(null);
  const shown=draft??clips,chosen=shown.find(c=>c.id===selected),chosenLocked=!!chosen&&clipLocked(p.project,chosen);
- const change=(next:Project)=>{try{p.onCaptionChange(next);}catch(e){p.onError(String(e));}};
+ const change=(next:Project)=>{try{if(JSON.stringify(next)!==JSON.stringify(p.project))p.onCaptionChange(next);}catch(e){p.onError(String(e));}};
  const closePreview=()=>{setPreview(null);p.onPreviewOpen(false);};
  const request=(op:EditOperation)=>{try{const plan=planEdit(p.project,op);setDraft(null);if(plan.active&&plan.changes.length){p.onBeginAudio();setPreview(plan);p.onPreviewOpen(true);}else change(plan.plain);}catch(e){p.onError(String(e));}};
  useEffect(()=>{if(preview&&preview.base!==p.project)closePreview();},[p.project]);
