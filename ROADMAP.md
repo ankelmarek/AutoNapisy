@@ -1,13 +1,13 @@
 # Kolejne etapy RolVixa
 
-## Wersja 0.22 — dynamiczne ścieżki (odbiór Windows w toku)
+## Wykonane w 0.22 — dynamiczne ścieżki (ukończone)
 
 - [x] Niezależne dodawanie V3/A3 i dalszych torów; stabilne ID bez renumeracji, do 16 każdego typu.
 - [x] Wspólna geometria osi, drop, pionowe przesuwanie, mute/oczko/R/blokada, zwijanie i wysokość audio.
 - [x] Oddzielne trasowanie połączonego audio, własny dźwięk V3 bez wymuszania A3; odłączanie do dowolnego A.
 - [x] Schemat v11 i migracje TS/Rust, zachowane v10 Ripple/blokady/miks, Undo/Redo i ochrona usuwania torów.
 - [x] Rzeczywisty test trzech obrazów i sześciu tonów, mute/visibility, J-cut, przejścia na V3, proxy i brakujące media w MLT/FFmpeg.
-- [ ] Pełny odbiór Windows/WebView2 i instalator; osobny PR dla issue #3.
+- [x] Osobny PR #8 połączony; pełny zielony Windows run 39135310340 (push 39135306974 także zielony): 166 TS, 75 Rust, 14 integracyjnych, instalator 12140085502. Rzeczywisty WebView2, drop V3, detach A3, potwierdzenie/usuwanie/Undo, odtwarzanie i piksele po Undo oraz crash/restart v11. Zrzuty laptop / Full HD sprawdzone.
 
 Solo, dowolne przestawianie kolejności torów oraz trwałe wysokości widoku pozostają przyszłymi rozszerzeniami. SmartCut i Export Studio poza tą paczką.
 
@@ -82,7 +82,7 @@ Ripple i odłączanie audio/J/L-cut wdrożono w 0.18. Po jego odbiorze priorytet
 1. **Autozapis i odzyskiwanie sesji** - wykonane w 0.17.
 2. **Podgląd źródeł i In/Out** - wykonane razem z odzyskiwaniem w 0.17.
 3. **Ripple Edit oraz odłączanie audio / J-cut / L-cut** - wykonane w 0.18 (ukończone), **najpierw** na obecnych V1/V2 i A1/A2. Reguły Ripple per ścieżka, automatyczna ochrona torów zaczynających się po 00:00, świadoma kontrola synchronizacji. Projektować algorytm bez założenia stałej liczby torów.
-4. **Dynamiczne V3/A3 i kolejne tory** - **istotny priorytet po Ripple/J/L-cut**, domyślnie zachować prostą oś 2+2; nowe tory dodawane niezależnie przyciskami. Rozszerzyć już działające zasady Ripple na nowe tory.
+4. **Dynamiczne V3/A3 i kolejne tory** - **wykonane w 0.22 / PR #8**, domyślnie zachować prostą oś 2+2; nowe tory dodawane niezależnie przyciskami. Rozszerzyć już działające zasady Ripple na nowe tory.
 5. **Dalsze funkcje** - zastępowanie źródeł, kontrola przed eksportem, SmartCut i Export Studio w osobnych etapach.
 
 Kolejność 3 → 4 jest wyraźną decyzją użytkownika: **najpierw Ripple, potem więcej ścieżek**. [Issue #3 - dynamiczne tory](https://github.com/ankelmarek/AutoNapisy/issues/3) nie może blokować prac nad Ripple.
@@ -244,9 +244,9 @@ Siatkę i znacznik użycia wdrożono w 0.14; fade in/out oraz automatykę przez 
 - Status użycia miniatur jest zgodny z rzeczywistym projektem; siatka działa dla paneli wąskich, wielu mediów i plików niedostępnych, bez regresji przeciągania na oś.
 - Wdrożyć w kolejności: **(1) siatka i znacznik użycia, (2) fade, (3) punkty automatyki i synchronizacja audio z MLT**, o ile pomiar pracochłonności nie wskaże korzystniejszej kolejności połączenia fade z obwiednią.
 
-## Istotny etap: ścieżki dodawane na żądanie (V3 / A3) - po Ripple
+## Wykonane w 0.22: ścieżki dodawane na żądanie (V3 / A3)
 
-**Zatwierdzone jako istotne rozszerzenie - [issue #3](https://github.com/ankelmarek/AutoNapisy/issues/3).** Niektóre montaże wymagają V3 lub A3. **Najpierw wdrażamy Ripple Edit oraz odłączanie audio / J-cut i L-cut na obecnych torach**, a następnie dynamiczne dokładanie V3/A3. Przy implementacji Ripple unikać założenia stałej liczby torów. Ta kolejność jest decyzją użytkownika.
+**Zrealizowane w 0.22 / PR #8, odbiór Windows 39135310340; poniżej zachowana specyfikacja [issue #3](https://github.com/ankelmarek/AutoNapisy/issues/3).** Niektóre montaże wymagają V3 lub A3. **Najpierw wdrażamy Ripple Edit oraz odłączanie audio / J-cut i L-cut na obecnych torach**, a następnie dynamiczne dokładanie V3/A3. Przy implementacji Ripple unikać założenia stałej liczby torów. Ta kolejność jest decyzją użytkownika.
 
 - **Bez sztywnego limitu dwóch:** domyślnie zachować prosty układ V1/V2 i A1/A2, z przyciskiem `+ Dodaj ścieżkę wideo` lub `+ Dodaj ścieżkę audio`. W pierwszej iteracji zapewnić co najmniej V3 i A3, ale model danych zaprojektować tak, aby późniejsze V4/A4 nie wymagały kolejnej przebudowy. Dodanie wideo **nie dodaje automatycznie** ścieżki audio i odwrotnie.
 - **Ergonomia:** dodane tory dopiero na żądanie; V3 nad V2 nad V1, niezależne A1/A2/A3, T ponad obrazem. Pionowy scroll obszaru ścieżek, możliwość zwinięcia/zmiany wysokości audio, przewijanie poziome zsynchronizowane z podziałką. Na każdym torze opcje mute/ukryj (dla wideo), blokada, docelowo Solo oraz osobne R dla Ripple; jednoznaczne podpisy i podpowiedzi.
@@ -328,5 +328,5 @@ Użytkownik zatwierdził z poprzedniej listy **punkty 1, 2, 3, 4, 6, 7, 8, 9**. 
 5. Niezależnie dodać **6 (strefy bezpieczne)**, **7 (zastępowanie źródła)** oraz **8 (preflight)**; zastępowanie źródła uwzględnia mechanizm proxy, a preflight wymaga stabilnego i sprawdzalnego eksportu.
 6. Każdy etap wymaga testów TypeScript/Rust oraz realnego podglądu MLT i porównania z eksportem; potwierdzić migracje schematów, Undo/Redo, działania przy brakującym źródle i bez internetu.
 
-**Status:** punkty 1, 2, 3, 4, 6 i 9 wykonane. Następne duże rozszerzenie: dynamiczne V3/A3; zatwierdzone UX z issue #4 wykonywać etapami A/B/C jako osobne zmiany. Pozostałe rozszerzenia nadal planowane. Punkt 5 (kolorowe znaczniki na osi czasu) celowo pominięty.
+**Status:** punkty 1, 2, 3, 4, 6 i 9 wykonane. Dynamiczne V3/A3 wykonano w 0.22; zatwierdzone UX A/B/C z issue #4 wykonano w 0.19–0.21 jako osobne zmiany. Pozostałe rozszerzenia nadal planowane. Punkt 5 (kolorowe znaczniki na osi czasu) celowo pominięty.
 

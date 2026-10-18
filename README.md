@@ -1,11 +1,15 @@
-# RolVixa 0.21 — polska mowa → polskie napisy
+# RolVixa 0.22 — polska mowa → polskie napisy
 
-**Instalator 0.21:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39128334953/artifacts/12137396252), rozpakuj i uruchom `RolVixa_0.21.0_x64-setup.exe`. Pobranie z Actions wymaga zalogowania na GitHub.
+**Instalator 0.22:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39135310340/artifacts/12140085502), rozpakuj i uruchom `RolVixa_0.22.0_x64-setup.exe`. Pobranie z Actions wymaga zalogowania na GitHub.
 RolVixa (wcześniej AutoNapisy) to lokalna aplikacja Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Rozpoznaje polską mowę przez whisper.cpp, bez tłumaczenia. Transkrypcja i montaż działają na komputerze. Opcjonalna biblioteka muzyki łączy się z Openverse po wpisaniu frazy wyszukiwania; nie wysyła nagrań użytkownika.
 
-## Wersja 0.22 — dynamiczne tory (odbiór Windows w toku)
+## Wersja 0.22 — dynamiczne tory
 
-Na osi użyj **+ V** / **Dodaj ścieżkę wideo** i **+ A** / **Dodaj ścieżkę audio**. Domyślnie pozostają dwa tory każdego typu. Nowe tory dodają się niezależnie, do 16 wideo i 16 audio; V3 leży nad V2, V4 nad V3, a T pozostaje nad obrazem. Wszystkie tory i nagłówki przewijają się razem. Każdy ma blokadę, R i mute; wideo także oczko. Strzałka w nagłówku zwija tor, przycisk audio zmienia jego wysokość. Rozmiary/zwiniecie są stanem widoku, poza historią projektu.
+**Ukończone, osobny [PR #8](https://github.com/ankelmarek/AutoNapisy/pull/8) połączony.** Pełny zielony [Windows run 39135310340](https://github.com/ankelmarek/AutoNapisy/actions/runs/39135310340), również równoległy push 39135306974: **166 testów TypeScript, 75 Rust, 14 integracyjnych**, instalacja i WebView2. Odbiór na 1366×700 (obszar roboczy laptopa) i 1920×1080 oraz rzeczywiste okno natywne; zrzuty przejrzane. Potwierdzone rzeczywiste przeciąganie na V3, niezależne dodawanie V3/A3, własny dźwięk, R/blokady bez restartu dekodera, mute/oczko, zwijanie/wysokość, odłączanie do A3, anulowanie/potwierdzenie usuwania i pojedynczy Undo. Po Undo sprawdzono seek/play i zdekodowane piksele V3. Zachowane zapis, odzyskiwanie po wymuszonym zakończeniu procesu i ochrona przyszłego schematu.
+
+Test `dynamic_tracks` sprawdza trzy rzeczywiste obrazy i sześć unikalnych tonów w MLT/FFmpeg, brak zdublowanego audio przy J-cut, niezależność wyciszania V3/A3, przejście na V3, pomniejszony V3 odsłaniający V2, proxy i brakujące źródło. Te same dane JSON v11 są weryfikowane w TS i Rust. Instalator: artefakt **12140085502**, ZIP 81 126 553 B, SHA-256 `1a33912952aaa72d354cdc1bf3cd86aff1ebae828feb4df56c221e04c00b0cfd`. Model Whisper nadal wybiera się osobno jak dotychczas.
+
+Na osi użyj **+ V** / **Dodaj ścieżkę wideo** i **+ A** / **Dodaj ścieżkę audio**. Domyślnie pozostają dwa tory każdego typu. Nowe tory dodają się niezależnie, do 16 wideo i 16 audio; V3 leży nad V2, V4 nad V3, a T pozostaje nad obrazem. Wszystkie tory i nagłówki przewijają się razem. Każdy ma blokadę, R i mute; wideo także oczko. Strzałka w nagłówku zwija tor, przycisk audio zmienia jego wysokość. Rozmiary/zwinięcie są stanem widoku, poza historią projektu.
 
 Film można przeciągnąć z biblioteki na dowolny istniejący tor V, plik audio na tor A. Klipy można przenosić pionowo lub przez listę **Ścieżka klipu**. Przejścia działają między sąsiadami na każdym V. Dodanie i usunięcie toru oraz przeniesienie klipu zachowują Undo/Redo. Podstawowe V1/V2/A1/A2 pozostają w projekcie; dodatkowy tor można usunąć krzyżykiem w jego nagłówku. Tor z klipami wymaga potwierdzenia. Zablokowany tor jest chroniony; nie można usunąć A, do którego nadal jest podłączony dźwięk filmu — najpierw zmień trasowanie lub odłącz audio.
 
@@ -15,7 +19,7 @@ Schemat **v11** zapisuje `trackLayout` (stabilne ID, typ i indeks/kolejność) o
 
 Ograniczenia tej wersji: maks. 100 klipów jak dotychczas, MLT 30 FPS, brak Solo i ręcznego przestawiania kolejności torów; wysokości i zwinięcia nie są jeszcze zapamiętywane po restarcie. Więcej jednoczesnych filmów zwiększa obciążenie dekoderów; proxy nadal dotyczy wyłącznie podglądu, eksport używa oryginałów. SmartCut i Export Studio pozostają osobnymi planami.
 
-Nowe pliki: `src/trackModel.ts`, `src/tracks.ts`, `tests/dynamicTracks.test.ts`, `tests/legacyFixture.ts`, `tests/fixtures/three-tracks-v11.json`, `.test-core/tests/dynamic_tracks.rs`, `scripts/test-tracks022.mjs`. Zmiany obejmują model TS/Rust, oś, trasowanie i odłączanie, import/drop, klucze podglądu, MLT, kadrowanie, testy regresji i workflow Windows. Powyższy instalator pozostaje wersją 0.21 do zakończenia odbioru 0.22.
+Nowe pliki: `src/trackModel.ts`, `src/tracks.ts`, `tests/dynamicTracks.test.ts`, `tests/legacyFixture.ts`, `tests/fixtures/three-tracks-v11.json`, `.test-core/tests/dynamic_tracks.rs`, `scripts/test-tracks022.mjs`. Zmiany obejmują model TS/Rust, oś, trasowanie i odłączanie, import/drop, klucze podglądu, MLT, kadrowanie, testy regresji i workflow Windows.
 
 ## Wersja 0.21 — ekran startowy i ostatnie projekty, UX C
 
