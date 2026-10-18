@@ -24,6 +24,7 @@ pub struct QualityState {
 }
 struct Session {
     id: u64,
+    fingerprint: String,
     job: Arc<Job>,
     result: Arc<Mutex<Option<Report>>>,
     cached: bool,
@@ -77,6 +78,7 @@ pub async fn start_quality_analysis(json: String, app: tauri::AppHandle) -> Resu
         }
         *slot = Some(Session {
             id,
+            fingerprint: key.clone(),
             job: job.clone(),
             result: result.clone(),
             cached,
@@ -208,23 +210,30 @@ pub async fn plan_normalization(
     let p: Project = crate::mlt_commands::authorized(&json, &app.state::<Access>())?;
     tauri::async_runtime::spawn_blocking(move || {
         let state = app.state::<QualityState>();
-        let report = state
+        let (measured_key, report) = state
             .current
             .lock()
             .map_err(|_| "Błąd analizy")?
             .as_ref()
             .filter(|s| s.id == id)
-            .and_then(|s| s.result.lock().unwrap().clone())
+            .and_then(|s| {
+                s.result
+                    .lock()
+                    .unwrap()
+                    .clone()
+                    .map(|r| (s.fingerprint.clone(), r))
+            })
             .ok_or("Najpierw ukończ analizę miksu")?;
         let (ffmpeg, melt) = tools(&app)?;
         let key = quality::fingerprint(&p, &ffmpeg, &melt)?;
         // Label alone is insufficient: cache reuse and authorization compare the full fingerprint.
-        if !state
-            .cache
-            .lock()
-            .unwrap()
-            .iter()
-            .any(|(k, r)| k == &key && r.key == report.key)
+        if measured_key != key
+            || !state
+                .cache
+                .lock()
+                .unwrap()
+                .iter()
+                .any(|(k, r)| k == &key && r.key == report.key)
         {
             return Err("Montaż lub źródła zmieniły się. Przeanalizuj je ponownie.".into());
         }
