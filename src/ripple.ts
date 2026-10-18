@@ -83,6 +83,7 @@ export function planEdit(p:Project,operation:EditOperation,useRipple=p.rippleEna
  if(active&&p.tracks.T?.locked&&JSON.stringify(compositionSegments(p))!==JSON.stringify(compositionSegments(next)))conflicts.push('Zablokowana ścieżka T: napisy źródłowe podążyłyby za zmienianym obrazem. Odblokuj T przed cięciem.');
  if(active){const validated=projectSchema.safeParse(next);if(!validated.success)conflicts.push('Wynik wymaga korekty granic klipów lub napisów. Anuluj i zmniejsz zakres edycji.');}
  const changes:EditChange[]=clips.flatMap(b=>{const a=projectClips(next).find(x=>x.id===b.id);return !a||Math.abs(a.start-b.start)>1e-6||Math.abs(clipEnd(a)-clipEnd(b))>1e-6||a.sourceIn!==b.sourceIn?[{id:b.id,track:clipTracks(b).join('/'),before:b.start,after:a?.start??b.start,oldEnd:clipEnd(b),newEnd:a?clipEnd(a):b.start,removed:!a}]:[];});
- for(const b of p.timelineSegments??[]){const a=next.timelineSegments?.find(s=>s.id===b.id);if(!a||a.start!==b.start||a.end!==b.end)changes.push({id:b.id,track:'T',before:b.start,after:a?.start??b.start,oldEnd:b.end,newEnd:a?.end??b.start,removed:!a,caption:true});}
+ const afterCaptions=compositionSegments(next);
+ for(const b of compositionSegments(p)){const a=afterCaptions.find(s=>s.id===b.id);if(!a||a.start!==b.start||a.end!==b.end)changes.push({id:b.id,track:'T',before:b.start,after:a?.start??b.start,oldEnd:b.end,newEnd:a?.end??b.start,removed:!a,caption:true});}
  return {base:p,next,plain,operation,active,conflicts:[...new Set(conflicts)],changes,delta:active?delta:0,removedTransitions:p.transitions.length-next.transitions.length};
 }

@@ -7,7 +7,7 @@
 - [x] Blokady torów, ochrona połączonego i odłączonego audio, napisy źródłowe przesuwane raz i niezależne T według R.
 - [x] Odłącz audio na A1/A2 bez dublowania miksu, źródłowe obwiednie oraz zachowanie miksu istniejących przejść.
 - [x] Niezależne J-cut/L-cut przez trim audio, przesunięcie synchronizacji i świadome wyrównanie; pojedynczy Undo/Redo.
-- [x] Schemat v10 i migracje v1–v9; 147 testów TS, 60 rdzenia Rust i rzeczywisty miks/eksport MLT/FFmpeg lokalnie.
+- [x] Schemat v10 i migracje v1–v9; 149 testów TS, 60 rdzenia Rust i rzeczywisty miks/eksport MLT/FFmpeg lokalnie.
 - [ ] Pełny odbiór Windows, instalacja, WebView2 i udostępnienie instalatora.
 
 Zakres: Ripple przy usuwaniu i przycinaniu klipów, bez automatycznego cięcia przecinających elementów innych torów. Import i zwykłe przesuwanie zachowują dotychczasową semantykę. Konflikty wymagają decyzji; szczegóły ograniczeń w README.

@@ -64,7 +64,7 @@ export default function Timeline(p:Props){
  };
  const end=(e:PointerEvent)=>{const d=drag.current;if(!d)return;drag.current=null;if(d.moved){if(d.operation)request(d.operation);else commit(d.value);}else p.onSeek(point(e));};
  useEffect(()=>{if(drag.current && drag.current.base!==clips){drag.current=null;setDraft(null);}},[clips]);
- useEffect(()=>{const key=(e:KeyboardEvent)=>{if(document.activeElement?.closest('.source-viewer'))return;
+ useEffect(()=>{const key=(e:KeyboardEvent)=>{if(e.key==='Escape'&&drag.current){e.preventDefault();drag.current=null;setDraft(null);return;}if(document.activeElement?.closest('.source-viewer'))return;
   if(p.locked||preview||clipMenu||e.altKey||(e.target instanceof HTMLElement&&(e.target.isContentEditable||['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))))return;
   const modifier=e.ctrlKey||e.metaKey;
   if(modifier&&e.key.toLowerCase()==='c'){if(chosen){e.preventDefault();copied.current={...chosen,adjustments:chosen.adjustments?{...chosen.adjustments}:undefined};}return;}

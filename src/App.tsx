@@ -51,7 +51,7 @@ import {assertUnlockedEdit,clipLocked} from './trackControls';
 export default function App() {
   const history = useProjectHistory();
   const {project,setProject:writeProject} = history;
-  const setProject=(value:Project|((p:Project)=>Project))=>{try{const next=typeof value==='function'?value(latestProject.current):value;assertUnlockedEdit(latestProject.current,next);writeProject(next);}catch(e){setMessage(String(e));}};
+  const setProject=(value:Project|((p:Project)=>Project))=>{try{const next=typeof value==='function'?value(latestProject.current):value;assertUnlockedEdit(latestProject.current,next);if(projectRevision(next)!==projectRevision(latestProject.current))writeProject(next);}catch(e){setMessage(String(e));}};
   const [source, setSource] = useState(""),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState(
@@ -534,7 +534,7 @@ export default function App() {
           <div className="panelbody">
             <div className="inspector-tabs"><button aria-pressed={inspectorTab==='video'} onClick={()=>setInspectorTab('video')}>Film / audio</button><button aria-pressed={inspectorTab==='captions'} onClick={()=>setInspectorTab('captions')}>Napisy</button><button aria-pressed={inspectorTab==='layers'} onClick={()=>setInspectorTab('layers')}>Warstwy</button></div>
             {inspectorTab==='layers'&&<LayersPanel project={project} time={time} selectedId={selected?.id??''} locked={locked} onSelect={id=>{playback.pause();const c=projectClips(project).find(c=>c.id===id)!;if(time<c.start||time>=c.start+c.sourceOut-c.sourceIn)seek(c.start);setSelectedClip(id);setSelectedTransition('');}} onCaptions={()=>setInspectorTab('captions')} onChange={changeProject}/>}
-            {(inspectorTab==='video'||inspectorTab==='layers')&&<TransformControls project={project} clip={selected} sourceAspect={frameAspects[selected?.id??'']??0} canvasAspect={canvasAspect} locked={locked} onChange={changeProject}/>}
+            {(inspectorTab==='video'||inspectorTab==='layers')&&<TransformControls project={project} clip={selected} sourceAspect={frameAspects[selected?.id??'']??0} canvasAspect={canvasAspect} locked={locked||!!selected&&clipLocked(project,selected)} onChange={changeProject}/>}
             {inspectorTab==='video'&&<VideoProperties project={project} clip={selected} locked={locked||!!selected&&clipLocked(project,selected)} transitionId={selectedTransition} onChange={changeProject}/>}
             <div hidden={inspectorTab!=='captions'}>
             {caption&&<div className="caption-editor"><h3>Edycja zaznaczonego napisu</h3><textarea ref={captionInput} aria-label="Tekst zaznaczonego napisu" value={caption.text} disabled={locked} onChange={e=>changeProject(editCaption(project,caption,{text:e.target.value}))}/><div><label>Początek<input aria-label="Początek napisu" type="number" step={.01} value={Number(caption.start.toFixed(3))} disabled={locked} onChange={e=>{if(Number.isFinite(e.target.valueAsNumber))changeProject(resizeCaption(project,caption,'left',e.target.valueAsNumber-caption.start));}}/></label><label>Koniec<input aria-label="Koniec napisu" type="number" step={.01} value={Number(caption.end.toFixed(3))} disabled={locked} onChange={e=>{if(Number.isFinite(e.target.valueAsNumber))changeProject(resizeCaption(project,caption,'right',e.target.valueAsNumber-caption.end));}}/></label></div></div>}

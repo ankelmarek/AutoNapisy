@@ -9,7 +9,7 @@ RolVixa (wcześniej AutoNapisy) to lokalna aplikacja Windows x64: Tauri 2, React
 - Każdy tor ma **R·A / R+ / R−**: automat / jawnie włączone / jawnie wyłączone. Automat obejmuje tylko tory zaczynające się od 00:00 (tolerancja pół klatki); późne i puste są chronione. Globalne On nie nadpisuje ręcznych decyzji. Podpowiedź przy R wyjaśnia stan.
 - **Kłódka** chroni edycję klipów danego toru. Dźwięk wbudowany w film zajmuje V oraz odpowiadający A; blokada którejkolwiek części chroni cały połączony klip.
 - Przed zatwierdzeniem Ripple jest osobne okno z pozycjami przed/po, długością montażu, zmianami napisów i utraconymi przejściami. Anulowanie nie zmienia projektu. Konflikty R, blokad, przecinających klipów lub synchronizacji blokują „Zastosuj Ripple”; można poprawić ustawienia albo wybrać samo cięcie **bez Ripple**.
-- **Odłącz audio → A1/A2** w menu prawego przycisku klipu lub panelu filmu. Osobne audio zachowuje źródło, zakres, głośność, punkty i fade’y; obraz przestaje odtwarzać dźwięk. Jeśli tor V był wyciszony, odłączony klip otrzymuje głośność 0 — można ją później podnieść.
+- **Odłącz audio → A1/A2** w menu prawego przycisku klipu lub panelu filmu. Osobne audio zachowuje źródło, zakres, głośność, punkty i fade’y; obraz przestaje odtwarzać dźwięk. Jeśli pierwotny dźwięk był wyciszony przez tor V lub A, odłączony klip otrzymuje głośność 0 — można ją później podnieść.
 - **J-cut / L-cut:** wyłącz Ripple, zaznacz osobny klip audio i przeciągnij jego lewy brzeg przed obraz lub prawy za obraz. Zakres ogranicza faktyczna długość źródła. Liczbowe In/Out zatwierdzaj Enter lub opuszczeniem pola (Esc anuluje). Przesunięcie synchronizacji jest w panelu; „Zsynchronizuj audio z obrazem” wyrównuje źródłowy czas, zachowując niezależne przycięcia.
 - Odłączając dźwięk filmu z przejściem, zachowujemy jego liniowy miks w źródłowej obwiedni. Można ją jawnie usunąć w panelu audio; późniejsza zmiana przejścia wideo nie steruje odłączonym dźwiękiem.
 - Operacja zatwierdzona to **jeden krok Undo/Redo**. R, blokady, powiązania i odłączenie zapisują się w **schemacie v10**; import v1–v9 automatycznie wyłącza globalne Ripple. Starsza aplikacja nie otworzy v10 — przed nadpisaniem zachowaj kopię projektu.
@@ -47,7 +47,7 @@ Ripple i odłączanie audio/J/L-cut wykonano w 0.18; następny priorytet: dynami
 
 ## Aktualizacja i uruchomienie ze źródeł
 
-Zachowaj projekty i nagrania. Pobierz ZIP z GitHuba i rozpakuj do nowego folderu, np. `C:\RolVixa-0.17`. Nie kopiuj starych `node_modules`, `dist` i `src-tauri/target`. Aplikacja 0.18 otwiera projekty v1–v10 i zapisuje format v10. Przed zapisaniem zachowaj kopię JSON, jeśli chcesz wrócić do starszej wersji aplikacji.
+Zachowaj projekty i nagrania. Pobierz ZIP z GitHuba i rozpakuj do nowego folderu, np. `C:\RolVixa-0.18`. Nie kopiuj starych `node_modules`, `dist` i `src-tauri/target`. Aplikacja 0.18 otwiera projekty v1–v10 i zapisuje format v10. Przed zapisaniem zachowaj kopię JSON, jeśli chcesz wrócić do starszej wersji aplikacji.
 
 Wymagania: Node.js 22 lub 24, Rust stable ≥1.89 x64 MSVC (blokada pliku kopii odzyskiwania), Visual Studio Build Tools z „Desktop development with C++” i Windows SDK oraz WebView2 Runtime.
 
