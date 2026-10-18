@@ -33,6 +33,11 @@ import {editCaption,resizeCaption} from './captionEditing';
 
 import SourceReplacementDialog from './SourceReplacementDialog';
 import PreflightDialog from './PreflightDialog';
+import MasterAudioCard from './MasterAudioCard';
+import {normalizedProject} from './masterAudio';
+import {removeUnusedSource} from './mediaRemoval';
+import {captionPreflight} from './captionPreflight';
+import {ensureCaptionFonts} from './captionCanvas';
 import {replaceSource,type Replacement,type ReplacementPolicy} from './sourceReplacement';
 import {preflightIssues,type SourceCheck,type PreflightIssue} from './preflight';
 import {invalidateMedia} from './mediaRevision';
@@ -106,7 +111,7 @@ export default function App() {
   useEffect(()=>{if(homeMode==='startup'&&recoveryReady&&!recoveryInfo&&recent.ready)setHomeMode(recent.showOnStartup?'initial':'closed');},[homeMode,recoveryReady,recoveryInfo,recent.ready]);
   const [timelineModal,setTimelineModal]=useState(false);
   const [replacement,setReplacement]=useState<{id:string;locate:boolean;candidate:Replacement;project:Project}|null>(null),[replacementError,setReplacementError]=useState('');
-  const [preflight,setPreflight]=useState<{project:Project;issues:PreflightIssue[]}|null>(null);
+  const [preflight,setPreflight]=useState<{project:Project;issues:PreflightIssue[];autoAnalyze:boolean}|null>(null);
   const [sourceRevision,bumpSourceRevision]=useReducer((n:number)=>n+1,0),[highlightSource,setHighlightSource]=useState('');
   const locked = !!replacement || !!preflight || timelineModal || busy || transcribing || exporting || !recoveryReady || !!recoveryInfo;
   useEffect(()=>{let alive=true;startup.current??=invoke<RecoveryInfo>('recovery_status');void startup.current.then(info=>{if(!alive)return;saver.accept(latestProject.current,'',info.session);if(info.available)setRecoveryInfo(info);if(info.warning){if(info.available)setRecoveryError(info.warning);else setMessage('Odzyskiwanie: '+info.warning);}setRecoveryReady(true);}).catch(e=>{if(alive){setRecoveryError(String(e));setRecoveryReady(true);}});return()=>{alive=false;};},[]);
@@ -332,14 +337,20 @@ export default function App() {
       setMessage('Źródło podmienione. Sprawdź podgląd i synchronizację. Ctrl+Z przywraca cały poprzedni stan.');
     }catch(e){setReplacementError(String(e));throw e;}
   });
-  const exportMp4=()=>run(async()=>{
+  const exportMp4=(autoAnalyze=false)=>run(async()=>{
     if(exportController.current||locked)return;
     playback.pause();setSourceViewerId('');setHighlightSource('');
     const current=latestProject.current;
     const checks=await invoke<SourceCheck[]>('check_project_sources',{json:serializeProject(current)});
     setSources(prev=>{const next={...prev};for(const m of libraryItems(current)){if(!checks.find(c=>c.id===m.id)?.available)delete next[m.path];}return next;});
     if(latestProject.current!==current)throw Error("Projekt zmienił się podczas sprawdzania. Uruchom sprawdzenie ponownie.");
-    setPreflight({project:current,issues:preflightIssues(current,checks)});
+    await ensureCaptionFonts(current);
+    const info=checks.find(c=>c.id==='primary')?.info,rotated=info&&Math.abs(info.rotation)%180===90;
+    const width=current.canvas?.width||(info?(rotated?info.height:info.width):1280),height=current.canvas?.height||(info?(rotated?info.width:info.height):720);
+    const margins=safeZones.preset!=='off'&&Math.abs(width/height-9/16)<.01?safeZones.margins:null;
+    const issues=[...preflightIssues(current,checks),...captionPreflight(current,width,height,margins)];
+    if(latestProject.current!==current)throw Error('Projekt zmienił się podczas sprawdzania. Spróbuj ponownie.');
+    setPreflight({project:current,issues,autoAnalyze});
   });
   const performExport = async (snapshot:Project) => {
 
@@ -451,7 +462,12 @@ export default function App() {
           </div>
           {leftTab==='audio'&&<AudioLibrary project={project} locked={locked} timelinePlaying={playing} onImport={()=>importMedia('audio')} onRegister={registerAudio} onPause={playback.pause} onAdd={id=>{try{playback.pause();changeProject(insertLibraryItem(latestProject.current,id,time));setMessage('Dodano audio na oś czasu.');}catch(e){setMessage(String(e));}}}/>}
           {leftTab==='effects'&&<EffectsLibrary chosen={effectChoice} onChoose={setEffectChoice}/>}
-          {leftTab==='files'&&<MediaLibrary project={project} sources={sources} locked={locked} onReplace={chooseReplacement} highlightId={highlightSource} onView={viewSource} onImport={importVideo} proxies={proxies} onClearCache={()=>{if(window.confirm('Usunąć wszystkie kopie proxy z cache? Oryginalne nagrania i projekt zostaną zachowane.'))void playback.suspend().then(()=>new Promise(r=>setTimeout(r,200))).then(()=>proxies.clear()).then(()=>playback.retry()).catch(e=>setMessage(String(e)));}}
+          {leftTab==='files'&&<MediaLibrary project={project} sources={sources} locked={locked} onReplace={chooseReplacement} onRemove={id=>void run(async()=>{
+              const current=latestProject.current,item=libraryItems(current).find(m=>m.id===id);if(locked||!item)return;
+              const warning=id==='primary'?(current.assets.some(a=>a.kind==='video')?(!current.canvas?' Format źródłowy obrazu przejmie pierwszy pozostały film.':''):' Bez filmu źródłowego eksport MP4 będzie niedostępny.') : '';
+              if(!window.confirm(`Usunąć „${item.name}” z biblioteki projektu?${warning} Plik na dysku pozostanie zachowany.`))return;
+              const next=removeUnusedSource(current,id);playback.pause();setSourceViewerId('');setHighlightSource('');changeProject(next);setMessage('Usunięto nieużywane źródło z projektu. Ctrl+Z przywraca je do biblioteki.');
+            })} highlightId={highlightSource} onView={viewSource} onImport={importVideo} proxies={proxies} onClearCache={()=>{if(window.confirm('Usunąć wszystkie kopie proxy z cache? Oryginalne nagrania i projekt zostaną zachowane.'))void playback.suspend().then(()=>new Promise(r=>setTimeout(r,200))).then(()=>proxies.clear()).then(()=>playback.retry()).catch(e=>setMessage(String(e)));}}
             onAdd={id=>{try{playback.pause();const next=insertLibraryItem(project,id,time);changeProject(next);setMessage('Dodano plik z biblioteki na oś czasu.');}catch(e){setMessage(String(e));}}}/>}
           <div className="captions-tab-content" role="tabpanel" id="captions-panel" aria-labelledby="captions-tab" hidden={leftTab!=='captions'}>
           <div className="transcription-controls" role="group" aria-label="Tworzenie i eksport napisów">
@@ -586,6 +602,7 @@ export default function App() {
             <div className="inspector-tabs"><button aria-pressed={inspectorTab==='video'} onClick={()=>setInspectorTab('video')}>Film / audio</button><button aria-pressed={inspectorTab==='captions'} onClick={()=>setInspectorTab('captions')}>Napisy</button></div>
 
             {inspectorTab==='video'&&<TransformControls project={project} clip={selected} sourceAspect={frameAspects[selected?.id??'']??0} canvasAspect={canvasAspect} locked={locked||!!selected&&clipLocked(project,selected)} onChange={changeProject}/>}
+            {inspectorTab==='video'&&<MasterAudioCard project={project} locked={locked||!project.media||!duration} onMeasure={()=>void exportMp4(true)} onReset={()=>changeProject({...project,masterAudio:{gainDb:0}})}/>}
             {inspectorTab==='video'&&<VideoProperties project={project} clip={selected} locked={locked||!!selected&&clipLocked(project,selected)} transitionId={selectedTransition} onChange={changeProject}/>}
             <div hidden={inspectorTab!=='captions'}>
             {caption&&<div className="caption-editor"><h3>Edycja zaznaczonego napisu</h3><textarea ref={captionInput} aria-label="Tekst zaznaczonego napisu" value={caption.text} disabled={locked} onChange={e=>changeProject(editCaption(project,caption,{text:e.target.value}))}/><div><label>Początek<input aria-label="Początek napisu" type="number" step={.01} value={Number(caption.start.toFixed(3))} disabled={locked} onChange={e=>{if(Number.isFinite(e.target.valueAsNumber))changeProject(resizeCaption(project,caption,'left',e.target.valueAsNumber-caption.start));}}/></label><label>Koniec<input aria-label="Koniec napisu" type="number" step={.01} value={Number(caption.end.toFixed(3))} disabled={locked} onChange={e=>{if(Number.isFinite(e.target.valueAsNumber))changeProject(resizeCaption(project,caption,'right',e.target.valueAsNumber-caption.end));}}/></label></div></div>}
@@ -777,7 +794,7 @@ export default function App() {
       </footer>
       </div>
       {replacement&&<SourceReplacementDialog key={replacement.candidate.token} project={replacement.project} id={replacement.id} candidate={replacement.candidate} locate={replacement.locate} busy={busy} error={replacementError} onClose={closeReplacement} onChoose={()=>void chooseReplacement(replacement.id,replacement.locate)} onApply={applyReplacement}/>}
-      {preflight&&<PreflightDialog issues={preflight.issues} onClose={()=>setPreflight(null)} onExport={()=>{const snapshot=preflight.project;setPreflight(null);void performExport(snapshot);}} onSeek={t=>{setPreflight(null);setSourceViewerId('');seek(t);}} onLocate={id=>{setPreflight(null);setLeftTab('files');setHighlightSource(id);}}/>}
+      {preflight&&<PreflightDialog project={preflight.project} autoAnalyze={preflight.autoAnalyze} issues={preflight.issues} onNormalize={(plan,target)=>{if(latestProject.current!==preflight.project){setMessage('Projekt zmienił się. Uruchom analizę ponownie.');return;}const next=normalizedProject(preflight.project,plan.gainDb,target);setPreflight(null);changeProject(next);setMessage('Normalizacja zastosowana do całego miksu. Ctrl+Z cofa zmianę.');}} onClose={()=>setPreflight(null)} onExport={()=>{const snapshot=preflight.project;setPreflight(null);void performExport(snapshot);}} onSeek={t=>{setPreflight(null);setSourceViewerId('');seek(t);}} onLocate={id=>{setPreflight(null);setLeftTab('files');setHighlightSource(id);}}/>}
       {recoveryInfo&&<RecoveryDialog info={recoveryInfo} busy={busy} error={recoveryError} onChoose={resolveRecovery}/>}
       {settings && (
         <div className="overlay" onKeyDown={e=>{e.stopPropagation();if(e.key==='Escape'){e.preventDefault();setSettings(false);}if(e.key==='Tab'){const items=Array.from(e.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),summary')).filter(el=>el.getClientRects().length);const first=items[0],last=items[items.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}}}>

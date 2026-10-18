@@ -38,7 +38,7 @@ export function replaceSource(p:Project,id:string,r:Replacement,policy:Replaceme
   if(key.startsWith('timeline:'))return !clearTimeline;
   try{const value:unknown=JSON.parse(key);return !Array.isArray(value)||!targetIds.has(value[0]);}catch{return true;}
  }));
- const next:Project={...p,clips,
+ const next:Project={...p,clips,masterAudio:{...p.masterAudio,...(p.masterAudio.normalization&&targetIds.size?{normalization:{...p.masterAudio.normalization,stale:true}}:{})},
   media:id==='primary'?{...p.media!,...patch}:p.media,
   assets:p.assets.map(a=>a.id===id?{...a,...patch,segments:policy.keepCaptions?a.segments:[],...(!policy.sameMaterial?{provenance:undefined}:{})}:a),
   segments:id==='primary'&&!policy.keepCaptions?[]:p.segments,

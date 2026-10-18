@@ -6,7 +6,7 @@ describe('dwie ścieżki obrazu i dźwięku',()=>{
  it('dodaje filmy do V1/V2 bez zastępowania projektu i zapisuje Unicode',()=>{
   let p=appendMedia(newProject(),media,'video',0);p=appendMedia(p,{...media,path:'C:/żółć/drugi.mp4'},'video',2);
   expect(p.clips?.map(c=>c.track)).toEqual([0,1]);expect(p.assets).toHaveLength(1);expect(clipAt(p.clips!,3)?.assetId).toBe(p.assets[0].id);
-  expect(parseProject(serializeProject(p))).toMatchObject({schemaVersion:11,assets:p.assets,clips:p.clips});
+  expect(parseProject(serializeProject(p))).toMatchObject({schemaVersion:12,assets:p.assets,clips:p.clips});
  });
  it('cięcie/przycinanie/przesuwanie zachowuje powiązany dźwięk, głośność i źródło',()=>{
   const c:Clip={id:'v',sourceIn:0,sourceOut:10,start:0,track:1,volume:.4,assetId:'źródło',kind:'video'};

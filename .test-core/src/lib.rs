@@ -55,3 +55,6 @@ pub mod recent_projects;
 
 #[path="../../src-tauri/src/media_sources.rs"]
 pub mod media_sources;
+
+#[path="../../src-tauri/src/quality.rs"]
+pub mod quality;

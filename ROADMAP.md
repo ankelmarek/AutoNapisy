@@ -339,3 +339,16 @@ Odnajdywanie plików i zastępowanie źródła z wyborem polityki napisów, ochr
 Raport przed eksportem sprawdza dostępność i parametry źródeł oraz luki bez obrazu na widocznych torach; oddziela blokady od ostrzeżeń i pozwala przejść do pliku/czasu. To podstawowa część punktu 8: **pomiary miksu, clippingu, ciszy, czarnych klatek, stref i kadrowania nadal planowane**. Nie deklarować tych analiz jako wdrożonych. SmartCut/Export Studio nadal osobno.
 
 Odbiór 0.23: Windows run 39140872733, 184 TS, 79 Rust, 15 integracyjnych, instalacja i WebView2 1366×700 / Full HD; sprawdzone zrzuty. PR #9 połączony; instalator 12141718156. Odnajdywanie prawdziwego braku źródła, zapis/reopen i autoryzacja potwierdzone natywnie. Podmiana nieużywanego assetu zachowuje transkrypcję montażu; waveform czyści stare piksele podczas analizy zamiennika.
+
+
+## 0.24 — pełna analiza przed eksportem i normalizacja (odbiór w toku)
+
+- [x] Pomiar rzeczywistego miksu MLT stereo float: EBU R128 LUFS, true peak, ryzyko przesterowania, zakresy ciszy i ciemnego obrazu, skok na oś.
+- [x] Granice napisów z rzeczywistym fontem i łamaniem, wybrana strefa bezpieczna 9:16.
+- [x] Analiza na żądanie, fazowy postęp, anulowanie, cztery wyniki cache z odciskami źródeł/narzędzi; limity roboczych plików i liczby zdarzeń.
+- [x] Normalizacja master: cel −14/−16/−23 LUFS lub własny, ograniczenie szczytów, uczciwy przewidywany wynik, zgodność podglądu/eksportu, jeden Undo i reset.
+- [x] Schemat v12 i migracje v1–v11 z gain 0; nie naruszać obwiedni i reguł montażu.
+- [x] Usuwanie tylko nieużywanych źródeł z biblioteki, bez usuwania plików, z Undo i ochroną blokad.
+- [ ] Pełny odbiór Windows: testy, rzeczywisty FFmpeg/MLT, WebView2 1366/Full HD, instalacja i instalator.
+
+Ograniczenia: pomiar obrazu przed napisami i w 320 px / 30 FPS; czarne/ciemne sceny są heurystyką. Normalizacja stałym wzmocnieniem nie kompresuje dynamiki i nie naprawia przesterowanych źródeł. Wynik po kodowaniu AAC może mieć nieco inne szczyty. Bez SmartCut, Export Studio, automatycznego duckingu i efektów odszumiania w tej paczce.
