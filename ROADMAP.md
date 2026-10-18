@@ -1,12 +1,12 @@
 # Kolejne etapy RolVixa
 
-## Wdrożenie 0.20 — UX B (odbiór Windows w toku)
+## Wykonane w 0.20 — UX B (ukończone)
 
 - [x] Regulowane szerokości trzech paneli i wysokość osi; minima, klawiatura, Escape, reset i lokalny zapis układu poza projektem.
 - [x] Kwadratowe kafle z dwoma obrazami i rzeczywistymi demonstracjami wszystkich 20 xfade; pojedynczy dekoder, pauza i ograniczenie ruchu.
 - [x] Usunięta redundantna zakładka Warstwy; zachowane FrameEditor, TransformControls i widoczność torów.
 - [x] Test integralności zasobów oraz porównanie demonstracji z właściwym rendererem montażu.
-- [ ] Osobny PR B i pełny odbiór Windows/WebView2, gestów, małego okna, eksportu, zapisu i odzyskiwania. UX C pozostaje osobno; schemat nadal v10.
+- [x] Osobny PR #6 połączony; pełny zielony Windows run 39122531200: 153 TS, 64 Rust, 13 integracyjnych, instalator 12134394783, WebView2 i zrzuty 1366/Full HD. Potwierdzone gesty/klawiatura, trwałość układu, pojedynczy dekoder i ograniczony ruch, MLT/kadrowanie, eksport, zapis i odzyskiwanie. UX C pozostaje osobno; schemat nadal v10.
 
 
 ## Wykonane w 0.19 — UX A (ukończone)
@@ -38,7 +38,7 @@ Zakres: Ripple przy usuwaniu i przycinaniu klipów, bez automatycznego cięcia p
 **Zebrano i zamknięto uwagi użytkownika 18.10.2026.** Pełna, techniczna specyfikacja wraz z kryteriami testów: **[issue #4 - poprawki interfejsu](https://github.com/ankelmarek/AutoNapisy/issues/4)**. Nie wdrażać wszystkiego naraz i nie zakłócać prac nad silnikiem montażu.
 
 - **Etap A, wykonany w 0.19 / PR #5:** uprościć zakładkę napisów, usunąć zbędny tekst o zakresie montażu i o Whisperze w empty-state; dodać czytelne ikony Tabler do „Transkrybuj po polsku” i „Eksport SRT”, zachowując tekst; usunąć etykietę „MONTAŻ” na dolnej osi oraz stale wyświetlane objaśnienie V1/V2 i audio; do żółtego przycisku w nagłówku dopisać „Eksportuj”.
-- **Etap B, ważna ergonomia:** usunąć mylącą zakładkę/polecenie „Warstwy” i niedziałające „Dodaj warstwę” (bez usuwania warstw obrazu, transformacji i ukrywania torów); zachować kadrowanie pod „Film / audio”. Przerobić duże karty efektów na siatkę kompaktowych kwadratowych kafli, z dwoma obrazami demo i faktycznym, lekkim podglądem danego przejścia. Dodać bezpieczne, ograniczone przeciąganie granic paneli z zapisem układu lokalnie.
+- **Etap B, wykonany w 0.20 / PR #6:** usunąć mylącą zakładkę/polecenie „Warstwy” i niedziałające „Dodaj warstwę” (bez usuwania warstw obrazu, transformacji i ukrywania torów); zachować kadrowanie pod „Film / audio”. Przerobić duże karty efektów na siatkę kompaktowych kwadratowych kafli, z dwoma obrazami demo i faktycznym, lekkim podglądem danego przejścia. Dodać bezpieczne, ograniczone przeciąganie granic paneli z zapisem układu lokalnie.
 - **Etap C, osobny moduł:** galeria **6 ostatnich projektów** po uruchomieniu RolVixa, z kartami i akcjami „Nowy” / „Otwórz”. Okno odzyskiwania po awarii z 0.17 ma pierwszeństwo; historia opiera się o bezpieczny, backendowy rejestr plików, bez przenoszenia mediów.
 - [ ] Przegląd layoutu i dostępności 1366×768 / Full HD, klawiatura, ARIA, brak regresji MLT, transkrypcji, SRT, MP4 oraz save/recovery.
 

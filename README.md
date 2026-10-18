@@ -1,6 +1,6 @@
 # RolVixa 0.20 — polska mowa → polskie napisy
 
-**Poprzedni stabilny instalator 0.19 (0.20 w weryfikacji):** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39113930634/artifacts/12131567187), rozpakuj i uruchom `RolVixa_0.19.0_x64-setup.exe`. Pobranie z Actions wymaga zalogowania na GitHub.
+**Instalator 0.20:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39122531200/artifacts/12134394783), rozpakuj i uruchom `RolVixa_0.20.0_x64-setup.exe`. Pobranie z Actions wymaga zalogowania na GitHub.
 RolVixa (wcześniej AutoNapisy) to lokalna aplikacja Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Rozpoznaje polską mowę przez whisper.cpp, bez tłumaczenia. Transkrypcja i montaż działają na komputerze. Opcjonalna biblioteka muzyki łączy się z Openverse po wpisaniu frazy wyszukiwania; nie wysyła nagrań użytkownika.
 
 ## Wersja 0.20 — regulowany układ i galeria przejść, UX B
@@ -15,7 +15,9 @@ Ograniczenia: demonstracje galerii pokazują własne obrazy A/B, nie klatki aktu
 
 Nowe pliki: `src/EditorWorkspace.tsx`, `src/workspaceLayout.ts`, `src/TransitionDemo.tsx`, `tests/workspaceLayout.test.ts`, `scripts/test-ux020.mjs`, `scripts/build-transition-demos.py`, `scripts/test-transition-demos.mjs`, `.test-core/tests/transition_gallery.rs` i `public/transition-demos/` (obrazy A/B, 20 MP4, manifest i opis pochodzenia). Usunięto nieużywany `src/LayersPanel.tsx`; zachowano `FrameEditor` i `TransformControls`. Wykorzystano istniejące Tabler Icons v3.35.0 i ich licencję MIT.
 
-Weryfikacja 0.20: lokalne testy oraz odbiór Windows/WebView2 w toku; link powyżej prowadzi do poprzedniej stabilnej wersji.
+Odbiór 0.20: **[pełny zielony Windows run 39122531200](https://github.com/ankelmarek/AutoNapisy/actions/runs/39122531200)** — **153 testy TypeScript, 64 Rust i 13 rzeczywistych integracyjnych**, kontrola integralności galerii, produkcyjny build, instalator NSIS i próba instalacji. WebView2 potwierdził przeciąganie i ograniczenia paneli, klawiaturę/Escape/reset, odtworzenie układu po przeładowaniu, kwadratowe kafle, rzeczywiste MP4, jeden dekoder, pauzę i systemowe ograniczenie ruchu. Kadrowanie zachowuje znormalizowane współrzędne i strumień MLT podczas zmiany układu. Przeszły wcześniejsze scenariusze transkrypcji, SRT, MP4, proxy, Ripple/J/L-cut, drag/drop, Undo/Redo, zapisu i odzyskiwania po awarii. Widoki 1366×700 obszaru roboczego laptopa i 1920×1080 sprawdzono także na zrzutach. Lokalnie: 153 TS, 62 Rust core, rzeczywiste porównanie klatek 20 efektów z rendererem i build frontendu. Zmianę połączono osobnym [PR #6](https://github.com/ankelmarek/AutoNapisy/pull/6).
+
+ZIP instalatora 0.20: **81 092 638 bajtów**, SHA-256 `2ee3e309503a5d5fe232334d83896713562b79f464b99a64ab8153076080facd`. DevTools i dialogi testowe są wyłączone w instalatorze.
 
 ## Wersja 0.19 — porządki interfejsu, UX A
 
@@ -79,7 +81,7 @@ Ripple i odłączanie audio/J/L-cut wykonano w 0.18; następny priorytet: dynami
 
 ## Aktualizacja i uruchomienie ze źródeł
 
-Zachowaj projekty i nagrania. Pobierz ZIP z GitHuba i rozpakuj do nowego folderu, np. `C:\RolVixa-0.19`. Nie kopiuj starych `node_modules`, `dist` i `src-tauri/target`. Aplikacja 0.19 otwiera projekty v1–v10 i zapisuje format v10. Przed zapisaniem zachowaj kopię JSON, jeśli chcesz wrócić do starszej wersji aplikacji.
+Zachowaj projekty i nagrania. Pobierz ZIP z GitHuba i rozpakuj do nowego folderu, np. `C:\RolVixa-0.20`. Nie kopiuj starych `node_modules`, `dist` i `src-tauri/target`. Aplikacja 0.20 otwiera projekty v1–v10 i zapisuje format v10. Przed zapisaniem zachowaj kopię JSON, jeśli chcesz wrócić do starszej wersji aplikacji.
 
 Wymagania: Node.js 22 lub 24, Rust stable ≥1.89 x64 MSVC (blokada pliku kopii odzyskiwania), Visual Studio Build Tools z „Desktop development with C++” i Windows SDK oraz WebView2 Runtime.
 
@@ -345,9 +347,9 @@ Ze źródeł: pełne komponenty buduje `scripts/prepare-bundle.ps1`; MLT można 
 ## RolVixa 0.12 — kadr, warstwy i biblioteka audio
 
 - Nad podglądem wybierz format: źródło, rolka 9:16, poziom 16:9 lub kwadrat. Format ustala również rozmiar MP4. Przy źródle zachowana jest rozdzielczość głównego filmu.
-- Zatrzymaj odtwarzanie i zaznacz film w podglądzie lub panelu „Warstwy”. Przeciągaj obraz, aby przesuwać kadr; uchwyty narożników zmieniają skalę. Shift ogranicza przesuwanie do jednej osi. Panel „Kadr warstwy” udostępnia skalę 10–400%, położenie X/Y, Dopasuj, Wypełnij i Wyśrodkuj. Każdy klip ma niezależny kadr, zapisywany w projekcie i zachowywany po cięciu. Ctrl+Z cofa zatwierdzony gest. Podczas przejścia zatrzymaj głowicę poza efektem, aby kadrować pojedynczy film.
+- Zatrzymaj odtwarzanie i zaznacz film w podglądzie lub na osi. Od 0.20 regulację kadru znajdziesz w „Film / audio”. Przeciągaj obraz, aby przesuwać kadr; uchwyty narożników zmieniają skalę. Shift ogranicza przesuwanie do jednej osi. Panel „Kadr warstwy” udostępnia skalę 10–400%, położenie X/Y, Dopasuj, Wypełnij i Wyśrodkuj. Każdy klip ma niezależny kadr, zapisywany w projekcie i zachowywany po cięciu. Ctrl+Z cofa zatwierdzony gest. Podczas przejścia zatrzymaj głowicę poza efektem, aby kadrować pojedynczy film.
 - Podczas edycji zatrzymanego obrazu pokazywane są rzeczywiste klatki warstw wyodrębnione przez FFmpeg. Odtwarzanie i eksport składa MLT z adapterem affine; przejścia FFmpeg otrzymują te same parametry kadru. Podgląd roboczy pozostaje ograniczony do 540 px.
-- Panel „Warstwy” pokazuje napisy T i klipy V1/V2 z wyborem i widocznością ścieżki. Sekcja dodawania tekstu, grafiki, naklejek i animacji jest przygotowanym interfejsem; te typy warstw nie są jeszcze implementowane.
+- W 0.12 panel „Warstwy” pokazywał napisy T i klipy V1/V2. W 0.20 usunięto tę redundantną listę oraz nieczynne opcje dodawania tekstu, grafiki, naklejek i animacji. Widoczność T/V1/V2 kontrolują oczka na osi; silnik warstw i kadrowanie pozostają dostępne.
 - Zakładka Audio → Dźwięki zawiera **100 efektów Kenney Interface Sounds** dołączonych do instalatora. Wyszukuj po polskiej nazwie, odsłuchuj, dodawaj przyciskiem + w pozycji głowicy lub przeciągaj na A1/A2. Odsłuch zatrzymuje główne odtwarzanie i odwrotnie. Efekty są na CC0 1.0; dane autora i licencji są dostępne przy każdym pliku. Źródło: https://kenney.nl/assets/interface-sounds . Instalator zawiera oryginalną paczkę, licencję i recepturę konwersji WAV (`scripts/prepare-audio.py`, archiwum weryfikowane SHA-256).
 - Audio → Muzyka: wpisz frazę i kliknij Szukaj. Openverse udostępnia utwory na różnych licencjach; domyślnie filtrujemy utwory dopuszczające komercyjne wykorzystanie i modyfikacje. Przeczytaj warunki wybranego nagrania, pobierz je do projektu, a następnie odsłuchaj lub dodaj na A1/A2. Autor, licencja, adres źródła i informacja o autorstwie zapisują się z plikiem i w projekcie. Pobieranie ma limit 100 MB; odsłuch trwa do 30 sekund. Usługa zewnętrzna może zwrócić limit 429, blokadę 403 lub niedostępny plik; aplikacja pokazuje błąd i pozwala nadal używać dźwięków wbudowanych i własnych.
 - Audio → Moje audio: import wielu plików do biblioteki, bez automatycznego dodawania na oś. Dotychczasowy import audio nadal działa.
