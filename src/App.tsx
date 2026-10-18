@@ -366,7 +366,7 @@ export default function App() {
         <span className={`save-status status-${status}`} role="status" title={saveState.error||saveState.path||statusText}>{statusText}</span>
         <div className="header-actions">
           <button className={`header-save status-${status}`} data-save-status={status} aria-label="Zapisz projekt" aria-keyshortcuts="Control+S" title={`Zapisz projekt (Ctrl+S) · ${statusText}${saveState.path?' · '+saveState.path:''}`} disabled={locked||saving} onClick={()=>void save()}><Icon name={status==='saving'?'saveLoading':status==='error'?'saveError':'save'} size={22}/>{status==='saved'&&<Icon name="check" size={11}/>}</button>
-          <button className="header-export" aria-label="Eksportuj MP4" title={locked?'Eksport niedostępny podczas operacji':!project.media||!duration?'Dodaj film na oś czasu, aby eksportować MP4':'Eksportuj MP4'} disabled={locked||!project.media||!duration} onClick={()=>void exportMp4()}><Icon name="export" size={25}/></button>
+          <button className="header-export" aria-label="Eksportuj MP4" title={locked?'Eksport niedostępny podczas operacji':!project.media||!duration?'Dodaj film na oś czasu, aby eksportować MP4':'Eksportuj MP4'} disabled={locked||!project.media||!duration} onClick={()=>void exportMp4()}><Icon name="export" size={21}/><span>Eksportuj</span></button>
         </div>
       </header>
       {exporting && (
@@ -406,20 +406,19 @@ export default function App() {
           {leftTab==='files'&&<MediaLibrary project={project} sources={sources} locked={locked} onView={viewSource} onImport={importVideo} proxies={proxies} onClearCache={()=>{if(window.confirm('Usunąć wszystkie kopie proxy z cache? Oryginalne nagrania i projekt zostaną zachowane.'))void playback.suspend().then(()=>new Promise(r=>setTimeout(r,200))).then(()=>proxies.clear()).then(()=>playback.retry()).catch(e=>setMessage(String(e)));}}
             onAdd={id=>{try{playback.pause();const next=insertLibraryItem(project,id,time);changeProject(next);setMessage('Dodano plik z biblioteki na oś czasu.');}catch(e){setMessage(String(e));}}}/>}
           <div className="captions-tab-content" role="tabpanel" id="captions-panel" aria-labelledby="captions-tab" hidden={leftTab!=='captions'}>
-          <div className="transcription-controls">
-            <span className="transcription-scope">Napisy z montażu · tylko fragmenty na osi</span>
+          <div className="transcription-controls" role="group" aria-label="Tworzenie i eksport napisów">
             <button
               className="primary"
               disabled={locked || !projectClips(project).length}
               onClick={() => void transcribe()}
             >
-              Transkrybuj po polsku
+              <Icon name="captions" size={17}/><span>Transkrybuj po polsku</span>
             </button>
             <button
               disabled={locked || !displayedSegments.length}
               onClick={exportSrt}
             >
-              Eksport SRT
+              <Icon name="download" size={17}/><span>Eksport SRT</span>
             </button>
             {transcribing && (
               <div className="job-status" role="status">
@@ -460,10 +459,10 @@ export default function App() {
               ))
             ) : (
               <div className="empty">
-                <div className="symbol">≋</div>
+                <div className="symbol"><Icon name="captions" size={34}/></div>
                 <h3>{project.media && !duration ? "Montaż jest pusty" : "Tu pojawią się Twoje słowa"}</h3>
                 <p>
-                  {project.media && !duration ? 'Cofnij usunięcie lub wybierz „Przywróć cały film” na osi czasu. Oryginalna transkrypcja pozostaje zapisana.' : 'Importuj film i kliknij „Transkrybuj po polsku”. W ustawieniach wskaż model Whisper.'}
+                  {project.media && !duration ? 'Przeciągnij nagranie z biblioteki na oś czasu.' : 'Dodaj nagranie i wybierz „Transkrybuj po polsku”.'}
                 </p>
 
               </div>

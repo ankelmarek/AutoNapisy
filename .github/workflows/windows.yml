@@ -182,6 +182,18 @@ jobs:
       - name: Test real installed Tauri WebView2 editor
         timeout-minutes: 8
         run: ./scripts/test-webview.ps1
+      - name: Preserve WebView2 screenshots
+        if: always() && steps.installation.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: RolVixa-UI-Preview
+          path: |
+            docs/ux019-*.png
+            docs/editor9-*.png
+            .tools/native-ux019.png
+            .tools/editor-failure.png
+          include-hidden-files: true
+          if-no-files-found: ignore
       - name: Preserve UI test executable after a failed interaction test
         if: failure() && steps.installation.outcome == 'success'
         uses: actions/upload-artifact@v4

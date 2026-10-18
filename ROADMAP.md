@@ -1,5 +1,15 @@
 # Kolejne etapy RolVixa
 
+## Wdrożenie 0.19 — UX A (odbiór Windows w toku)
+
+- [x] Kompaktowe akcje napisów: istniejące ikony Tabler i tekst, postęp/anulowanie w jednym obszarze.
+- [x] Krótki empty-state, zachowany osobny stan pustej osi, bez technicznych objaśnień o silniku.
+- [x] Usunięte dekoracyjne MONTAŻ i opis V1/V2/audio; kontrolki i semantyka osi zachowane.
+- [x] Widoczny podpis Eksportuj na żółtym przycisku, z dopasowaniem do mniejszego okna.
+- [x] Naprawiony warunek eksportu SRT z transkrypcji montażu, test pustego źródłowego transcriptu i granic.
+- [ ] Odbiór Windows/WebView2, instalator i osobny PR A. Etapy B/C oraz V3/A3 pozostają poza tą wersją.
+
+
 ## Wykonane w 0.18 — Ripple i niezależne audio (ukończone)
 
 - [x] Globalne Ripple On/Off i zapisane per-tor auto/on/off, automatyczna ochrona późnych/pustych ścieżek.

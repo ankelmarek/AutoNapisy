@@ -249,20 +249,28 @@ pub async fn export_srt(json: String, captions: Option<String>) -> Result<Option
         return Err("Projekt przekracza 16 MB".into());
     }
     let project = crate::project::parse(&json)?;
-    if project.segments.is_empty() {
-        return Err("Brak napisów do eksportu".into());
-    }
-    let segments = crate::project::export_captions(&project, captions.as_deref())?;
-    let srt = crate::subtitles::to_srt(&segments)?;
-    let Some(file) = rfd::AsyncFileDialog::new()
-        .set_file_name("napisy.srt")
-        .add_filter("Napisy SRT", &["srt"])
-        .save_file()
-        .await
-    else {
-        return Ok(None);
+    let srt = crate::subtitles::project_srt(&project, captions.as_deref())?;
+    // Fixture is compiled only into the separately instrumented CI executable.
+    #[cfg(feature = "ui-tests")]
+    let fixture =
+        std::env::var_os("ROLVIXA_TEST_PROJECT").map(|p| PathBuf::from(p).with_extension("srt"));
+    #[cfg(not(feature = "ui-tests"))]
+    let fixture: Option<PathBuf> = None;
+    let selected;
+    let path = if let Some(path) = fixture.as_deref() {
+        path
+    } else {
+        let Some(file) = rfd::AsyncFileDialog::new()
+            .set_file_name("napisy.srt")
+            .add_filter("Napisy SRT", &["srt"])
+            .save_file()
+            .await
+        else {
+            return Ok(None);
+        };
+        selected = file;
+        selected.path()
     };
-    let path = file.path();
     let parent = path.parent().ok_or("Niepoprawna ścieżka")?;
     let mut temp = tempfile::NamedTempFile::new_in(parent).map_err(|e| e.to_string())?;
     temp.write_all(srt.as_bytes()).map_err(|e| e.to_string())?;

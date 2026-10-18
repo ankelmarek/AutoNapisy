@@ -195,6 +195,12 @@ try{
  await waitSnapshotName('Odzyskana Łódź 0.17');await page.reload();await page.getByRole('dialog',{name:'Odzyskaj pracę'}).waitFor();await page.getByRole('button',{name:'Otwórz zapisany projekt',exact:true}).click();await page.waitForFunction(()=>document.querySelector('.header-save')?.dataset.saveStatus==='saved');assert((await page.locator('.header-project-name').textContent()).includes('Otwarty i zapisany'));
  console.log('Real 0.17 Unicode source thumbnail/MLT, source I/O, persisted range, renderer restart recovery, manual-file protection and Undo: OK');
  console.log('Real native preview (portrait, Unicode paths, decoded pixels, play, pause, seek):',JSON.stringify(await state()));
+ // UX A: native SRT export must use montage captions even with no source transcript.
+ const srtSeed19=JSON.parse(fs.readFileSync(projectPath,'utf8'));srtSeed19.segments=[];srtSeed19.captionEdits={};srtSeed19.timelineSegments=[{id:'native-srt19',text:'Zażółć gęślą',start:1.25,end:2.5,words:[],styleId:'default'}];fs.writeFileSync(projectPath,JSON.stringify(srtSeed19));
+ await page.keyboard.press('Control+o');await page.waitForFunction(()=>!!document.querySelector('.caption-timeline-clip'));
+ await page.getByRole('tab',{name:'Napisy',exact:true}).click();const srtActions19=page.getByRole('group',{name:'Tworzenie i eksport napisów',exact:true});await srtActions19.getByRole('button',{name:'Eksport SRT',exact:true}).focus();await page.keyboard.press('Enter');
+ const srtPath19=projectPath.replace(/\.json$/i,'.srt');for(let n=0;n<100&&!fs.existsSync(srtPath19);n++)await page.waitForTimeout(100);assert(fs.existsSync(srtPath19),'Native SRT export did not write the selected file');const srtBytes19=fs.readFileSync(srtPath19,'utf8');assert(srtBytes19.includes('Zażółć gęślą'));assert(srtBytes19.includes('00:00:01,250 --> 00:00:02,500'));await page.waitForFunction(()=>!document.querySelector('.header-project-name').disabled);
+ assert.equal((await page.locator('.header-export').innerText()).trim(),'Eksportuj');await page.screenshot({path:'.tools/native-ux019.png'});console.log('Real 0.19 SRT: empty source transcript, montage captions, keyboard activation, Unicode and actual atomically saved file: OK');
  // Leave a real recovery copy for the forced process-restart test in PowerShell.
  await page.locator('.header-project-name').click();await page.getByRole('textbox',{name:'Nazwa projektu',exact:true}).fill('Przed awarią procesu 0.17');await page.keyboard.press('Enter');await waitSnapshotName('Przed awarią procesu 0.17');
  assert.deepEqual(errors,[]);
