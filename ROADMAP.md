@@ -1,5 +1,9 @@
 # Kolejne etapy RolVixa
 
+## Bieżąca 0.17 — odzyskiwanie i biblioteka źródeł razem
+
+Użytkownik połączył punkty 9 oraz 1+2 w jedną iterację. Implementacja: atomowe dwie kopie, odzyskanie po awarii, podgląd źródła MLT, scrubbing FFmpeg, zakres I/O i dodawanie przyciskiem/przeciąganiem. Schemat pozostaje v9. Odbiór Windows w toku; J/L-cut i Ripple pozostają następne, SmartCut oraz Export Studio osobno.
+
 ## Wykonane w 0.16 — fade i automatyka głośności
 
 - [x] Obwiednia w schemacie v9, źródłowe czasy i zachowanie po trim/split/copy/Undo.

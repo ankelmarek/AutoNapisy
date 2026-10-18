@@ -48,6 +48,14 @@ pub struct ProxyView {
     pub lease: Arc<RwLock<()>>,
 }
 impl ProxyView {
+    pub fn source(&self,path:&Path)->PathBuf {
+        if let Ok(entries)=self.entries.lock(){
+            if let Some(e)=entries.values().find(|e|Path::new(&e.source.path)==path){
+                if e.enabled {if let Some(m)=&e.manifest{if proxy::unchanged(&m.source)&&proxy::unchanged(&m.output){return PathBuf::from(&m.output.path);}}}
+            }
+        }path.to_owned()
+    }
+
     pub fn project(&self, p: &crate::project::Project) -> crate::project::Project {
         let mut paths = HashMap::new();
         let mut entries = self.entries.lock().unwrap();

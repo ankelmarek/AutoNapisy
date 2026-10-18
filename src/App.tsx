@@ -17,6 +17,11 @@ import {
   type Project,
 } from "./model";
 import Timeline from "./Timeline";
+import SourceViewer from './SourceViewer';
+import {sourceRange,type SourceRange} from './sourceSelection';
+import RecoveryDialog from './RecoveryDialog';
+import {RecoveryWriter,type RecoveryInfo} from './projectRecovery';
+import {getCurrentWindow} from '@tauri-apps/api/window';
 import ProjectMenu from './ProjectMenu';
 import ProjectTitle,{type TitleEditor} from './ProjectTitle';
 import {ProjectSaver,projectRevision,saveStatus} from './projectSaving';
@@ -80,7 +85,29 @@ export default function App() {
     },
     [],
   );
-  const locked = busy || transcribing || exporting;
+  const [recoveryReady,setRecoveryReady]=useState(false),[recoveryInfo,setRecoveryInfo]=useState<RecoveryInfo|null>(null),[recoveryError,setRecoveryError]=useState('');
+  const startup=useRef<Promise<RecoveryInfo>|null>(null),recovered=useRef(false);
+  const [,refreshRecovery]=useReducer((n:number)=>n+1,0),recoveryRef=useRef<RecoveryWriter|null>(null);
+  if(!recoveryRef.current)recoveryRef.current=new RecoveryWriter(async r=>{if(r.json===null){await invoke('clear_recovery',{session:r.session});return null;}return invoke<number>('write_recovery',{json:r.json,session:r.session});},refreshRecovery);
+  const recovery=recoveryRef.current;
+  const locked = busy || transcribing || exporting || !recoveryReady || !!recoveryInfo;
+  useEffect(()=>{let alive=true;startup.current??=invoke<RecoveryInfo>('recovery_status');void startup.current.then(info=>{if(!alive)return;saver.accept(latestProject.current,'',info.session);if(info.available)setRecoveryInfo(info);if(info.warning)setRecoveryError(info.warning);setRecoveryReady(true);}).catch(e=>{if(alive){setRecoveryError(String(e));setRecoveryReady(true);}});return()=>{alive=false;};},[]);
+  useEffect(()=>{
+    const needed=saveState.baseline===null?(recovered.current||revision!==pristineRevision.current):dirty;
+    recovery.update(!recoveryReady||recoveryInfo||saving||busy?null:{session:saveState.session,json:needed?revision:null});
+  },[revision,saveState,recoveryReady,recoveryInfo,busy]);
+  useEffect(()=>()=>recovery.dispose(),[]);
+  const closeAction=useRef<()=>Promise<boolean>>(async()=>false);
+  closeAction.current=async()=>{
+    if(busy||transcribing||exporting||saver.saving){setMessage('Poczekaj na zakończenie operacji przed zamknięciem.');return false;}
+    if(recoveryInfo||!recoveryReady)return true;
+    if(titleEditor.current&&!titleEditor.current.commit())return false;
+    const p=latestProject.current,r=projectRevision(p),needed=saveState.baseline===null?(recovered.current||r!==pristineRevision.current):saveState.baseline!==r;
+    recovery.update({session:saveState.session,json:needed?r:null});
+    try{await recovery.flush();return true;}
+    catch(e){if(!needed)return true;setMessage(`Nie udało się zapisać kopii odzyskiwania: ${String(e)}. Zapisz projekt ręcznie przed zamknięciem.`);return false;}
+  };
+  useEffect(()=>{let alive=true,unlisten:(()=>void)|undefined;const win=getCurrentWindow();void win.onCloseRequested(event=>{event.preventDefault();void closeAction.current().then(ok=>{if(ok)return win.destroy();}).catch(e=>setMessage(String(e)));}).then(stop=>{if(alive)unlisten=stop;else stop();}).catch(()=>{});const flush=()=>{if(document.hidden)void recovery.flush().catch(()=>{});};document.addEventListener('visibilitychange',flush);return()=>{alive=false;unlisten?.();document.removeEventListener('visibilitychange',flush);};},[]);
   useEffect(()=>{if(!settings)return;const previous=document.activeElement;document.querySelector<HTMLButtonElement>('.modal button')?.focus();return()=>{if(previous instanceof HTMLElement&&previous.isConnected)previous.focus();};},[settings]);
   const captionSurface = useRef<HTMLDivElement>(null);
   const stage=useRef<HTMLDivElement>(null);
@@ -95,8 +122,14 @@ export default function App() {
   const [inspectorTab,setInspectorTab]=useState<'video'|'captions'|'layers'>('video'),[selectedClip,setSelectedClip]=useState(''),[selectedCaption,setSelectedCaption]=useState(''),[selectedTransition,setSelectedTransition]=useState('');
   const [effectChoice,setEffectChoice]=useState<EffectChoice>({kind:'fade',duration:.4});
   const captionInput=useRef<HTMLTextAreaElement>(null);
+  const [sourceViewerId,setSourceViewerId]=useState('');
+  const sourceRanges=useRef(new Map<string,SourceRange>()),sourceKeys=useRef<((e:KeyboardEvent)=>void)|null>(null);
+  const [sourceRangeRevision,bumpSourceRange]=useReducer((n:number)=>n+1,0);
+  const sourceViewerItem=libraryItems(project).find(m=>m.id===sourceViewerId&&m.duration!=null&&!!sources[m.path]);
+  const chosenSourceRange=useMemo(()=>{if(!sourceViewerItem)return null;try{return sourceRange(sourceViewerItem.duration!,sourceRanges.current.get(sourceViewerItem.path));}catch{return sourceRange(sourceViewerItem.duration!);}},[sourceViewerItem?.path,sourceViewerItem?.duration,sourceRangeRevision]);
+  const viewSource=(id:string)=>{playback.pause();setSourceViewerId(id);};
   const proxies=useVideoProxies(project,sources),safeZones=useSafeZones();
-  const playback = useMltPlayback(project,proxies.revision);
+  const playback = useMltPlayback(project,proxies.revision,!sourceViewerItem);
   useEffect(()=>{if(playback.error&&proxies.active)void proxies.fallback();},[playback.error,proxies.revision]);
   const {time,playing,seek} = playback;
   const toggle=playback.toggle;
@@ -149,6 +182,7 @@ export default function App() {
   const open = () =>
     run(async () => {
       if (saver.saving || !replace()) return;
+      recovery.update(null);await recovery.flush();
       const result = await backend.open();
       if (!result) return;
       const p = parseProject(result.json);
@@ -157,8 +191,10 @@ export default function App() {
         try{prepared[m.path]=await preview.prepare(m.path);url ||= prepared[m.path];}catch{missing.push(m.name);}
       }
       setSources(prepared);
+      setSourceViewerId('');sourceRanges.current.clear();
       resetPlayback();
       history.reset(p);
+      recovered.current=false;
       saver.accept(p,result.path,result.session);
       setSource(url);
       
@@ -166,15 +202,28 @@ export default function App() {
     });
   const createNew=()=>run(async()=>{
     if(saver.saving||!replace())return;
-    const session=await backend.newProject();const p=newProject();
-    resetPlayback();history.reset(p);pristineRevision.current=projectRevision(p);saver.accept(p,'',session);setSource('');setSources({});
+    recovery.update(null);await recovery.flush();const session=await backend.newProject();const p=newProject();
+    setSourceViewerId('');sourceRanges.current.clear();recovered.current=false;resetPlayback();history.reset(p);pristineRevision.current=projectRevision(p);saver.accept(p,'',session);setSource('');setSources({});
   });
   const save=async(saveAs=false)=>{
     if(saver.saving)return;
     if(titleEditor.current&&!titleEditor.current.commit())return;
-    try{const path=await saver.save(latestProject.current,saveAs);if(path)setMessage(`Zapisano projekt: ${path}`);}
+    try{recovery.update(null);await recovery.flush();const path=await saver.save(latestProject.current,saveAs);if(path){recovered.current=false;setMessage(`Zapisano projekt: ${path}`);}}
     catch(e){setMessage(`Błąd zapisu: ${e instanceof Error?e.message:String(e)} Użyj „Zapisz jako”, aby zapisać kopię.`);}
   };
+  const resolveRecovery=(action:'recover'|'saved'|'discard')=>run(async()=>{
+    setRecoveryError('');
+    try {
+      const result=await invoke<{json:string;path:string;session:number}|null>('resolve_recovery',{action});
+      if(result){
+        const p=parseProject(result.json),prepared:Record<string,string>={},missing:string[]=[];
+        for(const m of [...(p.media?[p.media]:[]),...p.assets]){try{prepared[m.path]=await preview.prepare(m.path);}catch{missing.push(m.name);}}
+        setSourceViewerId('');sourceRanges.current.clear();resetPlayback();history.reset(p);pristineRevision.current=projectRevision(p);recovered.current=action==='recover';saver.accept(p,result.path,result.session);setSources(prepared);setSource(Object.values(prepared)[0]??'');
+        setMessage(`${action==='recover'?'Odzyskano projekt. Zapisz go jako nowy plik.':'Otworzono zapisany projekt.'}${missing.length?' Niedostępne pliki: '+missing.join(', '):''}`);
+      }else setMessage('Odrzucono kopię odzyskiwania.');
+      setRecoveryInfo(null);
+    }catch(e){setRecoveryError(String(e));}
+  });
   const loadSettings = async () => {
     const [d, t, l] = await Promise.all([
       backend.diagnostics(),
@@ -265,12 +314,13 @@ export default function App() {
   useEffect(()=>{
     const handler=(e:KeyboardEvent)=>{
       if(locked)return;const el=e.target as HTMLElement,text=el?.isContentEditable||el?.tagName==='TEXTAREA'||(el?.tagName==='INPUT'&&['text','search',''].includes((el as HTMLInputElement).type));
-      if(e.code==='Space'&&(!text||e.ctrlKey)){e.preventDefault();toggle();return;}
+      if(e.code==='Space'&&(!text||e.ctrlKey)){if(sourceViewerItem){sourceKeys.current?.(e);return;}e.preventDefault();toggle();return;}
       if(e.ctrlKey||e.metaKey){if(e.key.toLowerCase()==='s'){e.preventDefault();void save(e.shiftKey);return;}if(e.key.toLowerCase()==='o'){e.preventDefault();void open();return;}if(e.key.toLowerCase()==='i'){e.preventDefault();if(e.shiftKey)void importMedia('audio');else void importVideo();return;}if(e.key.toLowerCase()==='n'){e.preventDefault();void createNew();return;}}
       if(text||['INPUT','SELECT'].includes(el?.tagName))return;
+      if(sourceViewerItem){sourceKeys.current?.(e);return;}
       if(e.key==='Home'){e.preventDefault();seek(0);}else if(e.key==='End'){e.preventDefault();seek(duration);}else if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();seek(time+(e.key==='ArrowLeft'?-1:1)*(e.shiftKey?1:1/30));}
     };window.addEventListener('keydown',handler);return()=>window.removeEventListener('keydown',handler);
-  },[locked,project,time,playing,saveState]);
+  },[locked,project,time,playing,saveState,sourceViewerItem?.id]);
   const style = project.styles.default;
   const updateStyle = (patch: Partial<typeof style>) => {
     setProject((p) => ({
@@ -340,7 +390,7 @@ export default function App() {
           </div>
           {leftTab==='audio'&&<AudioLibrary project={project} locked={locked} timelinePlaying={playing} onImport={()=>importMedia('audio')} onRegister={registerAudio} onPause={playback.pause} onAdd={id=>{try{playback.pause();changeProject(insertLibraryItem(latestProject.current,id,time));setMessage('Dodano audio na oś czasu.');}catch(e){setMessage(String(e));}}}/>}
           {leftTab==='effects'&&<EffectsLibrary chosen={effectChoice} onChoose={setEffectChoice}/>}
-          {leftTab==='files'&&<MediaLibrary project={project} sources={sources} locked={locked} onImport={importVideo} proxies={proxies} onClearCache={()=>{if(window.confirm('Usunąć wszystkie kopie proxy z cache? Oryginalne nagrania i projekt zostaną zachowane.'))void playback.suspend().then(()=>new Promise(r=>setTimeout(r,200))).then(()=>proxies.clear()).then(()=>playback.retry()).catch(e=>setMessage(String(e)));}}
+          {leftTab==='files'&&<MediaLibrary project={project} sources={sources} locked={locked} onView={viewSource} onImport={importVideo} proxies={proxies} onClearCache={()=>{if(window.confirm('Usunąć wszystkie kopie proxy z cache? Oryginalne nagrania i projekt zostaną zachowane.'))void playback.suspend().then(()=>new Promise(r=>setTimeout(r,200))).then(()=>proxies.clear()).then(()=>playback.retry()).catch(e=>setMessage(String(e)));}}
             onAdd={id=>{try{playback.pause();const next=insertLibraryItem(project,id,time);setProject(next);setMessage('Dodano plik z biblioteki na oś czasu.');}catch(e){setMessage(String(e));}}}/>}
           <div className="captions-tab-content" role="tabpanel" id="captions-panel" aria-labelledby="captions-tab" hidden={leftTab!=='captions'}>
           <div className="transcription-controls">
@@ -409,6 +459,8 @@ export default function App() {
           </div>
         </section>
         <section className="panel preview">
+          {sourceViewerItem&&chosenSourceRange&&<SourceViewer key={sourceViewerItem.path} item={sourceViewerItem} range={chosenSourceRange} keyHandler={sourceKeys} proxyRevision={JSON.stringify([proxies.records[sourceViewerItem.path]?.previewPath,proxies.records[sourceViewerItem.path]?.enabled])} locked={locked||settings} onRange={r=>{sourceRanges.current.set(sourceViewerItem.path,r);bumpSourceRange();}} onClose={()=>setSourceViewerId('')} onAdd={range=>{try{const next=insertLibraryItem(latestProject.current,sourceViewerItem.id,time,undefined,range);setSourceViewerId('');setProject(next);setMessage('Dodano zaznaczony fragment na oś czasu.');}catch(e){setMessage(String(e));}}}/>}
+          <div className="montage-preview" hidden={!!sourceViewerItem}>
           <div className="panelhead">
             <h2>Podgląd wideo</h2>
             <span>{project.media?.name ?? "Brak filmu"}</span>
@@ -464,6 +516,7 @@ export default function App() {
               {formatTime(time)} <span>/ {formatTime(duration)}</span>
             </code>
           </div>
+        </div>
         </section>
         <section className="panel styling">
           <div className="panelhead">
@@ -651,15 +704,17 @@ export default function App() {
           </div>
         </section>
       </main>
-      <Timeline project={project} time={time} locked={locked} onSeek={seek}
+      <Timeline project={project} time={time} locked={locked} onSeek={t=>{setSourceViewerId('');seek(t);}}
         onChange={(clips,mode)=>{if(mode!=='volume')playback.pause();setProject(p=>({...p,clips,transitions:reconcileTransitions(p,clips)}));}} onPreviewVolume={playback.previewVolume} onBeginAudio={playback.pause} onSelect={id=>{setSelectedClip(id);setSelectedTransition('');setInspectorTab('video');}} onCaptionSelect={selectCaption}
-        onMediaDrop={(id,at,track)=>{try{playback.pause();changeProject(insertLibraryItem(project,id,at,track));setMessage('Dodano plik na oś czasu.');}catch(e){setMessage(String(e));}}}
+        onMediaDrop={(id,at,track,range)=>{try{playback.pause();setSourceViewerId('');changeProject(insertLibraryItem(latestProject.current,id,at,track,range));setMessage('Dodano plik na oś czasu.');}catch(e){setMessage(String(e));}}}
         onCaptionChange={p=>changeProject(p)} effectChoice={effectChoice} onTransition={(a,b,choice)=>{try{playback.pause();const next=applyTransition(project,a,b,choice.kind,choice.duration);changeProject(next);setSelectedTransition(next.transitions.find(t=>t.toId===b)!.id);setInspectorTab('video');}catch(e){setMessage(String(e));}}} onTransitionSelect={id=>{setSelectedTransition(id);setInspectorTab('video');}}
         undo={undo} redo={redo} canUndo={history.canUndo} canRedo={history.canRedo}/>
       <footer role="status">
-        {busy ? "Przetwarzanie…" : message}
+        <span>{busy ? "Przetwarzanie…" : message}</span>
+        <span className={`recovery-status ${recovery.error||recoveryError?'failed':''}`} title={recovery.error||recoveryError||'Kopia odzyskiwania jest oddzielona od ręcznego zapisu'} role="status">{recovery.error||recoveryError?'Błąd kopii odzyskiwania':recovery.writing?'Zapisywanie kopii…':recovery.capturedAt?'Kopia odzyskiwania · '+new Date(recovery.capturedAt).toLocaleTimeString('pl-PL'):''}</span>
 
       </footer>
+      {recoveryInfo&&<RecoveryDialog info={recoveryInfo} busy={busy} error={recoveryError} onChoose={resolveRecovery}/>}
       {settings && (
         <div className="overlay" onKeyDown={e=>{e.stopPropagation();if(e.key==='Escape'){e.preventDefault();setSettings(false);}if(e.key==='Tab'){const items=Array.from(e.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),summary')).filter(el=>el.getClientRects().length);const first=items[0],last=items[items.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}}}>
           <section

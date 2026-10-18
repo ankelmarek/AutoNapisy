@@ -1,6 +1,6 @@
 [package]
 name = "autonapisy-core-tests"
-version = "0.16.0"
+version = "0.17.0"
 edition = "2021"
 [dependencies]
 serde = { version = "1", features = ["derive"] }
@@ -9,3 +9,4 @@ tempfile = "3"
 hound = "3.5"
 png = "0.17"
 base64 = "0.22"
+

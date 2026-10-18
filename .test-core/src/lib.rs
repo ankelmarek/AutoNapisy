@@ -43,3 +43,9 @@ pub mod project_file;
 
 #[path="../../src-tauri/src/audio_envelope.rs"]
 pub mod audio_envelope;
+
+#[path="../../src-tauri/src/recovery.rs"]
+pub mod recovery;
+
+#[path="../../src-tauri/src/source_preview.rs"]
+pub mod source_preview;

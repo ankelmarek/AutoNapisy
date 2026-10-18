@@ -5,14 +5,14 @@ import {clipMedia,editDuration,projectClips} from './editing';
 type Started={id:number;start:number;duration:number};
 type Chunk={data:string;offset:number;done:boolean;error:string|null;aspect?:number|null};
 const MIME='video/mp4; codecs="avc1.42E01F, mp4a.40.2"';
-export function useMltPlayback(project:Project,proxyRevision=''){
+export function useMltPlayback(project:Project,proxyRevision='',enabled=true){
  const video=useRef<HTMLVideoElement>(null),latest=useRef(project);latest.current=project;
  const [time,setTime]=useState(0),[playing,setPlaying]=useState(false),[loading,setLoading]=useState(false),[error,setError]=useState(''),[revision,setRevision]=useState(0),[aspect,setAspect]=useState(16/9);
  const cursor=useRef(0),wanted=useRef(false),base=useRef(0),session=useRef(0);
  const duration=editDuration(project),key=JSON.stringify([project.media?.path,projectClips(project).map(c=>[c,clipMedia(project,c)?.path]),project.transitions,project.canvas,project.tracks.V1,project.tracks.V2,project.tracks.A1,project.tracks.A2]);
  const pause=()=>{wanted.current=false;setPlaying(false);video.current?.pause();};
  const seek=(t:number)=>{t=Math.max(0,Math.min(editDuration(latest.current),t));cursor.current=t;setTime(t);const v=video.current,local=t-base.current;let available=false;if(v&&local>=0)for(let i=0;i<v.buffered.length;i++)if(local>=v.buffered.start(i)&&local<v.buffered.end(i)-.02)available=true;if(v&&available){v.currentTime=local;}else{v?.pause();setRevision(n=>n+1);}};
- useEffect(()=>{if(!duration){pause();setTime(0);cursor.current=0;setLoading(false);video.current?.removeAttribute('src');return;}
+ useEffect(()=>{if(!enabled){pause();setLoading(false);return;}if(!duration){pause();setTime(0);cursor.current=0;setLoading(false);video.current?.removeAttribute('src');return;}
   let alive=true,id=0,url='',timer:number|undefined,media:MediaSource|null=null;const v=video.current;if(!v)return;v.pause();setLoading(true);setError('');cursor.current=Math.min(cursor.current,Math.max(0,duration-1/30));
   const fail=(e:unknown)=>{if(alive){setError(String(e));setLoading(false);pause();}};
   const start=async()=>{try{if(!window.MediaSource||!MediaSource.isTypeSupported(MIME))throw Error('WebView2 nie obsługuje podglądu H.264/AAC. Zaktualizuj WebView2 Runtime.');
@@ -31,7 +31,7 @@ export function useMltPlayback(project:Project,proxyRevision=''){
   const decodeError=()=>{if(v.error)fail(Error(`Nie można odtworzyć podglądu MLT (${v.error.code}): ${v.error.message||'błąd dekodowania w WebView2'}`));};
   v.addEventListener('canplay',ready);v.addEventListener('ended',ended);v.addEventListener('waiting',waiting);v.addEventListener('error',decodeError);
   return()=>{alive=false;clearTimeout(timer);v.pause();v.removeEventListener('canplay',ready);v.removeEventListener('ended',ended);v.removeEventListener('waiting',waiting);v.removeEventListener('error',decodeError);if(id)void invoke('cancel_mlt_preview',{id}).catch(()=>{});v.removeAttribute('src');v.load();if(url)URL.revokeObjectURL(url);};
- },[key,revision,duration,proxyRevision]);
+ },[key,revision,duration,proxyRevision,enabled]);
  useEffect(()=>{if(!playing)return;let frame=0;const tick=()=>{const v=video.current;if(v&&!v.seeking&&v.readyState>=2){cursor.current=Math.min(editDuration(latest.current),base.current+v.currentTime);setTime(cursor.current);}frame=requestAnimationFrame(tick);};frame=requestAnimationFrame(tick);return()=>cancelAnimationFrame(frame);},[playing]);
  useEffect(()=>{const hide=()=>{if(document.hidden)pause();};document.addEventListener('visibilitychange',hide);return()=>document.removeEventListener('visibilitychange',hide);},[]);
  return {video,time,playing,loading,error,aspect,pause,seek,suspend:async()=>{pause();if(session.current)await invoke('cancel_mlt_preview',{id:session.current});},retry:()=>setRevision(n=>n+1),reset:()=>{pause();seek(0);},previewVolume:(_id:string,_gain:number)=>{},toggle:()=>{if(wanted.current)pause();else if(editDuration(latest.current)>0){if(cursor.current>=editDuration(latest.current))seek(0);wanted.current=true;setPlaying(true);const v=video.current;if(v&&v.readyState>=2)void v.play().catch(e=>{setError(String(e));pause();});}}};

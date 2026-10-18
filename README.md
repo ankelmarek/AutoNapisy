@@ -1,13 +1,27 @@
-# RolVixa 0.16 — polska mowa → polskie napisy
+# RolVixa 0.17 — polska mowa → polskie napisy
 
-**Gotowy instalator 0.16:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39069356974/artifacts/12114951791), rozpakuj i uruchom `RolVixa_0.16.0_x64-setup.exe`.
+**Poprzedni sprawdzony instalator 0.16:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39069356974/artifacts/12114951791), rozpakuj i uruchom `RolVixa_0.16.0_x64-setup.exe`.
 RolVixa (wcześniej AutoNapisy) to lokalna aplikacja Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Rozpoznaje polską mowę przez whisper.cpp, bez tłumaczenia. Transkrypcja i montaż działają na komputerze. Opcjonalna biblioteka muzyki łączy się z Openverse po wpisaniu frazy wyszukiwania; nie wysyła nagrań użytkownika.
+
+## Wersja 0.17 — odzyskiwanie i wybór ujęć
+
+- Kopia odzyskiwania po 1,5 s od ostatniej zmiany, najpóźniej po 10 s ciągłej edycji. Ponowna próba po błędzie następuje po 30 s. Przy zamykaniu okna kopia jest domykana; błąd przy niezapisanych zmianach zatrzymuje zamknięcie i pozwala zapisać projekt ręcznie.
+- Dwie atomowe kopie JSON w katalogu danych aplikacji `recovery-v1` (`current.json`, `previous.json`); każda zawiera projekt do 16 MiB, bez nagrań. Kopie obejmują kadrowanie, napisy i automatykę audio, bez cache proxy. OS blokuje równoległy dostęp drugiej instancji i zwalnia blokadę również po awarii.
+- Po ponownym uruchomieniu: **Odzyskaj**, **Otwórz zapisany projekt**, **Odrzuć kopię**. Widać czas kopii i bieżącego zapisu ręcznego. Uszkodzona najnowsza kopia pozwala wrócić do poprzedniej. Braki mediów są zgłaszane bez usuwania montażu. Odzyskiwanie otwiera stan jako niezapisany projekt; pierwszy zapis wymaga wyboru pliku, chroniąc dotychczasowy zapis.
+- W zakładce **Pliki** przesuwanie myszy po miniaturze pokazuje klatki źródła. Miniatury dekoduje FFmpeg przez pojedynczą kolejkę: cache 160 klatek, kroki 0,5 s, ograniczenie wywołań i pomijanie nieaktualnych żądań. Nie zmienia to głowicy ani historii montażu.
+- Kliknij miniaturę (także klawiaturą Enter), aby otworzyć oznaczony **Źródło** podgląd MLT. Obsługuje wideo i własne audio, korzysta z dostępnego aktywnego proxy, zachowuje czas źródła i nie wymaga obsługi kodeka oryginału przez WebView2. Oś montażu zostaje zatrzymana.
+- Przewiń źródło, naciśnij **I** (początek) i **O** (koniec) lub użyj przycisków/pól sekundowych. Spacja odtwarza źródło, strzałki przewijają o klatkę 30 FPS (Shift: sekunda), Esc wraca do montażu. Pokazany zakres i długość dotyczą oryginalnego źródła.
+- **Dodaj zaznaczony fragment** wstawia wybrany przedział w pozycji głowicy montażu; przycisk można też przeciągnąć na V1/V2 albo A1/A2 dla audio. Zachowane są reguły umieszczania i przyciągania istniejącej osi. Jeden krok Undo usuwa cały dodany klip. Zwykły **+** na karcie nadal dodaje cały plik. I/O są pamiętane tylko w bieżącej sesji biblioteki i nie zmieniają schematu v9.
+
+Ograniczenia: utrata zasilania przed pierwszą kopią może utracić ostatnie 1,5–10 s; kopie są dodatkowym zabezpieczeniem, nie kopią zapasową nagrań. Jedna instancja naraz korzysta z odzyskiwania; druga pokazuje błąd i wymaga zapisu ręcznego. Podgląd źródła przełącza wspólny silnik MLT, więc pierwsza klatka i dalsze przewinięcie poza bufor wymagają przygotowania strumienia. Nie ma tu J/L-cut, Ripple ani SmartCut.
+
+Status odbioru 0.17: trwa weryfikacja Windows; nie traktować poprzedniego instalatora 0.16 jako tego wydania.
 
 ## Aktualizacja i uruchomienie ze źródeł
 
-Zachowaj projekty i nagrania. Pobierz ZIP z GitHuba i rozpakuj do nowego folderu, np. `C:\RolVixa-0.16`. Nie kopiuj starych `node_modules`, `dist` i `src-tauri/target`. Aplikacja otwiera projekty v1–v9 i zapisuje format v9. Przed zapisaniem zachowaj kopię JSON, jeśli chcesz wrócić do starszej wersji aplikacji.
+Zachowaj projekty i nagrania. Pobierz ZIP z GitHuba i rozpakuj do nowego folderu, np. `C:\RolVixa-0.17`. Nie kopiuj starych `node_modules`, `dist` i `src-tauri/target`. Aplikacja otwiera projekty v1–v9 i zapisuje format v9. Przed zapisaniem zachowaj kopię JSON, jeśli chcesz wrócić do starszej wersji aplikacji.
 
-Wymagania: Node.js 22 lub 24, aktualny Rust stable x64 MSVC, Visual Studio Build Tools z „Desktop development with C++” i Windows SDK oraz WebView2 Runtime.
+Wymagania: Node.js 22 lub 24, Rust stable ≥1.89 x64 MSVC (blokada pliku kopii odzyskiwania), Visual Studio Build Tools z „Desktop development with C++” i Windows SDK oraz WebView2 Runtime.
 
 ```powershell
 npm.cmd ci

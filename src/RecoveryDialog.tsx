@@ -1,0 +1,10 @@
+import {useEffect,useRef} from 'react';
+import type {RecoveryInfo} from './projectRecovery';
+import Icon from './Icons';
+const date=(n:number|null)=>n==null?'Brak zapisu':new Date(n).toLocaleString('pl-PL');
+export default function RecoveryDialog({info,busy,error,onChoose}:{info:RecoveryInfo;busy:boolean;error:string;onChoose:(action:'recover'|'saved'|'discard')=>void}){
+ const host=useRef<HTMLElement>(null);
+ useEffect(()=>{host.current?.querySelector<HTMLButtonElement>('button')?.focus();},[]);
+ return <div className="overlay recovery-overlay" onKeyDown={e=>{e.stopPropagation();if(e.key==='Tab'){const items=Array.from(host.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')??[]);if(e.shiftKey&&document.activeElement===items[0]){e.preventDefault();items.at(-1)?.focus();}else if(!e.shiftKey&&document.activeElement===items.at(-1)){e.preventDefault();items[0]?.focus();}}}}>
+ <section ref={host} className="modal recovery-dialog" role="dialog" aria-modal="true" aria-labelledby="recovery-heading"><h2 id="recovery-heading"><Icon name="save"/> Odzyskaj pracę</h2><p>Znaleziono niezapisany stan projektu <b>{info.name}</b>.</p><dl><dt>Kopia odzyskiwania</dt><dd>{date(info.capturedAt)}</dd><dt>Ostatni zapis ręczny</dt><dd>{date(info.manualAt)}</dd></dl>{info.manualPath&&<p className="recovery-path">{info.manualPath}</p>}<p>Odzyskany projekt zapisz poleceniem „Zapisz jako”. Dotychczasowy plik pozostanie zachowany.</p>{(info.warning||error)&&<p role="alert">{error||info.warning}</p>}<div className="recovery-actions"><button className="primary" disabled={busy} onClick={()=>onChoose('recover')}>Odzyskaj</button><button disabled={busy||!info.manualPath} onClick={()=>onChoose('saved')}>Otwórz zapisany projekt</button><button disabled={busy} onClick={()=>onChoose('discard')}>Odrzuć kopię</button></div></section></div>;
+}
