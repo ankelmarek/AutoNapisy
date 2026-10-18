@@ -1,0 +1,13 @@
+{
+  "operation": {"kind":"delete","id":"middle"},
+  "clips": [
+    {"id":"first","kind":"video","track":0,"audioRoute":"A1","start":0,"sourceIn":0,"sourceOut":3,"volume":0.5},
+    {"id":"middle","kind":"video","track":0,"audioRoute":"A1","start":3,"sourceIn":0,"sourceOut":3,"volume":0.5},
+    {"id":"last","kind":"video","track":0,"audioRoute":"A1","start":9,"sourceIn":4,"sourceOut":7,"volume":0.5}
+  ],
+  "cases": [
+    {"name":"music-from-zero","extra":[{"id":"music","assetId":"music","kind":"audio","track":0,"start":0,"sourceIn":0,"sourceOut":12,"volume":0.5}],"expectedStarts":{"first":0,"last":6,"music":0}},
+    {"name":"music-from-ten","extra":[{"id":"music","assetId":"music","kind":"audio","track":0,"start":10,"sourceIn":0,"sourceOut":3,"volume":0.5}],"expectedStarts":{"first":0,"last":6,"music":10}},
+    {"name":"detached-j-l-cut","detachLast":true,"extra":[{"id":"linked","kind":"audio","track":1,"start":5,"sourceIn":0,"sourceOut":8,"syncGroup":"pair","volume":0.5,"audio":{"points":[{"id":"p","time":4,"gain":0.8}],"fadeOut":{"anchor":8,"duration":1}}},{"id":"music","assetId":"music","kind":"audio","track":0,"start":10,"sourceIn":0,"sourceOut":3,"volume":0.5}],"expectedStarts":{"first":0,"last":6,"linked":2,"music":10}}
+  ]
+}

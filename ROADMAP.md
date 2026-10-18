@@ -1,8 +1,9 @@
 # Kolejne etapy RolVixa
 
+
 ## Proponowana korekta UX: prosty Ripple i czytelne audio (issue #11)
 
-**Wysoki priorytet użyteczności przed kolejnymi rozbudowanymi narzędziami.** [Szczegółowy plan i testy w issue #11](https://github.com/ankelmarek/AutoNapisy/issues/11). Rozwiązanie do odbioru przez użytkownika, bez zmian w kodzie na tym etapie.
+**Wysoki priorytet użyteczności przed kolejnymi rozbudowanymi narzędziami.** [Szczegółowy plan i testy w issue #11](https://github.com/ankelmarek/AutoNapisy/issues/11). Pierwsza część realizowana w 0.25 na polecenie budowania kolejnej wersji; druga pozostaje osobnym PR.
 
 - **PR 1 - Ripple bez okna:** pojedynczy czytelny przełącznik na osi i natychmiastowe bezpieczne przycięcie/usunięcie, jeden krok Ctrl+Z. Schować R·A/R+/R− do zaawansowanych ustawień toru; automatyczna kwalifikacja V od 00:00, V rozpoczynające się później są chronione. Samodzielne audio nie podlega domyślnemu Ripple, nawet przy routingu dźwięku filmu na ten sam bus A. Linked audio zawsze zachowuje synchronizację; przy konflikcie krótki komunikat zamiast modala i świadoma opcja cięcia bez przesuwania.
 - **PR 2 - czytelne A1/A2:** audio połączone z filmem jako zwięzły waveform przy klipie V; audio niezależne lub odłączone na A w pełnej wysokości. Nie dzielić A na pół tylko dlatego, że strumień wideo jest routowany na ten bus. Dla rzeczywiście nakładających się niezależnych audio zapewnić jawny widok lub sugestię nowej ścieżki. Zgodność starych projektów, mute, audioRoute, miksu, J/L-cut, automatyzacji i eksportu jest obowiązkowa.
@@ -359,3 +360,14 @@ Odbiór 0.23: Windows run 39140872733, 184 TS, 79 Rust, 15 integracyjnych, insta
 - [x] Pełny zielony odbiór Windows 39159998515 i równoległy 39159995807: 195 TS, 85 Rust, 16 integracyjnych, rzeczywisty FFmpeg/MLT, WebView2 1366×700 / Full HD, crash/restart, instalacja i instalator 12148458846. Zrzuty sprawdzone. PR #10 połączony.
 
 Ograniczenia: pomiar obrazu przed napisami i w 320 px / 30 FPS; czarne/ciemne sceny są heurystyką. Normalizacja stałym wzmocnieniem nie kompresuje dynamiki i nie naprawia przesterowanych źródeł. Wynik po kodowaniu AAC może mieć nieco inne szczyty. Bez SmartCut, Export Studio, automatycznego duckingu i efektów odszumiania w tej paczce.
+
+
+## 0.25 — Ripple bez okna (odbiór w toku)
+
+- [x] Natychmiastowa bezpieczna operacja, jeden Undo/Redo; niemodalny konflikt z jawnym zwykłym cięciem i anulowaniem.
+- [x] Automatycznie tylko V od 00:00; niezależne A/T chronione, niezależnie od busa filmu. Zaawansowane ustawienia toru zamiast R·A/R+/R−.
+- [x] Zegar źródłowy powiązanego dźwięku, J/L-cut, blokady, późne tory, istniejące jawne ustawienia; schemat nadal v12.
+- [x] Wspólne dane TS/Rust i test rzeczywistego miksu MLT/FFmpeg: muzyka od 0/10 sekund na A1 oraz odłączony J/L-cut.
+- [ ] Odbiór Windows, WebView2 na laptopie i Full HD, instalacja i instalator; osobny PR pierwszej części issue #11.
+
+Następnie oddzielny PR: czytelne pełne A i zwięzły waveform połączonego dźwięku przy V. Bez mieszania z tą zmianą reguł Ripple.

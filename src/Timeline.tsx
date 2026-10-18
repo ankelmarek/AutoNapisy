@@ -2,7 +2,6 @@ import {useRef,useState,useMemo,useEffect,type PointerEvent} from 'react';
 import {decodeSourceDrop,SOURCE_RANGE_TYPE,type SourceRange} from './sourceSelection';
 import type {Project} from './model';
 import Icon from './Icons';
-import RipplePreview from './RipplePreview';
 import {planEdit,rippleTrack,trackParticipates,rippleReason,type EditOperation,type RipplePlan} from './ripple';
 import {detachAudio,detachedLabel,syncOffset,realignAudio} from './detachedAudio';
 import AudioAutomation from './AudioAutomation';
@@ -18,18 +17,18 @@ import {tracksOf,trackId,routedAudio,MAX_TRACKS,type TrackKind} from './trackMod
 import {addTrack,removeTrack,timelineLayout,laneAt,clipTop,clipLane,clipHeight} from './tracks';
 import {clipAt,clipEnd,compositionSegments,editDuration,moveClip,projectClips,splitClip,trimClip,clipMedia,changeTrack,type Clip} from './editing';
 const stamp=(s:number)=>`${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toFixed(2).padStart(5,'0')}`;
-type Props={project:Project;time:number;locked:boolean;onSeek:(t:number)=>void;onPreviewOpen:(v:boolean)=>void;onError:(e:string)=>void;onChange:(clips:Clip[],mode?:'volume')=>void;onPreviewVolume:(id:string,gain:number)=>void;onBeginAudio:()=>void;undo:()=>void;redo:()=>void;canUndo:boolean;canRedo:boolean;onSelect:(id:string)=>void;onCaptionSelect:(id:string)=>void;onCaptionChange:(p:Project)=>void;effectChoice:EffectChoice;onTransition:(from:string,to:string,choice:EffectChoice)=>void;onTransitionSelect:(id:string)=>void;onMediaDrop:(id:string,at:number,track:number,range?:SourceRange,kind?:TrackKind)=>void};
+type Props={project:Project;time:number;locked:boolean;onSeek:(t:number)=>void;onError:(e:string)=>void;onChange:(clips:Clip[],mode?:'volume')=>void;onPreviewVolume:(id:string,gain:number)=>void;onBeginAudio:()=>void;undo:()=>void;redo:()=>void;canUndo:boolean;canRedo:boolean;onSelect:(id:string)=>void;onCaptionSelect:(id:string)=>void;onCaptionChange:(p:Project)=>void;effectChoice:EffectChoice;onTransition:(from:string,to:string,choice:EffectChoice)=>void;onTransitionSelect:(id:string)=>void;onMediaDrop:(id:string,at:number,track:number,range?:SourceRange,kind?:TrackKind)=>void};
 export default function Timeline(p:Props){
  const clips=projectClips(p.project),duration=editDuration(p.project);
  const [tool,setTool]=useState<'select'|'razor'>('select'),[snap,setSnap]=useState(true),[zoom,setZoom]=useState(30),[selected,setSelected]=useState(''),[draft,setDraft]=useState<Clip[]|null>(null);
- const [preview,setPreview]=useState<RipplePlan|null>(null),[clipMenu,setClipMenu]=useState<{id:string;x:number;y:number}|null>(null);
+ const [preview,setPreview]=useState<RipplePlan|null>(null),[trackMenu,setTrackMenu]=useState<{id:TrackId;x:number;y:number}|null>(null),[clipMenu,setClipMenu]=useState<{id:string;x:number;y:number}|null>(null);
  const [compact,setCompact]=useState<Set<string>>(new Set()),[tall,setTall]=useState<Set<string>>(new Set());
  const shown=draft??clips,lanes=timelineLayout(p.project,clips,compact,tall),canvasHeight=Math.max(256,...lanes.map(t=>t.top+t.height)),chosen=shown.find(c=>c.id===selected),chosenLocked=!!chosen&&clipLocked(p.project,chosen);
  const change=(next:Project)=>{try{if(JSON.stringify(next)!==JSON.stringify(p.project))p.onCaptionChange(next);}catch(e){p.onError(String(e));}};
- const closePreview=()=>{setPreview(null);p.onPreviewOpen(false);};
- const request=(op:EditOperation)=>{try{const plan=planEdit(p.project,op);setDraft(null);if(plan.active&&plan.changes.length){p.onBeginAudio();setPreview(plan);p.onPreviewOpen(true);}else change(plan.plain);}catch(e){p.onError(String(e));}};
+ const closePreview=()=>setPreview(null);
+ const request=(op:EditOperation)=>{try{const plan=planEdit(p.project,op);setDraft(null);if(plan.active&&plan.conflicts.length){p.onBeginAudio();setPreview(plan);}else {closePreview();change(plan.active?plan.next:plan.plain);}}catch(e){p.onError(String(e));}};
  useEffect(()=>{if(preview&&preview.base!==p.project)closePreview();},[p.project]);
- useEffect(()=>{if(!clipMenu)return;const close=()=>setClipMenu(null);window.addEventListener('pointerdown',close);return()=>window.removeEventListener('pointerdown',close);},[clipMenu]);
+ useEffect(()=>{if(!clipMenu&&!trackMenu)return;const close=()=>{setClipMenu(null);setTrackMenu(null);};window.addEventListener('pointerdown',close);return()=>window.removeEventListener('pointerdown',close);},[clipMenu,trackMenu]);
  const canvas=useRef<HTMLDivElement>(null),scroller=useRef<HTMLDivElement>(null);
  const pan=useRef<{x:number;left:number}|null>(null);
  const copied=useRef<Clip|null>(null);
@@ -74,8 +73,8 @@ export default function Timeline(p:Props){
  };
  const end=(e:PointerEvent)=>{const d=drag.current;if(!d)return;drag.current=null;if(d.moved){if(d.operation)request(d.operation);else commit(d.value);}else p.onSeek(point(e));};
  useEffect(()=>{if(drag.current && drag.current.base!==clips){drag.current=null;setDraft(null);}},[clips]);
- useEffect(()=>{const key=(e:KeyboardEvent)=>{if(e.key==='Escape'&&drag.current){e.preventDefault();drag.current=null;setDraft(null);return;}if(document.activeElement?.closest('.source-viewer'))return;
-  if(p.locked||preview||clipMenu||e.altKey||(e.target instanceof HTMLElement&&(e.target.isContentEditable||['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))))return;
+ useEffect(()=>{const key=(e:KeyboardEvent)=>{if(e.key==='Escape'&&(preview||trackMenu)){e.preventDefault();closePreview();setTrackMenu(null);return;}if(e.key==='Escape'&&drag.current){e.preventDefault();drag.current=null;setDraft(null);return;}if(document.activeElement?.closest('.source-viewer'))return;
+  if(p.locked||preview||clipMenu||trackMenu||e.altKey||(e.target instanceof HTMLElement&&(e.target.isContentEditable||['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))))return;
   const modifier=e.ctrlKey||e.metaKey;
   if(modifier&&e.key.toLowerCase()==='c'){if(chosen){e.preventDefault();copied.current={...chosen,adjustments:chosen.adjustments?{...chosen.adjustments}:undefined};}return;}
   if(modifier&&e.key.toLowerCase()==='v'){if(copied.current){e.preventDefault();if(clips.length>=100)return;const copy={...copied.current,syncGroup:undefined,id:crypto.randomUUID(),start:Math.max(p.time,duration)};commit(moveClip([...clips,copy],copy.id,p.time,snap?10/zoom:0));}return;}
@@ -84,7 +83,7 @@ export default function Timeline(p:Props){
   if(modifier)return;
   if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();if(captionSelected){if(p.project.tracks.T?.locked)return;const s=compositionSegments(p.project).find(s=>s.id===captionSelected);if(s)p.onCaptionChange(editCaption(p.project,s,{hidden:true}));setCaptionSelected('');}else remove();return;}
   if(e.key.toLowerCase()==='c')setTool('razor');if(e.key.toLowerCase()==='v')setTool('select');
- };window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key);},[p.locked,p.project,p.time,selected,captionSelected,preview,clipMenu]);
+ };window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key);},[p.locked,p.project,p.time,selected,captionSelected,preview,clipMenu,trackMenu]);
  const [mediaDrop,setMediaDrop]=useState<{at:number;id:string}|null>(null);
  const width=Math.max(900,viewport-40,(Math.max(duration,...shown.map(clipEnd))+5)*zoom);
  const tick=[1,2,5,10,30,60,120,300,600,1800,3600].find(x=>x*zoom>=90)??3600;
@@ -94,7 +93,7 @@ export default function Timeline(p:Props){
    <button disabled={p.locked} aria-pressed={tool==='razor'} onClick={()=>setTool('razor')} aria-label="Żyletka" title="Żyletka" className="icon-button"><Icon name="razor"/></button>
    <button disabled={p.locked||!(chosen??clipAt(clips,p.time))} onClick={()=>{const c=chosen??clipAt(clips,p.time);if(c)cut(c.id,p.time);}} aria-label="Przetnij tutaj" title="Przetnij tutaj" className="icon-button"><Icon name="cut"/></button>
    <button disabled={p.locked||(!chosen&&!captionSelected)} onClick={remove} aria-label="Usuń zaznaczenie" title="Usuń zaznaczenie" className="icon-button"><Icon name="trash"/></button>
-   <button disabled={p.locked} aria-pressed={p.project.rippleEnabled} aria-label="Tryb Ripple" title="Ripple: domykanie lub rozsuwanie po cięciu. Przed zmianą zobaczysz podgląd." onClick={()=>change({...p.project,rippleEnabled:!p.project.rippleEnabled})} className="ripple-toggle"><Icon name="pack" size={16}/> Ripple {p.project.rippleEnabled?'On':'Off'}</button>
+   <button disabled={p.locked} aria-pressed={p.project.rippleEnabled} aria-label="Tryb Ripple" title="Ripple: automatyczne dosuwanie po przycięciu lub usunięciu. Cofnij jednym Ctrl+Z." onClick={()=>change({...p.project,rippleEnabled:!p.project.rippleEnabled})} className="ripple-toggle"><Icon name="pack" size={16}/> Ripple {p.project.rippleEnabled?'wł.':'wył.'}</button>
    {!clips.length && (p.project.media?.duration??0)>=.05 && <button disabled={p.locked} onClick={()=>commit([{id:crypto.randomUUID(),sourceIn:0,sourceOut:p.project.media!.duration!,start:0}])} aria-label="Przywróć cały film" title="Przywróć cały film" className="icon-button"><Icon name="restore"/></button>}
    <button disabled={p.locked} aria-pressed={snap} onClick={()=>setSnap(!snap)} aria-label="Magnes" title={`Magnes: ${snap?'włączony':'wyłączony'}`} className="icon-button"><Icon name="magnet"/></button>
    <button disabled={p.locked||!p.canUndo} onClick={p.undo} aria-label="Cofnij" title="Cofnij" className="icon-button"><Icon name="undo"/></button>
@@ -109,7 +108,7 @@ export default function Timeline(p:Props){
     const state=p.project.tracks[id],isVideo=id.startsWith('V'),r=rippleTrack(p.project,id);
     return <div key={id} className="track-head" style={{top,height}}><b>{id}</b><div>
      <button disabled={p.locked} aria-label={`Blokada ${id}`} aria-pressed={!!state?.locked} title={`${state?.locked?'Odblokuj':'Zablokuj'} ${id}`} onClick={()=>change({...p.project,tracks:{...p.project.tracks,[id]:{...state,locked:!state?.locked}}})}><Icon name={state?.locked?'lock':'lockOpen'} size={12}/><span className="sr-only">Blokada</span></button>
-     <select className="track-ripple" disabled={p.locked} aria-label={`Ripple ${id}`} title={rippleReason(r)} data-enabled={trackParticipates(r)} value={state?.ripple??'auto'} onChange={e=>change({...p.project,tracks:{...p.project.tracks,[id]:{...state,ripple:e.target.value as 'auto'|'on'|'off'}}})}><option value="auto">R·A</option><option value="on">R+</option><option value="off">R−</option></select>
+     <button className="track-settings-button" disabled={p.locked} aria-label={`Ustawienia ścieżki ${id}`} aria-expanded={trackMenu?.id===id} title={`Ustawienia ścieżki ${id}: ${rippleReason(r)}`} data-ripple-enabled={trackParticipates(r)} onClick={e=>{const rect=e.currentTarget.getBoundingClientRect();setTrackMenu(trackMenu?.id===id?null:{id,x:Math.min(rect.left,window.innerWidth-300),y:Math.max(8,Math.min(rect.bottom+4,window.innerHeight-210))});}}><Icon name="settings" size={12}/></button>
      {id!=='T'&&<button disabled={p.locked} aria-label={`Wycisz ${id}`} aria-pressed={!!state?.muted} title={isVideo?`Wycisz dźwięk filmów na ${id}`:`Wycisz wszystkie dźwięki na ${id}`} onClick={()=>p.onCaptionChange(toggleTrack(p.project,id,'muted'))}><Icon name={state?.muted?'speakerOff':'speaker'} size={14}/></button>}
      {(isVideo||id==='T')&&<button disabled={p.locked} aria-label={`Ukryj ${id}`} aria-pressed={!!state?.hidden} title={state?.hidden?`Pokaż ${id}`:`Ukryj ${id} w podglądzie i eksporcie`} onClick={()=>p.onCaptionChange(toggleTrack(p.project,id,'hidden'))}><Icon name={state?.hidden?'eyeOff':'eye'} size={14}/></button>}
      {id!=='T'&&<button className="track-collapse" disabled={p.locked} aria-label={`Zwiń ${id}`} aria-pressed={compact.has(id)} title={`Zwiń / rozwiń ${id}`} onClick={()=>setCompact(old=>{const next=new Set(old);next.has(id)?next.delete(id):next.add(id);return next;})}><Icon name="chevronDown" size={11}/></button>}
@@ -153,8 +152,18 @@ export default function Timeline(p:Props){
    {chosen?<><b>{detachedLabel(chosen)}</b><label>Ścieżka <select aria-label="Ścieżka klipu" value={chosen.track??0} disabled={p.locked||chosenLocked} onChange={e=>commit(changeTrack(clips,chosen.id,Number(e.target.value)))}>{tracksOf(p.project,chosen.kind==='audio'?'audio':'video').map(t=><option key={t.id} value={t.index} disabled={p.project.tracks[t.id]?.locked}>{t.id}</option>)}</select></label><label>Głośność <input aria-label="Głośność klipu" type="range" min={0} max={1} step={.01} value={chosen.volume??1} disabled={p.locked||chosenLocked||chosen.audioDetached} onChange={e=>{const gain=Number(e.target.value);p.onPreviewVolume(chosen.id,gain);p.onChange(clips.map(c=>c.id===chosen.id?{...c,volume:gain}:c),'volume');}}/>{Math.round((chosen.volume??1)*100)}%</label><label>Pozycja <input aria-label="Pozycja ujęcia" type="number" min={0} step={0.01} disabled={p.locked||chosenLocked} value={Number(chosen.start.toFixed(3))} onChange={e=>{const n=e.currentTarget.valueAsNumber;if(Number.isFinite(n))commit(moveClip(clips,chosen.id,n,snap?10/zoom:0));}}/></label><fieldset className="clip-range-fields" disabled={p.locked||chosenLocked}><label>Wejście źródła <NumberEdit label="Wejście źródła" value={chosen.sourceIn} min={0} max={chosen.sourceOut-.05} onCommit={n=>request({kind:'trim',id:chosen.id,edge:'left',delta:n-chosen.sourceIn})}/></label><label>Wyjście źródła <NumberEdit label="Wyjście źródła" value={chosen.sourceOut} min={chosen.sourceIn+.05} max={clipMedia(p.project,chosen)?.duration??0} onCommit={n=>request({kind:'trim',id:chosen.id,edge:'right',delta:n-chosen.sourceOut})}/></label></fieldset></>:null}
    <input className="timeline-seek" aria-label="Pozycja odtwarzania" type="range" min={0} max={duration||1} step={0.01} value={Math.min(p.time,duration)} disabled={!duration||p.locked} onChange={e=>p.onSeek(Number(e.target.value))}/><code>{stamp(p.time)} / {stamp(duration)}</code>
   </div>
+ {preview&&preview.base===p.project&&<aside className="ripple-notice" aria-label="Konflikt dosuwania">
+  <p role="status"><b>Nie można dosunąć:</b> {preview.conflicts[0]}</p>
+  {preview.conflicts.length>1&&<details><summary>Pozostałe powody ({preview.conflicts.length-1})</summary>{preview.conflicts.slice(1).map((reason,i)=><p key={i}>{reason}</p>)}</details>}
+  <div><button disabled={p.locked} onClick={()=>{if(preview.base===p.project)change(preview.plain);closePreview();}}>Wykonaj samo cięcie</button><button onClick={closePreview}>Anuluj</button></div>
+ </aside>}
  </section>
- {preview&&<RipplePreview plan={preview} onCancel={closePreview} onApply={()=>{if(preview.base===p.project&&!preview.conflicts.length)change(preview.next);closePreview();}} onPlain={()=>{if(preview.base===p.project)change(preview.plain);closePreview();}}/>}
+ {trackMenu&&<section className="track-settings-menu" aria-label={`Ustawienia ścieżki ${trackMenu.id}`} style={{left:trackMenu.x,top:trackMenu.y}} onPointerDown={e=>e.stopPropagation()} onKeyDown={e=>{if(e.key==='Escape'){e.stopPropagation();setTrackMenu(null);}}}>
+  <b>{trackMenu.id} · Ustawienia ścieżki</b>
+  <label>Uwzględniaj w dosuwaniu<select autoFocus disabled={p.locked} aria-label={`Uwzględniaj w dosuwaniu ${trackMenu.id}`} value={p.project.tracks[trackMenu.id]?.ripple??'auto'} onChange={e=>change({...p.project,tracks:{...p.project.tracks,[trackMenu.id]:{...p.project.tracks[trackMenu.id],ripple:e.target.value as 'auto'|'on'|'off'}}})}><option value="auto">Automatycznie</option><option value="on">Zawsze</option><option value="off">Nigdy</option></select></label>
+  <p>{rippleReason(rippleTrack(p.project,trackMenu.id))}</p><button onClick={()=>setTrackMenu(null)}>Zamknij</button>
+ </section>}
+
  {clipMenu&&<div role="menu" className="clip-context-menu" style={{left:clipMenu.x,top:clipMenu.y}} onPointerDown={e=>e.stopPropagation()} onKeyDown={e=>{e.stopPropagation();if(e.key==='Escape')setClipMenu(null);}}>
   {tracksOf(p.project,'audio').map(({index:t})=><button key={t} role="menuitem" disabled={clipLocked(p.project,clips.find(c=>c.id===clipMenu.id)!)||clips.find(c=>c.id===clipMenu.id)?.kind==='audio'||clips.find(c=>c.id===clipMenu.id)?.audioDetached||p.project.tracks[trackId('audio',t)]?.locked} onClick={()=>{try{change(detachAudio(p.project,clipMenu.id,t));}catch(e){p.onError(String(e));}setClipMenu(null);}}>Odłącz audio → A{t+1}</button>)}
   <button role="menuitem" disabled={clips.find(c=>c.id===clipMenu.id)?.kind!=='audio'||syncOffset(p.project,clips.find(c=>c.id===clipMenu.id)!)==null} onClick={()=>{try{change(realignAudio(p.project,clipMenu.id));}catch(e){p.onError(String(e));}setClipMenu(null);}}>Zsynchronizuj audio z obrazem</button>
