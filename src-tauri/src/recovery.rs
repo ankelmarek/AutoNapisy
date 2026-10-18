@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     fs,
     io::{Read, Write},
-    path::{Path, PathBuf},
+    path::PathBuf,
     time::{SystemTime, UNIX_EPOCH},
 };
 const ENVELOPE_LIMIT: u64 = (crate::project_file::LIMIT * 2 + 65536) as u64;
@@ -77,6 +77,20 @@ impl Store {
             .map_err(|e| e.to_string())?;
         lock.try_lock()
             .map_err(|_| "Kopie odzyskiwania są zajęte przez inną instancję RolVixa".to_string())?;
+        // Process termination can leave an uncommitted NamedTempFile behind.
+        // Only remove our reserved scratch names, after obtaining the OS lock.
+        for entry in fs::read_dir(&root).map_err(|e| e.to_string())? {
+            let entry = entry.map_err(|e| e.to_string())?;
+            let name = entry.file_name();
+            let name = name.to_string_lossy();
+            if name.starts_with("snapshot-")
+                && name.ends_with(".tmp")
+                && entry.file_type().map_err(|e| e.to_string())?.is_file()
+            {
+                fs::remove_file(entry.path())
+                    .map_err(|e| format!("Nie można usunąć niedokończonej kopii: {e}"))?;
+            }
+        }
         Ok(Self { root, _lock: lock })
     }
     fn read(&self, name: &str) -> Result<Snapshot, String> {
@@ -110,7 +124,11 @@ impl Store {
         (None, errors.join("; "))
     }
     fn atomic(&self, name: &str, bytes: &[u8]) -> Result<(), String> {
-        let mut temp = tempfile::NamedTempFile::new_in(&self.root).map_err(|e| e.to_string())?;
+        let mut temp = tempfile::Builder::new()
+            .prefix("snapshot-")
+            .suffix(".tmp")
+            .tempfile_in(&self.root)
+            .map_err(|e| e.to_string())?;
         temp.write_all(bytes)
             .map_err(|e| format!("Nie można zapisać kopii odzyskiwania: {e}"))?;
         temp.as_file().sync_all().map_err(|e| e.to_string())?;
@@ -142,9 +160,6 @@ impl Store {
             }
         }
         Ok(())
-    }
-    pub fn root(&self) -> &Path {
-        &self.root
     }
 }
 #[cfg(test)]
@@ -212,5 +227,22 @@ mod tests {
         fs::write(s.root.join("current.json"), "bad").unwrap();
         assert!(s.load().0.is_none());
         assert!(!s.load().1.is_empty());
+    }
+    #[test]
+    fn crash_scratch_is_removed_under_lock_but_committed_and_other_files_remain() {
+        let d = tempfile::tempdir().unwrap();
+        {
+            let store = Store::open(d.path().into()).unwrap();
+            store.write(&snapshot("Zachowany projekt")).unwrap();
+        }
+        fs::write(d.path().join("snapshot-abandoned.tmp"), "partial write").unwrap();
+        fs::write(d.path().join("other.tmp"), "keep").unwrap();
+        let store = Store::open(d.path().into()).unwrap();
+        assert!(!d.path().join("snapshot-abandoned.tmp").exists());
+        assert_eq!(
+            fs::read_to_string(d.path().join("other.tmp")).unwrap(),
+            "keep"
+        );
+        assert_eq!(store.load().0.unwrap().project["name"], "Zachowany projekt");
     }
 }

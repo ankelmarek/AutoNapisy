@@ -28,4 +28,4 @@ export class RecoveryWriter {
  }
  dispose(){clearTimeout(this.timer);clearTimeout(this.deadline);this.deadline=undefined;this.latest=null;}
 }
-export type RecoveryInfo={available:boolean;session:number;name:string;capturedAt:number|null;manualPath:string|null;manualAt:number|null;warning:string};
+export type RecoveryInfo={available:boolean;recoverable?:boolean;session:number;name:string;capturedAt:number|null;manualPath:string|null;manualAt:number|null;warning:string};

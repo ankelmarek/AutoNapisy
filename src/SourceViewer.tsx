@@ -11,7 +11,7 @@ export default function SourceViewer({item,range,proxyRevision,keyHandler,locked
  useEffect(()=>{host.current?.focus();return()=>latest.current.player.pause();},[]);
  useEffect(()=>{if(locked)player.pause();},[locked]);
  const key=(e:React.KeyboardEvent|KeyboardEvent)=>{
-  if(e.ctrlKey||e.metaKey)return;e.stopPropagation();if(locked)return;
+  if(e.code==='Space'&&(e.ctrlKey||e.metaKey)){e.preventDefault();if(!locked)player.toggle();return;}if(e.ctrlKey||e.metaKey)return;e.stopPropagation();if(locked)return;
   const el=e.target as HTMLElement,text=el.isContentEditable||el.tagName==='TEXTAREA'||(el.tagName==='INPUT'&&['text','search'].includes((el as HTMLInputElement).type));if(e.code==='Space'&&!text){e.preventDefault();player.toggle();return;}if(text||['INPUT','SELECT'].includes(el.tagName))return;
   if(e.ctrlKey||e.metaKey||e.altKey)return;
   if(e.code==='Space'){e.preventDefault();player.toggle();}
@@ -24,7 +24,7 @@ export default function SourceViewer({item,range,proxyRevision,keyHandler,locked
  };
  keyHandler.current=key;
  return <div className="source-viewer" ref={host} tabIndex={-1} onKeyDown={key} role="region" aria-label="Podgląd pliku źródłowego">
-  <div className="source-heading"><span><Icon name="video" size={14}/> Źródło · {item.name}</span><button className="icon-button" aria-label="Wróć do montażu" title="Wróć do montażu (Esc)" onClick={onClose}><Icon name="x" size={15}/></button></div>
+  <div className="source-heading"><span><Icon name={item.kind} size={14}/> Źródło · {item.name}</span><button className="icon-button" aria-label="Wróć do montażu" title="Wróć do montażu (Esc)" onClick={onClose}><Icon name="x" size={15}/></button></div>
   <div className="source-stage"><video ref={player.video} playsInline preload="auto"/>{player.loading&&<span className="transition-preparing">Przygotowywanie źródła…</span>}{player.error&&<div className="preview-error" role="alert"><p>{player.error}</p><button onClick={player.retry}>Ponów podgląd źródła</button></div>}{item.kind==='audio'&&<Icon name="audio" size={45}/>}</div>
   <div className="source-scrub"><div className="source-range-band" style={{left:`${range.sourceIn/item.duration!*100}%`,width:`${(range.sourceOut-range.sourceIn)/item.duration!*100}%`}}/><input aria-label="Pozycja w źródle" type="range" min={0} max={item.duration!} step={1/30} value={player.time} disabled={locked} onChange={e=>{player.pause();player.seek(Number(e.target.value));}}/></div>
   <div className="source-transport"><button className="icon-button" aria-label={player.playing?'Wstrzymaj źródło':'Odtwórz źródło'} disabled={locked} onClick={player.toggle}><Icon name={player.playing?'pause':'play'} size={18}/></button><code>{timecode(player.time)} / {timecode(item.duration!)}</code></div>

@@ -35,6 +35,19 @@ try {
   if (-not $ready) { throw 'Brak WebView2 po restarcie' }
   node scripts/test-recovery-restart.mjs
   if ($LASTEXITCODE -ne 0) { throw 'Odzyskiwanie po awarii procesu nie przeszło testu' }
+  # A newer-version copy belongs to a previous process, never an active writer.
+  taskkill /PID $app.Id /T /F 2>$null | Out-Null
+  node scripts/test-recovery-restart.mjs --seed-future
+  if ($LASTEXITCODE -ne 0) { throw 'Nie udało się przygotować nowszej kopii' }
+  $app = Start-Process -FilePath (Join-Path $destination 'rolvixa.exe') -PassThru -RedirectStandardOutput '.tools/future-stdout.log' -RedirectStandardError '.tools/future-stderr.log'
+  $ready = $false
+  for ($n = 0; $n -lt 120; $n++) {
+    if ($app.HasExited) { throw 'Aplikacja nie uruchomiła się z nowszą kopią' }
+    try { $null = Invoke-RestMethod "$env:ROLVIXA_WEBVIEW_CDP/json/version" -NoProxy -TimeoutSec 1; $ready = $true; break } catch { Start-Sleep -Milliseconds 250 }
+  }
+  if (-not $ready) { throw 'Brak WebView2 przy nowszej kopii' }
+  node scripts/test-recovery-restart.mjs --future
+  if ($LASTEXITCODE -ne 0) { throw 'Ochrona nowszej kopii nie przeszła testu' }
   $test = Start-Process -FilePath (Get-Command node).Source -ArgumentList 'scripts/test-editor9.mjs' -NoNewWindow -PassThru
   if (-not $test.WaitForExit(240000)) {
     taskkill /PID $test.Id /T /F 2>$null | Out-Null

@@ -91,12 +91,17 @@ export default function App() {
   if(!recoveryRef.current)recoveryRef.current=new RecoveryWriter(async r=>{if(r.json===null){await invoke('clear_recovery',{session:r.session});return null;}return invoke<number>('write_recovery',{json:r.json,session:r.session});},refreshRecovery);
   const recovery=recoveryRef.current;
   const locked = busy || transcribing || exporting || !recoveryReady || !!recoveryInfo;
-  useEffect(()=>{let alive=true;startup.current??=invoke<RecoveryInfo>('recovery_status');void startup.current.then(info=>{if(!alive)return;saver.accept(latestProject.current,'',info.session);if(info.available)setRecoveryInfo(info);if(info.warning)setRecoveryError(info.warning);setRecoveryReady(true);}).catch(e=>{if(alive){setRecoveryError(String(e));setRecoveryReady(true);}});return()=>{alive=false;};},[]);
+  useEffect(()=>{let alive=true;startup.current??=invoke<RecoveryInfo>('recovery_status');void startup.current.then(info=>{if(!alive)return;saver.accept(latestProject.current,'',info.session);if(info.available)setRecoveryInfo(info);if(info.warning){if(info.available)setRecoveryError(info.warning);else setMessage('Odzyskiwanie: '+info.warning);}setRecoveryReady(true);}).catch(e=>{if(alive){setRecoveryError(String(e));setRecoveryReady(true);}});return()=>{alive=false;};},[]);
   useEffect(()=>{
     const needed=saveState.baseline===null?(recovered.current||revision!==pristineRevision.current):dirty;
     recovery.update(!recoveryReady||recoveryInfo||saving||busy?null:{session:saveState.session,json:needed?revision:null});
   },[revision,saveState,recoveryReady,recoveryInfo,busy]);
   useEffect(()=>()=>recovery.dispose(),[]);
+  const resumeRecovery=()=>{
+    if(!recoveryReady||recoveryInfo||saver.saving)return;
+    const s=saver.state,r=projectRevision(latestProject.current),needed=s.baseline===null?(recovered.current||r!==pristineRevision.current):s.baseline!==r;
+    recovery.update({session:s.session,json:needed?r:null});
+  };
   const closeAction=useRef<()=>Promise<boolean>>(async()=>false);
   closeAction.current=async()=>{
     if(busy||transcribing||exporting||saver.saving){setMessage('Poczekaj na zakończenie operacji przed zamknięciem.');return false;}
@@ -184,7 +189,7 @@ export default function App() {
       if (saver.saving || !replace()) return;
       recovery.update(null);try{await recovery.flush();}catch{}
       const result = await backend.open();
-      if (!result) return;
+      if (!result) {resumeRecovery();return;}
       const p = parseProject(result.json);
       let url = "";const prepared:Record<string,string>={};const missing:string[]=[];
       for(const m of [...(p.media?[p.media]:[]),...p.assets]){
@@ -210,6 +215,7 @@ export default function App() {
     if(titleEditor.current&&!titleEditor.current.commit())return;
     try{recovery.update(null);try{await recovery.flush();}catch{}const path=await saver.save(latestProject.current,saveAs);if(path){recovered.current=false;setMessage(`Zapisano projekt: ${path}`);}}
     catch(e){setMessage(`Błąd zapisu: ${e instanceof Error?e.message:String(e)} Użyj „Zapisz jako”, aby zapisać kopię.`);}
+    finally{resumeRecovery();}
   };
   const resolveRecovery=(action:'recover'|'saved'|'discard')=>run(async()=>{
     setRecoveryError('');

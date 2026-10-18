@@ -1,4 +1,4 @@
-name: Thumbnail native diagnostics
+name: Windows UI artifact verification
 on:
   push:
     branches: ['diagnostics/thumbnail017']
@@ -6,10 +6,22 @@ permissions:
   contents: read
   actions: read
 jobs:
-  diagnose:
+  verify:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Verify production code matches the compiled installer
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const built='467cf148facce0ba4701a54360153ecf599fe4f7';
+            const run=await github.rest.actions.getWorkflowRun({owner:context.repo.owner,repo:context.repo.repo,run_id:39096496441});
+            if(run.data.head_sha!==built)throw Error('Installer source mismatch');
+            const diff=await github.rest.repos.compareCommitsWithBasehead({owner:context.repo.owner,repo:context.repo.repo,basehead:built+'...'+context.sha});
+            const allowed=new Set(['scripts/test-recovery-restart.mjs','scripts/test-webview.ps1','.github/workflows/windows.yml','.github/workflows/thumbnail-diagnostics.yml']);
+            const unexpected=diff.data.files.filter(f=>!allowed.has(f.filename));
+            if(unexpected.length)throw Error('Production code changed: '+unexpected.map(f=>f.filename).join(', '));
+            console.log('Production code identical to Windows build '+built+'; only verification scripts differ.');
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -17,37 +29,33 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: RolVixa-Windows-x64
-          run-id: 39094937543
+          run-id: 39096496441
           github-token: ${{ github.token }}
-          path: .tools/installer
+          path: src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis
       - uses: actions/download-artifact@v4
         with:
           name: RolVixa-UI-Diagnostics
-          run-id: 39094937543
+          run-id: 39096496441
           github-token: ${{ github.token }}
-          path: .tools/instrumented
-      - name: Diagnose native thumbnail and source
-        run: |
-          $destination = Join-Path $env:RUNNER_TEMP 'RolVixa test Łódź'
-          $setup = (Get-ChildItem .tools/installer/*.exe).FullName
-          Start-Process -FilePath $setup -ArgumentList '/S', "/D=$destination" -Wait
-          Copy-Item .tools/instrumented/rolvixa.exe (Join-Path $destination 'rolvixa.exe') -Force
-          $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = '--remote-debugging-port=9222 --disable-gpu'
-          $env:ROLVIXA_WEBVIEW_CDP = 'http://127.0.0.1:9222'
-          $env:AUTONAPISY_FFMPEG = Join-Path $destination 'vendor/ffmpeg.exe'
-          $env:ROLVIXA_TEST_PROJECT = Join-Path $env:RUNNER_TEMP 'RolVixa prawdziwy podgląd Łódź/projekt.json'
-          $env:ROLVIXA_TEST_RECOVERY = Join-Path $env:RUNNER_TEMP 'RolVixa odzyskiwanie Łódź'
-          node scripts/test-native-preview.mjs --prepare
-          $app = Start-Process -FilePath (Join-Path $destination 'rolvixa.exe') -PassThru
-          try {
-            for ($n=0; $n -lt 120; $n++) { try { $null=Invoke-RestMethod "$env:ROLVIXA_WEBVIEW_CDP/json/version" -NoProxy -TimeoutSec 1; break } catch { Start-Sleep -Milliseconds 250 } }
-            node scripts/test-native-preview.mjs
-            if ($LASTEXITCODE) { throw 'Diagnostic failed' }
-            node scripts/test-editor9.mjs
-            if ($LASTEXITCODE) { throw 'Mocked UI diagnostic failed' }
-          } finally { taskkill /PID $app.Id /T /F 2>$null | Out-Null }
+          path: src-tauri/target/x86_64-pc-windows-msvc/release
+      - name: Verify installation resources and tools
+        run: ./scripts/test-installer.ps1
+      - name: Verify source I/O, crash recovery, future copies and editor interactions
+        timeout-minutes: 8
+        run: ./scripts/test-webview.ps1
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: RolVixa-Windows-x64
+          path: ${{ env.ROLVIXA_INSTALLER }}
+          if-no-files-found: error
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: Thumbnail-diagnostics
-          path: .tools/native-preview.png
+          name: RolVixa-UI-Verification
+          path: |
+            .tools/*.png
+            .tools/*stdout.log
+            .tools/*stderr.log
+            docs/editor9-*.png
+          if-no-files-found: ignore
