@@ -1,4 +1,4 @@
-import {useState} from 'react';
+import {useEffect,useState} from 'react';
 import type {Project} from './model';
 import {formatTime} from './model';
 import {libraryItems} from './library';
@@ -8,6 +8,8 @@ import {convertFileSrc} from '@tauri-apps/api/core';
 import {proxyLabel,type VideoProxies} from './useVideoProxies';
 export default function MediaLibrary({project,sources,locked,onAdd,onView,onImport,proxies,onClearCache,onReplace,highlightId}:{project:Project;sources:Record<string,string>;locked:boolean;onAdd:(id:string)=>void;onView:(id:string)=>void;onImport:()=>void;proxies:VideoProxies;onClearCache:()=>void;onReplace:(id:string,locate:boolean)=>void;highlightId?:string}){
  const [query,setQuery]=useState(''),items=libraryItems(project),filtered=items.filter(m=>`${m.name} ${m.path}`.toLocaleLowerCase('pl').includes(query.toLocaleLowerCase('pl')));
+ useEffect(()=>{if(highlightId)setQuery('');},[highlightId]);
+ useEffect(()=>{if(highlightId&&!query)document.querySelector(`[data-media-id="${CSS.escape(highlightId)}"]`)?.scrollIntoView({block:'nearest'});},[highlightId,query]);
  return <div className="library-content" role="tabpanel" id="files-panel" aria-labelledby="files-tab">
   <div className="library-tools"><label className="library-search"><Icon name="search" size={15}/><input aria-label="Szukaj pliku w projekcie" placeholder="Szukaj pliku…" value={query} onChange={e=>setQuery(e.target.value)}/></label><button className="icon-button" aria-label="Importuj plik wideo" title="Importuj plik wideo" disabled={locked} onClick={onImport}><Icon name="add"/></button></div>
   <div className="proxy-library-bar"><span>Proxy · automatycznie dla ciężkich filmów</span><details onToggle={e=>{if(e.currentTarget.open)void proxies.loadCache();}}><summary aria-label="Pamięć proxy"><Icon name="settings" size={14}/></summary><div className="proxy-cache-popup"><b>Pamięć proxy</b><p>{proxies.cache?`${(proxies.cache.bytes/1024**3).toFixed(2)} / ${(proxies.cache.limit/1024**3).toFixed(0)} GiB`:'Odczytywanie…'}</p><button disabled={locked} onClick={onClearCache}>Wyczyść cache proxy</button><small>Oryginalne nagrania pozostają zachowane.</small></div></details></div>

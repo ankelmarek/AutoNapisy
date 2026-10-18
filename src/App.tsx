@@ -333,7 +333,7 @@ export default function App() {
   });
   const exportMp4=()=>run(async()=>{
     if(exportController.current||locked)return;
-    playback.pause();setSourceViewerId('');
+    playback.pause();setSourceViewerId('');setHighlightSource('');
     const current=latestProject.current;
     const checks=await invoke<SourceCheck[]>('check_project_sources',{json:serializeProject(current)});
     setSources(prev=>{const next={...prev};for(const m of libraryItems(current)){if(!checks.find(c=>c.id===m.id)?.available)delete next[m.path];}return next;});
@@ -776,7 +776,7 @@ export default function App() {
       </footer>
       </div>
       {replacement&&<SourceReplacementDialog key={replacement.candidate.token} project={replacement.project} id={replacement.id} candidate={replacement.candidate} locate={replacement.locate} busy={busy} error={replacementError} onClose={closeReplacement} onChoose={()=>void chooseReplacement(replacement.id,replacement.locate)} onApply={applyReplacement}/>}
-      {preflight&&<PreflightDialog issues={preflight.issues} onClose={()=>setPreflight(null)} onExport={()=>{const snapshot=preflight.project;setPreflight(null);void performExport(snapshot);}} onSeek={t=>{setPreflight(null);setSourceViewerId('');seek(t);}} onLocate={id=>{setPreflight(null);setLeftTab('files');setHighlightSource(id);requestAnimationFrame(()=>document.querySelector(`[data-media-id="${CSS.escape(id)}"]`)?.scrollIntoView({block:'nearest'}));}}/>}
+      {preflight&&<PreflightDialog issues={preflight.issues} onClose={()=>setPreflight(null)} onExport={()=>{const snapshot=preflight.project;setPreflight(null);void performExport(snapshot);}} onSeek={t=>{setPreflight(null);setSourceViewerId('');seek(t);}} onLocate={id=>{setPreflight(null);setLeftTab('files');setHighlightSource(id);}}/>}
       {recoveryInfo&&<RecoveryDialog info={recoveryInfo} busy={busy} error={recoveryError} onChoose={resolveRecovery}/>}
       {settings && (
         <div className="overlay" onKeyDown={e=>{e.stopPropagation();if(e.key==='Escape'){e.preventDefault();setSettings(false);}if(e.key==='Tab'){const items=Array.from(e.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),summary')).filter(el=>el.getClientRects().length);const first=items[0],last=items[items.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}}}>
