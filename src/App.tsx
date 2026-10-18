@@ -107,7 +107,7 @@ export default function App() {
     try{await recovery.flush();return true;}
     catch(e){if(!needed)return true;setMessage(`Nie udało się zapisać kopii odzyskiwania: ${String(e)}. Zapisz projekt ręcznie przed zamknięciem.`);return false;}
   };
-  useEffect(()=>{let alive=true,unlisten:(()=>void)|undefined;const win=getCurrentWindow();void win.onCloseRequested(event=>{event.preventDefault();void closeAction.current().then(ok=>{if(ok)return win.destroy();}).catch(e=>setMessage(String(e)));}).then(stop=>{if(alive)unlisten=stop;else stop();}).catch(()=>{});const flush=()=>{if(document.hidden)void recovery.flush().catch(()=>{});};document.addEventListener('visibilitychange',flush);return()=>{alive=false;unlisten?.();document.removeEventListener('visibilitychange',flush);};},[]);
+  useEffect(()=>{let alive=true,unlisten:(()=>void)|undefined;try{const win=getCurrentWindow();void win.onCloseRequested(event=>{event.preventDefault();void closeAction.current().then(ok=>{if(ok)return win.destroy();}).catch(e=>setMessage(String(e)));}).then(stop=>{if(alive)unlisten=stop;else stop();}).catch(()=>{});}catch{}const flush=()=>{if(document.hidden)void recovery.flush().catch(()=>{});};document.addEventListener('visibilitychange',flush);return()=>{alive=false;unlisten?.();document.removeEventListener('visibilitychange',flush);};},[]);
   useEffect(()=>{if(!settings)return;const previous=document.activeElement;document.querySelector<HTMLButtonElement>('.modal button')?.focus();return()=>{if(previous instanceof HTMLElement&&previous.isConnected)previous.focus();};},[settings]);
   const captionSurface = useRef<HTMLDivElement>(null);
   const stage=useRef<HTMLDivElement>(null);
@@ -182,7 +182,7 @@ export default function App() {
   const open = () =>
     run(async () => {
       if (saver.saving || !replace()) return;
-      recovery.update(null);await recovery.flush();
+      recovery.update(null);try{await recovery.flush();}catch{}
       const result = await backend.open();
       if (!result) return;
       const p = parseProject(result.json);
@@ -202,13 +202,13 @@ export default function App() {
     });
   const createNew=()=>run(async()=>{
     if(saver.saving||!replace())return;
-    recovery.update(null);await recovery.flush();const session=await backend.newProject();const p=newProject();
+    recovery.update(null);try{await recovery.flush();}catch{}const session=await backend.newProject();const p=newProject();
     setSourceViewerId('');sourceRanges.current.clear();recovered.current=false;resetPlayback();history.reset(p);pristineRevision.current=projectRevision(p);saver.accept(p,'',session);setSource('');setSources({});
   });
   const save=async(saveAs=false)=>{
     if(saver.saving)return;
     if(titleEditor.current&&!titleEditor.current.commit())return;
-    try{recovery.update(null);await recovery.flush();const path=await saver.save(latestProject.current,saveAs);if(path){recovered.current=false;setMessage(`Zapisano projekt: ${path}`);}}
+    try{recovery.update(null);try{await recovery.flush();}catch{}const path=await saver.save(latestProject.current,saveAs);if(path){recovered.current=false;setMessage(`Zapisano projekt: ${path}`);}}
     catch(e){setMessage(`Błąd zapisu: ${e instanceof Error?e.message:String(e)} Użyj „Zapisz jako”, aby zapisać kopię.`);}
   };
   const resolveRecovery=(action:'recover'|'saved'|'discard')=>run(async()=>{

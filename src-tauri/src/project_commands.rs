@@ -221,7 +221,7 @@ pub async fn recovery_status(app: tauri::AppHandle) -> Result<RecoveryStatus, St
 
         let _op = state.operation()?;
         let session = state.session.lock().map_err(|_| "Błąd sesji")?.reset(None);
-        state.store(&app, |store| {
+        let result = state.store(&app, |store| {
             let (snap, warning) = store.load();
             state
                 .pending_recovery
@@ -249,6 +249,17 @@ pub async fn recovery_status(app: tauri::AppHandle) -> Result<RecoveryStatus, St
                             .map(|t| t.as_millis() as u64)
                     }),
                 warning,
+            })
+        });
+        result.or_else(|e| {
+            Ok(RecoveryStatus {
+                session,
+                available: false,
+                name: String::new(),
+                captured_at: None,
+                manual_path: None,
+                manual_at: None,
+                warning: e,
             })
         })
     })
