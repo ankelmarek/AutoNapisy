@@ -1,5 +1,12 @@
 # Kolejne etapy RolVixa
 
+## Proponowana korekta UX: prosty Ripple i czytelne audio (issue #11)
+
+**Wysoki priorytet użyteczności przed kolejnymi rozbudowanymi narzędziami.** [Szczegółowy plan i testy w issue #11](https://github.com/ankelmarek/AutoNapisy/issues/11). Rozwiązanie do odbioru przez użytkownika, bez zmian w kodzie na tym etapie.
+
+- **PR 1 - Ripple bez okna:** pojedynczy czytelny przełącznik na osi i natychmiastowe bezpieczne przycięcie/usunięcie, jeden krok Ctrl+Z. Schować R·A/R+/R− do zaawansowanych ustawień toru; automatyczna kwalifikacja V od 00:00, V rozpoczynające się później są chronione. Samodzielne audio nie podlega domyślnemu Ripple, nawet przy routingu dźwięku filmu na ten sam bus A. Linked audio zawsze zachowuje synchronizację; przy konflikcie krótki komunikat zamiast modala i świadoma opcja cięcia bez przesuwania.
+- **PR 2 - czytelne A1/A2:** audio połączone z filmem jako zwięzły waveform przy klipie V; audio niezależne lub odłączone na A w pełnej wysokości. Nie dzielić A na pół tylko dlatego, że strumień wideo jest routowany na ten bus. Dla rzeczywiście nakładających się niezależnych audio zapewnić jawny widok lub sugestię nowej ścieżki. Zgodność starych projektów, mute, audioRoute, miksu, J/L-cut, automatyzacji i eksportu jest obowiązkowa.
+
 ## Wykonane w 0.22 — dynamiczne ścieżki (ukończone)
 
 - [x] Niezależne dodawanie V3/A3 i dalszych torów; stabilne ID bez renumeracji, do 16 każdego typu.
