@@ -14,6 +14,8 @@ mod montage;
 mod preview_commands;
 mod project;
 mod project_file;
+mod recovery;
+mod source_preview;
 mod project_commands;
 mod rendering;
 mod subtitles;
@@ -230,12 +232,17 @@ fn main() {
             mlt_commands::cancel_mlt_preview,
             analysis_commands::audio_waveform,
             analysis_commands::media_info,
+            analysis_commands::source_thumbnail,
             analysis_commands::layer_frames,
             prepare_preview,
             preview_commands::prepare_transition_preview,
             project_commands::new_project,
             project_commands::open_project,
             project_commands::save_project,
+            project_commands::recovery_status,
+            project_commands::write_recovery,
+            project_commands::clear_recovery,
+            project_commands::resolve_recovery,
             diagnostics,
             commands::tool_settings,
             commands::component_licenses,

@@ -13,6 +13,7 @@ use std::{
 use tauri::State;
 #[derive(Default)]
 pub struct AnalysisState {
+    thumbnail_gate: Arc<Mutex<()>>,
     frame_job: Mutex<Option<Arc<Job>>>,
     frame_gate: Arc<Mutex<()>>,
     jobs: Arc<Mutex<Vec<Arc<Job>>>>,
@@ -223,6 +224,63 @@ pub async fn media_info(
                 duration,
                 has_audio: true,
             })
+        })();
+        job.status.lock().unwrap().state = if result.is_ok() {
+            "completed"
+        } else {
+            "failed"
+        }
+        .into();
+        result
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn source_thumbnail(
+    path: String,
+    time: f64,
+    access: State<'_, Access>,
+    tools: State<'_, ToolState>,
+    analysis: State<'_, AnalysisState>,
+    proxies: State<'_, crate::proxy_commands::ProxyState>,
+) -> Result<String, String> {
+    let path = media_path(Path::new(&path))?;
+    if !access
+        .0
+        .lock()
+        .map_err(|_| "Błąd uprawnień")?
+        .contains(&path)
+    {
+        return Err("Najpierw zaimportuj plik".into());
+    }
+    if !time.is_finite() || !(0.0..=86400.0).contains(&time) {
+        return Err("Nieprawidłowy czas miniatury".into());
+    }
+    let ffmpeg = {
+        let t = tools.0.lock().unwrap();
+        validate_tool("ffmpeg", t.ffmpeg.as_deref().ok_or("Wskaż FFmpeg")?)?
+    };
+    let job = Arc::new(Job::new(0));
+    {
+        let mut jobs = analysis.jobs.lock().unwrap();
+        jobs.retain(|j| j.active());
+        if jobs.len() >= 16 {
+            return Err("Kolejka miniaturek jest zajęta".into());
+        }
+        jobs.push(job.clone());
+    }
+    let gate = analysis.thumbnail_gate.clone();
+    let proxies = proxies.view();
+    tauri::async_runtime::spawn_blocking(move || {
+        let result = (|| {
+            let _guard = gate.lock().map_err(|_| "Błąd kolejki miniaturek")?;
+            job.check()?;
+            let _lease = proxies.lease.read().map_err(|_| "Błąd cache proxy")?;
+            let path = proxies.source(&path);
+            crate::source_preview::frame(&job, &ffmpeg, &path, time)
+                .map(|b| base64::engine::general_purpose::STANDARD.encode(b))
         })();
         job.status.lock().unwrap().state = if result.is_ok() {
             "completed"

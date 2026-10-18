@@ -1,15 +1,14 @@
 import {useEffect,useRef,useState} from 'react';
 import Icon from './Icons';
-const cache=new Map<string,string>();
-let queue=Promise.resolve();
-export default function MediaThumbnail({src,audio,cacheKey=''}:{src?:string;audio:boolean;cacheKey?:string}){
- const id=`${src}|${cacheKey}`;
- const host=useRef<HTMLDivElement>(null),[image,setImage]=useState(src?cache.get(id):undefined);
- useEffect(()=>{if(!src||audio)return;let alive=true,queued=false;const el=host.current;if(!el)return;const observer=new IntersectionObserver(entries=>{if(!entries.some(e=>e.isIntersecting)||queued)return;queued=true;observer.disconnect();queue=queue.then(()=>new Promise<void>(resolve=>{
-  if(!alive){resolve();return;}if(cache.has(id)){setImage(cache.get(id));resolve();return;}
-  const v=document.createElement('video');v.crossOrigin='anonymous';v.muted=true;v.preload='auto';let done=false;const finish=()=>{if(done)return;done=true;clearTimeout(timer);v.onloadeddata=null;v.onseeked=null;v.onerror=null;v.removeAttribute('src');v.load();resolve();};const timer=setTimeout(finish,6000);
-  const capture=()=>{try{const canvas=document.createElement('canvas');canvas.width=160;canvas.height=90;const scale=Math.max(160/v.videoWidth,90/v.videoHeight);canvas.getContext('2d')!.drawImage(v,(160-v.videoWidth*scale)/2,(90-v.videoHeight*scale)/2,v.videoWidth*scale,v.videoHeight*scale);const url=canvas.toDataURL('image/jpeg',.7);cache.set(id,url);if(cache.size>256)cache.delete(cache.keys().next().value!);if(alive)setImage(url);}catch{}finish();};
-  v.onloadedmetadata=()=>{v.currentTime=Math.min(.2,v.duration/10);};v.onseeked=capture;v.onloadeddata=()=>{if(!v.seeking)capture();};v.onerror=finish;v.src=src;
- }));},{rootMargin:'200px'});observer.observe(el);return()=>{alive=false;observer.disconnect();};},[src,audio,cacheKey]);
- return <div className="media-thumbnail" ref={host}>{image?<img draggable={false} src={image} alt=""/>:<Icon name={audio?'audio':'video'} size={23}/>}</div>;
+import {thumbnailFrame} from './thumbnailFrames';
+export default function MediaThumbnail({path,duration,src,audio,cacheKey=''}:{path:string;duration:number|null;src?:string;audio:boolean;cacheKey?:string}){
+ const host=useRef<HTMLDivElement>(null),[image,setImage]=useState<string>(),[scrub,setScrub]=useState<string>(),[hoverTime,setHoverTime]=useState<number|null>(null);
+ const epoch=useRef(0),timer=useRef<ReturnType<typeof setTimeout>|undefined>(undefined),lastRequest=useRef(0);
+ const identity=`${src}|${cacheKey}`;
+ useEffect(()=>{setImage(undefined);setScrub(undefined);setHoverTime(null);if(!src||audio||!duration)return;let alive=true,queued=false;const el=host.current;if(!el)return;
+  const observer=new IntersectionObserver(entries=>{if(!entries.some(e=>e.isIntersecting)||queued)return;queued=true;observer.disconnect();void thumbnailFrame(path,Math.min(.2,duration/10),identity,()=>alive).then(url=>{if(alive&&url){setImage(url);}});},{rootMargin:'150px'});observer.observe(el);
+  return()=>{alive=false;observer.disconnect();epoch.current++;clearTimeout(timer.current);};
+ },[path,identity,audio,duration]);
+ const leave=()=>{epoch.current++;clearTimeout(timer.current);setScrub(undefined);setHoverTime(null);};
+ return <div className="media-thumbnail" ref={host} onPointerLeave={leave} onDragStart={leave} onPointerMove={e=>{if(e.pointerType!=='mouse'||audio||!src||!duration)return;const rect=e.currentTarget.getBoundingClientRect(),position=Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width));const time=Math.min(Math.max(0,duration-.05),Math.floor(position*duration*2)/2);setHoverTime(time);const token=++epoch.current;clearTimeout(timer.current);timer.current=setTimeout(()=>{lastRequest.current=performance.now();void thumbnailFrame(path,time,identity,()=>epoch.current===token,true).then(url=>{if(url&&epoch.current===token)setScrub(url);});},Math.max(65,160-(performance.now()-lastRequest.current)));}}>{scrub||image?<img draggable={false} src={scrub||image} alt=""/>:<Icon name={audio?'audio':'video'} size={23}/>} {hoverTime!==null&&<code className="thumbnail-time">{Math.floor(hoverTime/60)}:{(hoverTime%60).toFixed(1).padStart(4,'0')}</code>}</div>;
 }

@@ -1,9 +1,21 @@
 # Kolejne etapy RolVixa
 
+## Wykonane w 0.17 — odzyskiwanie i podgląd źródła/I/O
+
+Użytkownik połączył punkty 9 oraz 1+2 w jedną wersję. Wdrożono:
+
+- [x] Dwie atomowe kopie, oddzielone od zapisu ręcznego; blokada OS i sprzątanie niedokończonych tempów.
+- [x] Odzyskiwanie po awarii procesu, otwarcie zapisu ręcznego lub wyraźne odrzucenie; ochrona nowszego schematu i błędy autozapisu bez blokowania ręcznego zapisu.
+- [x] Scrubbing miniaturek FFmpeg: pojedyncza kolejka, pomijanie nieaktualnych zadań, cache i proxy.
+- [x] Osobny podgląd źródła MLT, zakres I/O, dokładne pola, dodawanie przyciskiem/przeciąganiem wybranego przedziału i pojedynczy Undo. Schemat pozostaje v9.
+- [x] Pełny zielony odbiór Windows: run 39097201488 — 125 TS, 59 Rust, 11 integracyjnych, kompilacja, instalator i WebView2 1366/Full HD. Potwierdzone wymuszona awaria, nowsze kopie i zapis przy błędzie autozapisu. README zawiera link i ograniczenia.
+
+Dalszy priorytet: **Ripple oraz odłączanie audio/J/L-cut**, a potem V3/A3 zgodnie z decyzją użytkownika poniżej. Nie wdrożono ich w 0.17.
+
 ## Plan kolejnych etapów - ustalona kolejność
 
-1. **Autozapis i odzyskiwanie sesji** - zabezpieczenie pracy przed utratą danych.
-2. **Podgląd źródeł i In/Out** - podgląd miniaturek, podgląd filmu źródłowego i wstawianie wybranego fragmentu.
+1. **Autozapis i odzyskiwanie sesji** - wykonane w 0.17.
+2. **Podgląd źródeł i In/Out** - wykonane razem z odzyskiwaniem w 0.17.
 3. **Ripple Edit oraz odłączanie audio / J-cut / L-cut** - **najpierw** na obecnych V1/V2 i A1/A2. Reguły Ripple per ścieżka, automatyczna ochrona torów zaczynających się po 00:00, świadoma kontrola synchronizacji. Projektować algorytm bez założenia stałej liczby torów.
 4. **Dynamiczne V3/A3 i kolejne tory** - **istotny priorytet po Ripple/J/L-cut**, domyślnie zachować prostą oś 2+2; nowe tory dodawane niezależnie przyciskami. Rozszerzyć już działające zasady Ripple na nowe tory.
 5. **Dalsze funkcje** - zastępowanie źródeł, kontrola przed eksportem, SmartCut i Export Studio w osobnych etapach.
@@ -183,13 +195,13 @@ Siatkę i znacznik użycia wdrożono w 0.14; fade in/out oraz automatykę przez 
 
 Użytkownik zatwierdził z poprzedniej listy **punkty 1, 2, 3, 4, 6, 7, 8, 9**. **Punkt 5 (kolorowe znaczniki na osi) nie jest częścią tej paczki.** Celem jest intuicyjny, niedestrukcyjny montaż z pełną kontrolą użytkownika. Nie wdrażać wszystkiego jedną zmianą; weryfikować każdą funkcję na realnym podglądzie MLT i eksporcie. Korzystać z Tabler Icons.
 
-### 1. Scrubbing miniaturek w bibliotece i podgląd źródła
+### 1. Scrubbing miniaturek w bibliotece i podgląd źródła — wykonane w 0.17
 
 - Po przesuwaniu kursora w poziomie po miniaturze filmu wyświetlać klatki odpowiadające pozycji kursora w **źródłowym nagraniu**, bez zmiany głowicy i montażu projektu. Po opuszczeniu miniatury wraca kadr reprezentatywny. Dla klawiatury/touch zapewnić osobne polecenie „Podgląd źródła”.
 - Kliknięcie/otwarcie karty wyświetla **podgląd pliku źródłowego** (source viewer), wyraźnie odróżniony od podglądu aktualnego montażu; bez przypadkowego dodawania na oś.
 - Miniaturki dekodować oszczędnie: ograniczyć liczbę jednoczesnych dekoderów i częstotliwość odczytu, buforować klatki, odwoływać nieaktualne zadania. W miarę dostępności korzystać z proxy zamiast wielokrotnie dekodować HEVC/4K; przy braku proxy zastosować bezpieczny fallback.
 
-### 2. Zaznaczanie In / Out przed dodaniem na oś
+### 2. Zaznaczanie In / Out przed dodaniem na oś — wykonane w 0.17
 
 - W podglądzie źródła umożliwić ustawienie punktów wejścia **I** i wyjścia **O**, klawiaturą, przyciskami i myszą; wyświetlać ich timecode, wybrany zakres i długość.
 - Polecenie „Dodaj zaznaczony fragment” lub przeciągnięcie z podglądu na tor wstawia **tylko wskazany przedział**, zapisując prawidłowe `sourceIn/sourceOut` i `start`. Nie kopiować ani nie zmieniać pliku źródłowego.
@@ -235,7 +247,7 @@ Użytkownik zatwierdził z poprzedniej listy **punkty 1, 2, 3, 4, 6, 7, 8, 9**. 
 - Analiza dźwięku/obrazu musi opierać się na realnym złożonym montażu i pomiarach (FFmpeg/MLT), nie na arbitralnym „score jakości”. Przeprowadzać kosztowniejsze analizy na żądanie/z odpowiednim cache, nie podczas każdego ruchu myszy.
 - Zgłaszać ograniczenia detekcji; np. cisza i czarny kadr mogą być celowym środkiem narracyjnym.
 
-### 9. Autozapis i odzyskiwanie sesji po awarii
+### 9. Autozapis i odzyskiwanie sesji po awarii — wykonane w 0.17
 
 - Zapisywać kopie odzyskiwania stanu **lokalnie** i atomowo, z rozsądnym odstępem/debounce oraz na wybranych punktach ryzyka. Autozapis nigdy nie nadpisuje ręcznie zapisanego pliku projektu bez świadomego polecenia.
 - Po uruchomieniu po awarii wyświetlić różnicę czasu/stanu pomiędzy ostatnim zapisem ręcznym i kopią awaryjną oraz opcje **„Odzyskaj”, „Otwórz zapisany projekt”, „Odrzuć kopię”**. Zachować poprzednią kopię do czasu zakończenia odzyskiwania.
@@ -244,11 +256,12 @@ Użytkownik zatwierdził z poprzedniej listy **punkty 1, 2, 3, 4, 6, 7, 8, 9**. 
 
 ### Proponowane etapy i wspólne testy
 
-1. Najpierw **9 (odzyskiwanie)**, aby zmniejszyć ryzyko utraty pracy podczas dalszej rozbudowy.
-2. Następnie **1 + 2 (biblioteka źródeł)**, najlepiej po ustabilizowaniu proxy. Zachować kompatybilność z siatką miniaturek i zielonym znacznikiem wykorzystania źródła.
+1. **9 (odzyskiwanie)** wykonano w połączonym wydaniu 0.17.
+2. **1 + 2 (biblioteka źródeł)** wykonano także w 0.17, z proxy, siatką i znacznikiem użycia.
 3. Następnie **3 + 4 (J/L-cut i Ripple)** na obecnych torach: zaplanować wspólne reguły powiązania audio z obrazem, przesunięć na osi oraz napisów, by nie utracić synchronizacji. Algorytm Ripple projektować niezależnie od liczby ścieżek.
 4. **Po Ripple/J/L-cut - dynamiczne V3/A3** ([issue #3](https://github.com/ankelmarek/AutoNapisy/issues/3)), z zachowaniem reguł montażu i synchronizacji.
 5. Niezależnie dodać **6 (strefy bezpieczne)**, **7 (zastępowanie źródła)** oraz **8 (preflight)**; zastępowanie źródła uwzględnia mechanizm proxy, a preflight wymaga stabilnego i sprawdzalnego eksportu.
 6. Każdy etap wymaga testów TypeScript/Rust oraz realnego podglądu MLT i porównania z eksportem; potwierdzić migracje schematów, Undo/Redo, działania przy brakującym źródle i bez internetu.
 
-**Status:** zaakceptowane do TODO; bez rozpoczęcia implementacji. Punkt 5 (kolorowe znaczniki na osi czasu) celowo pominięty.
+**Status:** punkty 1, 2, 6 i 9 wykonane. Następne: Ripple/J/L-cut na obecnych torach, potem V3/A3. Pozostałe rozszerzenia nadal planowane. Punkt 5 (kolorowe znaczniki na osi czasu) celowo pominięty.
+

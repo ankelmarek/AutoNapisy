@@ -19,6 +19,8 @@ const page=browser.contexts()[0].pages().find(p=>!p.url().startsWith('devtools:'
 console.log('Initial WebView pages:',browser.contexts()[0].pages().map(p=>p.url()));
 page.setDefaultTimeout(45000);
 const errors=[];page.on('pageerror',e=>{errors.push(e.message);console.log('Page error:',e.stack??e.message);});page.on('console',m=>{if(['error','warning'].includes(m.type()))console.log('WebView2:',m.type(),m.text());});
+const recoveryFile=path.join(process.env.ROLVIXA_TEST_RECOVERY,'current.json');
+async function waitSnapshotName(name){for(let n=0;n<100;n++){try{if(JSON.parse(fs.readFileSync(recoveryFile,'utf8')).project.name===name)return;}catch{}await page.waitForTimeout(100);}throw Error('Missing recovery revision: '+name);}
 try{
  // CDP can be ready before Tauri performs its first navigation. Reloading
  // about:blank here cancels startup, leaving a healthy app with an empty test page.
@@ -164,7 +166,24 @@ try{
  await page.locator('.header-project-name').click();await page.getByRole('textbox',{name:'Nazwa projektu',exact:true}).fill('Otwarty i zapisany');await page.keyboard.press('Enter');await page.keyboard.press('Control+s');await page.waitForFunction(()=>document.querySelector('.header-save').dataset.saveStatus==='saved');assert.equal(JSON.parse(fs.readFileSync(projectPath,'utf8')).name,'Otwarty i zapisany');assert.equal(JSON.parse(fs.readFileSync(copyPath,'utf8')).name,'Moja kopia 2');
  console.log('Real Windows atomic save, external-change conflict, Save As and opened/direct target switching: OK');
 
+
+ // 0.17: real source viewer uses MLT, real Unicode thumbnail uses FFmpeg.
+ await page.getByRole('tab',{name:/Pliki/}).click();await page.locator('.media-proxy[open]').evaluateAll(nodes=>nodes.forEach(n=>n.open=false));
+ const sourceCard17=page.locator('.library-file').first();await sourceCard17.locator('.media-thumbnail').scrollIntoViewIfNeeded();await sourceCard17.locator('.media-thumbnail img').waitFor();const thumbURL17=await sourceCard17.locator('.media-thumbnail img').getAttribute('src');assert(thumbURL17.startsWith('data:image/png;base64,'));
+ await sourceCard17.getByRole('button',{name:/Podgląd źródła:/}).click();await page.waitForFunction(()=>document.querySelector('.source-stage video')?.readyState>=2);await page.getByRole('slider',{name:'Pozycja w źródle'}).fill('2');await page.locator('.source-viewer').focus();await page.keyboard.press('i');await page.getByRole('slider',{name:'Pozycja w źródle'}).fill('5');await page.locator('.source-viewer').focus();await page.keyboard.press('o');
+ assert.equal(Number(await page.getByRole('spinbutton',{name:'Początek zakresu źródła'}).inputValue()),2);assert.equal(Number(await page.getByRole('spinbutton',{name:'Koniec zakresu źródła'}).inputValue()),5);await page.waitForFunction(()=>document.querySelector('.source-stage video')?.readyState>=2);await page.getByRole('button',{name:'Odtwórz źródło',exact:true}).click();await page.waitForFunction(()=>document.querySelector('.source-stage video')?.currentTime>.15);await page.getByRole('button',{name:'Wstrzymaj źródło',exact:true}).click();
+ await page.getByRole('button',{name:'Dodaj zaznaczony fragment',exact:true}).click();await page.locator('.header-save').click();await page.waitForFunction(()=>document.querySelector('.header-save').dataset.saveStatus==='saved');const rangeProject17=JSON.parse(fs.readFileSync(projectPath,'utf8'));assert.equal(rangeProject17.clips.at(-1).sourceIn,2);assert.equal(rangeProject17.clips.at(-1).sourceOut,5);
+ // Persist unsaved work; renderer restart must offer recovery, never overwrite manual JSON.
+ const manualBytes17=fs.readFileSync(projectPath,'utf8');await page.locator('.header-project-name').click();await page.getByRole('textbox',{name:'Nazwa projektu',exact:true}).fill('Odzyskana Łódź 0.17');await page.keyboard.press('Enter');await waitSnapshotName('Odzyskana Łódź 0.17');const recoveryPath17=path.join(process.env.ROLVIXA_TEST_RECOVERY,'current.json');assert.equal(JSON.parse(fs.readFileSync(recoveryPath17,'utf8')).project.name,'Odzyskana Łódź 0.17');assert.equal(fs.readFileSync(projectPath,'utf8'),manualBytes17);
+ await page.reload();await page.getByRole('dialog',{name:'Odzyskaj pracę'}).waitFor();await page.getByRole('button',{name:'Odzyskaj',exact:true}).click();await page.waitForFunction(()=>document.querySelector('.header-project-name')?.textContent.includes('Odzyskana Łódź 0.17'));assert.equal(await page.locator('.header-save').getAttribute('data-save-status'),'dirty');assert.equal(fs.readFileSync(projectPath,'utf8'),manualBytes17);await page.waitForFunction(()=>document.querySelector('video.mlt-video')?.readyState>=2);
+ // First edit after recovery has a clean history boundary; Undo preserves recovered baseline.
+ await page.locator('.header-project-name').click();await page.getByRole('textbox',{name:'Nazwa projektu',exact:true}).fill('Po odzyskaniu');await page.keyboard.press('Enter');await page.keyboard.press('Control+z');assert((await page.locator('.header-project-name').textContent()).includes('Odzyskana Łódź 0.17'));
+ // Reload again: saved-project choice reads the current manual file, retaining conflict protection.
+ await waitSnapshotName('Odzyskana Łódź 0.17');await page.reload();await page.getByRole('dialog',{name:'Odzyskaj pracę'}).waitFor();await page.getByRole('button',{name:'Otwórz zapisany projekt',exact:true}).click();await page.waitForFunction(()=>document.querySelector('.header-save')?.dataset.saveStatus==='saved');assert((await page.locator('.header-project-name').textContent()).includes('Otwarty i zapisany'));
+ console.log('Real 0.17 Unicode source thumbnail/MLT, source I/O, persisted range, renderer restart recovery, manual-file protection and Undo: OK');
  console.log('Real native preview (portrait, Unicode paths, decoded pixels, play, pause, seek):',JSON.stringify(await state()));
+ // Leave a real recovery copy for the forced process-restart test in PowerShell.
+ await page.locator('.header-project-name').click();await page.getByRole('textbox',{name:'Nazwa projektu',exact:true}).fill('Przed awarią procesu 0.17');await page.keyboard.press('Enter');await waitSnapshotName('Przed awarią procesu 0.17');
  assert.deepEqual(errors,[]);
 }catch(e){
  console.log('Native UI failure:',{url:page.url(),errors,body:(await page.locator('body').innerText().catch(()=>'' )).slice(0,6000)});throw e;

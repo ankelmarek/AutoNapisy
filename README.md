@@ -1,13 +1,40 @@
-# RolVixa 0.16 — polska mowa → polskie napisy
+# RolVixa 0.17 — polska mowa → polskie napisy
 
-**Gotowy instalator 0.16:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39069356974/artifacts/12114951791), rozpakuj i uruchom `RolVixa_0.16.0_x64-setup.exe`.
+**Gotowy instalator 0.17:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39097201488/artifacts/12124839247), rozpakuj i uruchom `RolVixa_0.17.0_x64-setup.exe`.
 RolVixa (wcześniej AutoNapisy) to lokalna aplikacja Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Rozpoznaje polską mowę przez whisper.cpp, bez tłumaczenia. Transkrypcja i montaż działają na komputerze. Opcjonalna biblioteka muzyki łączy się z Openverse po wpisaniu frazy wyszukiwania; nie wysyła nagrań użytkownika.
+
+## Wersja 0.17 — odzyskiwanie i wybór ujęć
+
+- Kopia odzyskiwania po 1,5 s od ostatniej zmiany, najpóźniej po 10 s ciągłej edycji. Ponowna próba po błędzie następuje po 30 s. Przy zamykaniu okna kopia jest domykana; błąd przy niezapisanych zmianach zatrzymuje zamknięcie i pozwala zapisać projekt ręcznie.
+- Dwie atomowe kopie JSON w katalogu danych aplikacji `recovery-v1` (`current.json`, `previous.json`); każda zawiera projekt do 16 MiB, bez nagrań. Kopie obejmują kadrowanie, napisy i automatykę audio, bez cache proxy. OS blokuje równoległy dostęp drugiej instancji i zwalnia blokadę również po awarii. Po restarcie aplikacja usuwa wyłącznie własne niedokończone pliki tymczasowe, zachowując zatwierdzone kopie.
+- Po ponownym uruchomieniu: **Odzyskaj**, **Otwórz zapisany projekt**, **Odrzuć kopię**. Widać czas kopii i bieżącego zapisu ręcznego. Uszkodzona najnowsza kopia pozwala wrócić do poprzedniej. Gdy żadnej kopii nie można odczytać (także z powodu nowszego schematu), pozostają na dysku do wyraźnego odrzucenia; można zamknąć okno i wrócić w nowszej wersji. Braki mediów są zgłaszane bez usuwania montażu. Odzyskiwanie otwiera stan jako niezapisany projekt; pierwszy zapis wymaga wyboru pliku, chroniąc dotychczasowy zapis.
+- W zakładce **Pliki** przesuwanie myszy po miniaturze pokazuje klatki źródła. Miniatury dekoduje FFmpeg przez pojedynczą kolejkę: cache 160 klatek, kroki 0,5 s, ograniczenie wywołań i pomijanie nieaktualnych żądań. Nie zmienia to głowicy ani historii montażu.
+- Kliknij miniaturę (także klawiaturą Enter), aby otworzyć oznaczony **Źródło** podgląd MLT. Obsługuje wideo i własne audio, korzysta z dostępnego aktywnego proxy, zachowuje czas źródła i nie wymaga obsługi kodeka oryginału przez WebView2. Oś montażu zostaje zatrzymana.
+- Przewiń źródło, naciśnij **I** (początek) i **O** (koniec) lub użyj przycisków/pól sekundowych. Spacja odtwarza źródło, strzałki przewijają o klatkę 30 FPS (Shift: sekunda), Esc wraca do montażu. Pokazany zakres i długość dotyczą oryginalnego źródła.
+- **Dodaj zaznaczony fragment** wstawia wybrany przedział w pozycji głowicy montażu; przycisk można też przeciągnąć na V1/V2 albo A1/A2 dla audio. Zachowane są reguły umieszczania i przyciągania istniejącej osi. Jeden krok Undo usuwa cały dodany klip. Zwykły **+** na karcie nadal dodaje cały plik. I/O są pamiętane tylko w bieżącej sesji biblioteki i nie zmieniają schematu v9.
+
+Ograniczenia: utrata zasilania przed pierwszą kopią może utracić ostatnie 1,5–10 s; kopie są dodatkowym zabezpieczeniem, nie kopią zapasową nagrań. Jedna instancja naraz korzysta z odzyskiwania; druga pokazuje błąd i wymaga zapisu ręcznego. Podgląd źródła przełącza wspólny silnik MLT, więc pierwsza klatka i dalsze przewinięcie poza bufor wymagają przygotowania strumienia. Nie ma tu J/L-cut, Ripple ani SmartCut.
+
+Nowe pliki tej iteracji:
+
+- Frontend: `src/SourceViewer.tsx`, `src/sourceSelection.ts`, `src/thumbnailFrames.ts`, `src/projectRecovery.ts`, `src/RecoveryDialog.tsx`.
+- Rust: `src-tauri/src/recovery.rs`, `src-tauri/src/source_preview.rs`.
+- Testy: `tests/sourceSelection.test.ts`, `tests/projectRecovery.test.ts`, `.test-core/tests/source_range.rs`, `scripts/test-recovery-restart.mjs`.
+
+Odbiór 0.17:
+
+- **[Pełny przebieg Windows — wszystkie kroki zielone](https://github.com/ankelmarek/AutoNapisy/actions/runs/39097201488)**: **125 TypeScript, 59 Rust, 11 rzeczywistych testów integracyjnych**, kompilacja produkcyjna, instalacja NSIS i cały odbiór w WebView2.
+- UI: podgląd źródła MLT, I/O, przeciąganie fragmentów i całych plików, Undo, zapis mimo błędu autozapisu, anulowanie dialogu, wymuszona awaria procesu i ponowne uruchomienie, ochrona kopii przyszłego schematu oraz 1366×700 obszaru roboczego laptopa i 1920×1080. Eksport wybranego zakresu sprawdzono przez rzeczywiste MLT i FFmpeg: czas, klatki oraz obecność audio.
+- ZIP instalatora: **80 806 310 bajtów**, SHA-256 `5d9ddbd1ad34ccc7099600f7805e3b3dfae1b98c6b85eca25eb0054c3c31938a`. Do pobrania z Actions wymagane jest zalogowanie na GitHub.
+- Lokalnie: 125 TS, 57 testów Rust core i rzeczywisty test FFmpeg/MLT zakresu źródła; kompilację całej aplikacji i instalatora sprawdzono na Windows, nie w środowisku Linux.
+
+Dalsza wersja: Ripple oraz odłączanie audio/J/L-cut, potem dynamiczne V3/A3 zgodnie z ROADMAP. Tych funkcji nie ma w 0.17.
 
 ## Aktualizacja i uruchomienie ze źródeł
 
-Zachowaj projekty i nagrania. Pobierz ZIP z GitHuba i rozpakuj do nowego folderu, np. `C:\RolVixa-0.16`. Nie kopiuj starych `node_modules`, `dist` i `src-tauri/target`. Aplikacja otwiera projekty v1–v9 i zapisuje format v9. Przed zapisaniem zachowaj kopię JSON, jeśli chcesz wrócić do starszej wersji aplikacji.
+Zachowaj projekty i nagrania. Pobierz ZIP z GitHuba i rozpakuj do nowego folderu, np. `C:\RolVixa-0.17`. Nie kopiuj starych `node_modules`, `dist` i `src-tauri/target`. Aplikacja otwiera projekty v1–v9 i zapisuje format v9. Przed zapisaniem zachowaj kopię JSON, jeśli chcesz wrócić do starszej wersji aplikacji.
 
-Wymagania: Node.js 22 lub 24, aktualny Rust stable x64 MSVC, Visual Studio Build Tools z „Desktop development with C++” i Windows SDK oraz WebView2 Runtime.
+Wymagania: Node.js 22 lub 24, Rust stable ≥1.89 x64 MSVC (blokada pliku kopii odzyskiwania), Visual Studio Build Tools z „Desktop development with C++” i Windows SDK oraz WebView2 Runtime.
 
 ```powershell
 npm.cmd ci

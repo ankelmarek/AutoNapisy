@@ -15,3 +15,9 @@ Obwiednia audio ma źródłowe czasy, zachowywane przy trim/split/copy. Wspólny
 ## Priorytety dalszego rozwoju
 
 Użytkownik zatwierdził kolejność: **autozapis/odzyskiwanie → podgląd źródła i In/Out → Ripple Edit oraz odłączanie audio / J-cut / L-cut na V1/V2/A1/A2 → dynamiczne V3/A3** (issue #3, ważny etap). Nie blokować Ripple oczekiwaniem na trzecią ścieżkę. Algorytm Ripple projektować bez zakodowanego limitu dwóch torów, aby rozszerzyć go później bez zmiany reguł. Dotychczasowe wyłączenie R dla torów rozpoczynających się po 00:00 pozostaje w mocy. Gdy model rozszerzamy o V3/A3, migracje TS/Rust, zgodność projektów, podgląd i eksport są obowiązkowe. Kolejne szczegóły w ROADMAP.md.
+
+## Wykonane w 0.17
+
+Połączono odzyskiwanie i podgląd źródła/I/O. Kopie: odrębny atomowy zapis, dwie generacje, blokada OS, czyszczenie własnych osieroconych tempów; nie zmieniać statusu ani pliku zapisu ręcznego. Rust ≥1.89. Nieczytelne/nowsze kopie czekają na wyraźne odrzucenie. Podgląd źródła używa wspólnego MLT (montaż jest zawieszony), miniatury pojedynczej kolejki FFmpeg z proxy. Zakres I/O ma czasy źródła, jest sesyjny; dodanie to jeden krok Undo. Schemat nadal v9.
+
+Pełny odbiór Windows 0.17: run 39097201488, wszystkie kroki zielone — 125 TS, 59 Rust, 11 integracyjnych, instalacja i WebView2. Potwierdzone wymuszone zakończenie procesu, ponowne uruchomienie, przyszły schemat, zapis mimo błędu autozapisu, anulowanie dialogu, I/O/przeciąganie/Undo i widoki 1366/Full HD. Instalator: artefakt 12124839247. Szczegóły i ograniczenia w README. Dalej obowiązuje kolejność Ripple/J/L-cut → V3/A3 z sekcji priorytetów powyżej.
