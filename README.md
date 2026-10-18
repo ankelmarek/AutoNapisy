@@ -1,7 +1,20 @@
-# RolVixa 0.24 — polska mowa → polskie napisy
+# RolVixa 0.25 — polska mowa → polskie napisy
 
 **Instalator 0.24:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39159998515/artifacts/12148458846), rozpakuj i uruchom `RolVixa_0.24.0_x64-setup.exe`. Pobranie z Actions wymaga zalogowania na GitHub.
 RolVixa (wcześniej AutoNapisy) to lokalna aplikacja Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Rozpoznaje polską mowę przez whisper.cpp, bez tłumaczenia. Transkrypcja i montaż działają na komputerze. Opcjonalna biblioteka muzyki łączy się z Openverse po wpisaniu frazy wyszukiwania; nie wysyła nagrań użytkownika.
+
+## Wersja 0.25 — prostsze Ripple (odbiór w toku)
+
+- **Ripple wł./wył.** na osi: przycięcie lub usunięcie dosuwa od razu, gdy plan jest bezpieczny. Cała operacja to jeden **Ctrl+Z**; zwykłe przesuwanie i żyletka nie włączają dosuwania.
+- Automatycznie uczestniczą wyłącznie tory **V rozpoczynające się od 00:00** (tolerancja pół klatki). Puste i późne tory pozostają na miejscu. **Samodzielna muzyka nie przesuwa się automatycznie**, również od 00:00 i na busie A współdzielonym z dźwiękiem filmu.
+- Dźwięk wbudowany podąża za swoim filmem. Audio odłączone z `syncGroup` zachowuje zegar źródłowy, obwiednię, zamierzony offset i przycięcia J/L, także przy „Nigdy” na A. Ustawienie A dotyczy niezależnych klipów, a nie relacji synchronizacji.
+- Ikona ustawień obok nazwy toru → **Uwzględniaj w dosuwaniu → Automatycznie / Zawsze / Nigdy**. Jawne ustawienia starych projektów pozostają zapisane i respektowane; blokady mają pierwszeństwo. Niezależne T domyślnie pozostaje na miejscu; napisy źródłowe podążają za obrazem.
+- Konflikt niczego nie zatwierdza: na osi pojawia się **„Nie można dosunąć”** z powodem oraz **Wykonaj samo cięcie / Anuluj**. Escape anuluje, zmiana projektu unieważnia oczekującą operację. Pozostałe okna i zapis pozostają dostępne; zwykłe cięcie nadal respektuje blokady.
+- Schemat nadal **v12**; bez migracji danych. Nowe i stare projekty bez ustawienia Ripple startują z wyłączonym trybem. Zachowane jawne `rippleEnabled` v10–v12 i per-track `auto/on/off`.
+
+Ograniczenia: nie usuwamy automatycznie całej odłączonej pary po wybraniu tylko jednej jej części; taki konflikt wymaga jawnego zwykłego cięcia. Powiązania obejmujące wiele fragmentów po dalszych podziałach mogą wymagać ręcznej edycji, gdy źródłowe przesunięcia się różnią. Nie przycinamy automatycznie innych klipów przecinających usuwany przedział. Pełna wysokość niezależnego audio i waveform przy V pozostają osobnym PR (druga część issue #11). SmartCut i Export Studio poza tą wersją.
+
+Pliki zmiany: `src/ripple.ts`, `src/Timeline.tsx`, `src/App.tsx`, `src/style.css` (usunięty `src/RipplePreview.tsx`), testy Ripple i wspólna próbka `tests/fixtures/ripple025.json`, rzeczywisty miks `.test-core/tests/ripple_mix.rs`, skrypty WebView2, manifesty wersji, workflow Windows i dokumentacja. Nowe kontrolki korzystają z istniejących Tabler Icons MIT.
 
 ## Wersja 0.24 — pomiary i normalizacja miksu (ukończona)
 
@@ -296,7 +309,7 @@ Importuj filmy i wycinaj z nich ujęcia. Oryginał pozostaje bez zmian.
 - **Zaznacz** (V): przeciągnij środek klipu, aby go przesunąć. Klipy wideo na tym samym pasie nie nakładają się. Przeniesienie fragmentu za inny zmienia kolejność.
 - Przeciągnij boczny uchwyt, aby skrócić lub przywrócić fragment w granicach źródła i wolnego miejsca.
 - **Magnes** przyciąga krawędzie do sąsiada (10 pikseli), uchwyty także do głowicy.
-- **Usuń ujęcie** / Delete usuwa zaznaczony fragment i pozostawia przerwę. **Ripple On** po podglądzie domyka tylko edytowany przedział na uczestniczących torach; nie usuwa wszystkich przerw. Gdy oś jest pusta, **Przywróć cały film** dodaje pełne źródło, zachowując oryginalną transkrypcję.
+- **Usuń ujęcie** / Delete usuwa zaznaczony fragment i pozostawia przerwę. **Ripple wł.** natychmiast domyka tylko edytowany przedział na uczestniczących torach; nie usuwa wszystkich przerw. Gdy oś jest pusta, **Przywróć cały film** dodaje pełne źródło, zachowując oryginalną transkrypcję.
 - **Cofnij/Ponów**: przyciski lub Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y. Jedno przeciągnięcie jest jedną zmianą.
 - Kliknij lub przeciągnij linijkę, aby przewinąć. Zoom i poziomy pasek przewijania pomagają przy dłuższych nagraniach. Pola pod osią umożliwiają dokładne ustawienie czasów w sekundach.
 

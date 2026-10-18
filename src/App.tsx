@@ -109,11 +109,10 @@ export default function App() {
   const homeVisible=recoveryReady&&!recoveryInfo&&homeMode!=='closed';
   useEffect(()=>{if(recoveryReady&&!recoveryInfo&&homeMode!=='closed'&&!recent.ready)void recent.refresh();},[recoveryReady,recoveryInfo,homeMode]);
   useEffect(()=>{if(homeMode==='startup'&&recoveryReady&&!recoveryInfo&&recent.ready)setHomeMode(recent.showOnStartup?'initial':'closed');},[homeMode,recoveryReady,recoveryInfo,recent.ready]);
-  const [timelineModal,setTimelineModal]=useState(false);
   const [replacement,setReplacement]=useState<{id:string;locate:boolean;candidate:Replacement;project:Project}|null>(null),[replacementError,setReplacementError]=useState('');
   const [preflight,setPreflight]=useState<{project:Project;issues:PreflightIssue[];autoAnalyze:boolean}|null>(null);
   const [sourceRevision,bumpSourceRevision]=useReducer((n:number)=>n+1,0),[highlightSource,setHighlightSource]=useState('');
-  const locked = !!replacement || !!preflight || timelineModal || busy || transcribing || exporting || !recoveryReady || !!recoveryInfo;
+  const locked = !!replacement || !!preflight || busy || transcribing || exporting || !recoveryReady || !!recoveryInfo;
   useEffect(()=>{let alive=true;startup.current??=invoke<RecoveryInfo>('recovery_status');void startup.current.then(info=>{if(!alive)return;saver.accept(latestProject.current,'',info.session);if(info.available)setRecoveryInfo(info);if(info.warning){if(info.available)setRecoveryError(info.warning);else setMessage('Odzyskiwanie: '+info.warning);}setRecoveryReady(true);}).catch(e=>{if(alive){setRecoveryError(String(e));setRecoveryReady(true);}});return()=>{alive=false;};},[]);
   useEffect(()=>{
     const needed=saveState.baseline===null?(recovered.current||revision!==pristineRevision.current):dirty;
@@ -780,7 +779,7 @@ export default function App() {
             </div>
           </div>
         </section>
-      <Timeline project={project} time={time} locked={locked||settings||homeVisible} onPreviewOpen={setTimelineModal} onError={setMessage} onSeek={t=>{setSourceViewerId('');seek(t);}}
+      <Timeline project={project} time={time} locked={locked||settings||homeVisible} onError={setMessage} onSeek={t=>{setSourceViewerId('');seek(t);}}
         onChange={(clips,mode)=>{if(mode!=='volume')playback.pause();changeProject({...latestProject.current,clips,transitions:reconcileTransitions(latestProject.current,clips)});}} onPreviewVolume={playback.previewVolume} onBeginAudio={playback.pause} onSelect={id=>{setSelectedClip(id);setSelectedTransition('');setInspectorTab('video');}} onCaptionSelect={selectCaption}
         onMediaDrop={(id,at,track,range,kind)=>{try{playback.pause();setSourceViewerId('');changeProject(insertLibraryItem(latestProject.current,id,at,track,range,kind));setMessage('Dodano plik na oś czasu.');}catch(e){setMessage(String(e));}}}
         onCaptionChange={p=>changeProject(p)} effectChoice={effectChoice} onTransition={(a,b,choice)=>{try{playback.pause();const next=applyTransition(project,a,b,choice.kind,choice.duration);changeProject(next);setSelectedTransition(next.transitions.find(t=>t.toId===b)!.id);setInspectorTab('video');}catch(e){setMessage(String(e));}}} onTransitionSelect={id=>{setSelectedTransition(id);setInspectorTab('video');}}
