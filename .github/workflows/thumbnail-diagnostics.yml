@@ -41,11 +41,13 @@ jobs:
           $app = Start-Process -FilePath (Join-Path $destination 'rolvixa.exe') -PassThru
           try {
             for ($n=0; $n -lt 120; $n++) { try { $null=Invoke-RestMethod "$env:ROLVIXA_WEBVIEW_CDP/json/version" -NoProxy -TimeoutSec 1; break } catch { Start-Sleep -Milliseconds 250 } }
-            node scripts/thumbnail-diagnostics.mjs
+            node scripts/test-native-preview.mjs
             if ($LASTEXITCODE) { throw 'Diagnostic failed' }
+            node scripts/test-editor9.mjs
+            if ($LASTEXITCODE) { throw 'Mocked UI diagnostic failed' }
           } finally { taskkill /PID $app.Id /T /F 2>$null | Out-Null }
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: Thumbnail-diagnostics
-          path: .tools/thumbnail-diagnostic.png
+          path: .tools/native-preview.png

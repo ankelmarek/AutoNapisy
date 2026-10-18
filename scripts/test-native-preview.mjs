@@ -169,7 +169,7 @@ try{
 
  // 0.17: real source viewer uses MLT, real Unicode thumbnail uses FFmpeg.
  await page.getByRole('tab',{name:/Pliki/}).click();await page.locator('.media-proxy[open]').evaluateAll(nodes=>nodes.forEach(n=>n.open=false));
- const sourceCard17=page.locator('.library-file').first();await sourceCard17.locator('.media-thumbnail img').waitFor();const thumbURL17=await sourceCard17.locator('.media-thumbnail img').getAttribute('src');assert(thumbURL17.startsWith('data:image/png;base64,'));
+ const sourceCard17=page.locator('.library-file').first();await sourceCard17.locator('.media-thumbnail').scrollIntoViewIfNeeded();await sourceCard17.locator('.media-thumbnail img').waitFor();const thumbURL17=await sourceCard17.locator('.media-thumbnail img').getAttribute('src');assert(thumbURL17.startsWith('data:image/png;base64,'));
  await sourceCard17.getByRole('button',{name:/Podgląd źródła:/}).click();await page.waitForFunction(()=>document.querySelector('.source-stage video')?.readyState>=2);await page.getByRole('slider',{name:'Pozycja w źródle'}).fill('2');await page.locator('.source-viewer').focus();await page.keyboard.press('i');await page.getByRole('slider',{name:'Pozycja w źródle'}).fill('5');await page.locator('.source-viewer').focus();await page.keyboard.press('o');
  assert.equal(Number(await page.getByRole('spinbutton',{name:'Początek zakresu źródła'}).inputValue()),2);assert.equal(Number(await page.getByRole('spinbutton',{name:'Koniec zakresu źródła'}).inputValue()),5);await page.waitForFunction(()=>document.querySelector('.source-stage video')?.readyState>=2);await page.getByRole('button',{name:'Odtwórz źródło',exact:true}).click();await page.waitForFunction(()=>document.querySelector('.source-stage video')?.currentTime>.15);await page.getByRole('button',{name:'Wstrzymaj źródło',exact:true}).click();
  await page.getByRole('button',{name:'Dodaj zaznaczony fragment',exact:true}).click();await page.locator('.header-save').click();await page.waitForFunction(()=>document.querySelector('.header-save').dataset.saveStatus==='saved');const rangeProject17=JSON.parse(fs.readFileSync(projectPath,'utf8'));assert.equal(rangeProject17.clips.at(-1).sourceIn,2);assert.equal(rangeProject17.clips.at(-1).sourceOut,5);
@@ -184,6 +184,7 @@ try{
  console.log('Real native preview (portrait, Unicode paths, decoded pixels, play, pause, seek):',JSON.stringify(await state()));
  // Leave a real recovery copy for the forced process-restart test in PowerShell.
  await page.locator('.header-project-name').click();await page.getByRole('textbox',{name:'Nazwa projektu',exact:true}).fill('Przed awarią procesu 0.17');await page.keyboard.press('Enter');await waitSnapshotName('Przed awarią procesu 0.17');
+ await page.evaluate(()=>window.__TAURI_INTERNALS__.invoke('new_project'));
  assert.deepEqual(errors,[]);
 }catch(e){
  console.log('Native UI failure:',{url:page.url(),errors,body:(await page.locator('body').innerText().catch(()=>'' )).slice(0,6000)});throw e;
