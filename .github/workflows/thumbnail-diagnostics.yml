@@ -42,7 +42,9 @@ jobs:
         run: ./scripts/test-installer.ps1
       - name: Verify source I/O, crash recovery, future copies and editor interactions
         timeout-minutes: 8
-        run: ./scripts/test-webview.ps1
+        run: |
+          New-Item -ItemType Directory -Path .tools -Force | Out-Null
+          ./scripts/test-webview.ps1
       - uses: actions/upload-artifact@v4
         if: success()
         with:
