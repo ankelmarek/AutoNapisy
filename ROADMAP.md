@@ -1,5 +1,16 @@
 # Kolejne etapy RolVixa
 
+## Zatwierdzona paczka UX - uporządkowanie interfejsu
+
+**Zebrano i zamknięto uwagi użytkownika 18.10.2026.** Pełna, techniczna specyfikacja wraz z kryteriami testów: **[issue #4 - poprawki interfejsu](https://github.com/ankelmarek/AutoNapisy/issues/4)**. Nie wdrażać wszystkiego naraz i nie zakłócać prac nad silnikiem montażu.
+
+- **Etap A, najbliższe szybkie poprawki:** uprościć zakładkę napisów, usunąć zbędny tekst o zakresie montażu i o Whisperze w empty-state; dodać czytelne ikony Tabler do „Transkrybuj po polsku” i „Eksport SRT”, zachowując tekst; usunąć etykietę „MONTAŻ” na dolnej osi oraz stale wyświetlane objaśnienie V1/V2 i audio; do żółtego przycisku w nagłówku dopisać „Eksportuj”.
+- **Etap B, ważna ergonomia:** usunąć mylącą zakładkę/polecenie „Warstwy” i niedziałające „Dodaj warstwę” (bez usuwania warstw obrazu, transformacji i ukrywania torów); zachować kadrowanie pod „Film / audio”. Przerobić duże karty efektów na siatkę kompaktowych kwadratowych kafli, z dwoma obrazami demo i faktycznym, lekkim podglądem danego przejścia. Dodać bezpieczne, ograniczone przeciąganie granic paneli z zapisem układu lokalnie.
+- **Etap C, osobny moduł:** galeria **6 ostatnich projektów** po uruchomieniu RolVixa, z kartami i akcjami „Nowy” / „Otwórz”. Okno odzyskiwania po awarii z 0.17 ma pierwszeństwo; historia opiera się o bezpieczny, backendowy rejestr plików, bez przenoszenia mediów.
+- [ ] Przegląd layoutu i dostępności 1366×768 / Full HD, klawiatura, ARIA, brak regresji MLT, transkrypcji, SRT, MP4 oraz save/recovery.
+
+**Pozycja w planie:** małe poprawki A wykonać przy najbliższej bezpiecznej okazji; większe B i C w oddzielnych przetestowanych aktualizacjach. **Nie zmienia to przyjętej kolejności dużych etapów: Ripple/J/L-cut przed V3/A3.**
+
 ## Wykonane w 0.17 — odzyskiwanie i podgląd źródła/I/O
 
 Użytkownik połączył punkty 9 oraz 1+2 w jedną wersję. Wdrożono:
