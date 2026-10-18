@@ -19,6 +19,7 @@ pub struct ProjectState {
     recovery: Mutex<Option<Result<crate::recovery::Store, String>>>,
     pending_recovery: AtomicBool,
     manual_origin: Mutex<Option<String>>,
+    history_warning: Mutex<String>,
 }
 struct Operation<'a>(&'a AtomicBool);
 impl Drop for Operation<'_> {
@@ -59,6 +60,21 @@ impl ProjectState {
         *self.manual_origin.lock().map_err(|_| "Błąd sesji")? = None;
         Ok(())
     }
+    fn no_pending_recovery(&self) -> Result<(), String> {
+        if self.pending_recovery.load(Ordering::Acquire) {
+            return Err("Najpierw wybierz sposób odzyskania poprzedniej sesji".into());
+        }
+        Ok(())
+    }
+    fn remember(&self, app: &tauri::AppHandle, target: &Target, name: &str) {
+        let warning = recent_store(app)
+            .and_then(|store| store.record(target, name))
+            .err()
+            .unwrap_or_default();
+        if let Ok(mut slot) = self.history_warning.lock() {
+            *slot = warning;
+        }
+    }
     fn operation(&self) -> Result<Operation<'_>, String> {
         self.busy
             .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
@@ -75,6 +91,7 @@ pub struct Opened {
 #[tauri::command]
 pub fn new_project(state: State<'_, ProjectState>) -> Result<u64, String> {
     let _op = state.operation()?;
+    state.no_pending_recovery()?;
     state.retire()?;
     Ok(state
         .session
@@ -86,8 +103,10 @@ pub fn new_project(state: State<'_, ProjectState>) -> Result<u64, String> {
 pub async fn open_project(
     state: State<'_, ProjectState>,
     access: State<'_, Access>,
+    app: tauri::AppHandle,
 ) -> Result<Option<Opened>, String> {
     let _op = state.operation()?;
+    state.no_pending_recovery()?;
     let path = if let Some(path) = fixture() {
         path
     } else {
@@ -100,18 +119,28 @@ pub async fn open_project(
         };
         f.path().to_path_buf()
     };
-    let target = Target::selected(&path)?;
+    accept_target(Target::selected(&path)?, &state, &access, &app).map(Some)
+}
+fn accept_target(
+    target: Target,
+    state: &ProjectState,
+    access: &Access,
+    app: &tauri::AppHandle,
+) -> Result<Opened, String> {
     let json = target.read()?;
     let p = crate::project::parse(&json)?;
     let path = path_string(target.path())?;
-    for path in p
-        .media
-        .iter()
-        .map(|m| m.path.as_str())
-        .chain(p.assets.iter().map(|a| a.path.as_str()))
     {
-        if let Ok(path) = media_path(std::path::Path::new(path)) {
-            access.0.lock().map_err(|_| "Błąd uprawnień")?.insert(path);
+        let mut allowed = access.0.lock().map_err(|_| "Błąd uprawnień")?;
+        for path in p
+            .media
+            .iter()
+            .map(|m| m.path.as_str())
+            .chain(p.assets.iter().map(|a| a.path.as_str()))
+        {
+            if let Ok(path) = media_path(std::path::Path::new(path)) {
+                allowed.insert(path);
+            }
         }
     }
     state.retire()?;
@@ -119,13 +148,15 @@ pub async fn open_project(
         .session
         .lock()
         .map_err(|_| "Błąd sesji projektu")?
-        .reset(Some(target));
-    Ok(Some(Opened {
+        .reset(Some(target.clone()));
+    state.remember(app, &target, &p.name);
+    Ok(Opened {
         json,
         path,
         session,
-    }))
+    })
 }
+
 fn fixture() -> Option<PathBuf> {
     #[cfg(feature = "ui-tests")]
     {
@@ -141,6 +172,7 @@ pub async fn save_project(
     json: String,
     session: u64,
     save_as: bool,
+    app: tauri::AppHandle,
     state: State<'_, ProjectState>,
 ) -> Result<Option<String>, String> {
     let _op = state.operation()?;
@@ -186,7 +218,9 @@ pub async fn save_project(
     target.write(&json)?;
     let mut s = state.session.lock().map_err(|_| "Błąd sesji projektu")?;
     s.check(session)?;
-    s.target = Some(target);
+    s.target = Some(target.clone());
+    drop(s);
+    state.remember(&app, &target, &project.name);
     Ok(Some(path))
 }
 
@@ -375,6 +409,9 @@ pub async fn resolve_recovery(
         if action == "saved" {
             state.store(&app, |store| store.clear())?;
         }
+        if let Some(t) = target.as_ref() {
+            state.remember(&app, t, &p.name);
+        }
         let session = state
             .session
             .lock()
@@ -391,6 +428,87 @@ pub async fn resolve_recovery(
             path,
             session,
         }))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+fn recent_store(app: &tauri::AppHandle) -> Result<crate::recent_projects::Store, String> {
+    let root = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?
+        .join("recent-v1");
+    #[cfg(feature = "ui-tests")]
+    let root = std::env::var_os("ROLVIXA_TEST_HISTORY")
+        .map(PathBuf::from)
+        .unwrap_or(root);
+    Ok(crate::recent_projects::Store::new(root))
+}
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecentList {
+    entries: Vec<crate::recent_projects::Entry>,
+    show_on_startup: bool,
+    warning: String,
+}
+#[tauri::command]
+pub async fn recent_projects(app: tauri::AppHandle) -> Result<RecentList, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<ProjectState>();
+        match recent_store(&app).and_then(|s| s.list()) {
+            Ok(c) => Ok(RecentList {
+                entries: c.entries,
+                show_on_startup: c.show_on_startup,
+                warning: state
+                    .history_warning
+                    .lock()
+                    .map_err(|_| "Błąd historii")?
+                    .clone(),
+            }),
+            Err(e) => Ok(RecentList {
+                entries: vec![],
+                show_on_startup: true,
+                warning: e,
+            }),
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+#[tauri::command]
+pub async fn open_recent_project(id: String, app: tauri::AppHandle) -> Result<Opened, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<ProjectState>();
+        let _op = state.operation()?;
+        state.no_pending_recovery()?;
+        let target = recent_store(&app)?.target(&id)?;
+        accept_target(target, &state, &app.state::<Access>(), &app)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+#[tauri::command]
+pub async fn remove_recent_project(id: String, app: tauri::AppHandle) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || recent_store(&app)?.remove(&id))
+        .await
+        .map_err(|e| e.to_string())?
+}
+#[tauri::command]
+pub async fn set_startup_screen(enabled: bool, app: tauri::AppHandle) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || recent_store(&app)?.preference(enabled))
+        .await
+        .map_err(|e| e.to_string())?
+}
+#[tauri::command]
+pub async fn clear_recent_projects(app: tauri::AppHandle) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        recent_store(&app)?.clear()?;
+        *app.state::<ProjectState>()
+            .history_warning
+            .lock()
+            .map_err(|_| "Błąd historii")? = String::new();
+        Ok(())
     })
     .await
     .map_err(|e| e.to_string())?

@@ -3,6 +3,18 @@
 **Instalator 0.20:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39122531200/artifacts/12134394783), rozpakuj i uruchom `RolVixa_0.20.0_x64-setup.exe`. Pobranie z Actions wymaga zalogowania na GitHub.
 RolVixa (wcześniej AutoNapisy) to lokalna aplikacja Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Rozpoznaje polską mowę przez whisper.cpp, bez tłumaczenia. Transkrypcja i montaż działają na komputerze. Opcjonalna biblioteka muzyki łączy się z Openverse po wpisaniu frazy wyszukiwania; nie wysyła nagrań użytkownika.
 
+## Wersja 0.21 — ekran startowy i ostatnie projekty, UX C
+
+Implementacja gotowa; odbiór Windows i nowy instalator w przygotowaniu. Powyższy link prowadzi na razie do sprawdzonej wersji 0.20.
+
+Po uruchomieniu wybierz **Nowy projekt**, **Otwórz projekt** lub jedną z maksymalnie **6 kart ostatnich projektów**. Karty pokazują nazwę, ścieżkę i datę ostatniego otwarcia lub zapisu. Kliknięcie albo Enter otwiera projekt. Krzyżyk usuwa wyłącznie wpis z historii. Brakujący lub niepoprawny plik wyświetla błąd bez zastępowania bieżącego montażu. Historię można ponownie otworzyć z **Projekt → Ostatnie projekty**, a checkbox **Pokazuj przy uruchomieniu** zapamiętuje preferencję. **Wróć do montażu** zachowuje aktywny projekt i jego Undo.
+
+Odzyskiwanie po awarii ma pierwszeństwo przed galerią. Spóźniona odpowiedź historii nie zastępuje odzyskanego ani nowo otwartego projektu. Historia aktualizuje się dopiero po udanym ręcznym otwarciu, zapisie lub „Zapisz jako”; autozapis nie dopisuje kopii odzyskiwania. Błąd historii nie zmienia powodzenia zapisu projektu i jest pokazywany osobno. Uszkodzony lub nowszy rejestr czeka na wyraźne **Wyczyść historię**; czyszczenie nie usuwa projektów ani mediów.
+
+Rejestr `recent-v1/projects.json` znajduje się w katalogu danych aplikacji, poza projektem: ograniczenie rozmiaru, blokada systemowa i atomowa zamiana pliku. Frontend otwiera wpis przez identyfikator nadany przez backend; nie przekazuje dowolnej ścieżki do otwarcia. Schemat projektu pozostaje **v10**, bez migracji. Karty mają graficzne symbole Tabler, ponieważ aplikacja nie ma jeszcze bezpiecznego cache miniatur projektów; nie renderują filmu ani nie odczytują go podczas wyświetlania historii. Dynamiczne V3/A3 pozostają następnym osobnym etapem.
+
+Nowe pliki: `src/StartScreen.tsx`, `src/recentProjects.ts`, `src-tauri/src/recent_projects.rs`, `scripts/test-start021.mjs`, `scripts/test-recent-native.mjs`. Integracja obejmuje App, komendy projektu, style, testy odzyskiwania i workflow Windows.
+
 ## Wersja 0.20 — regulowany układ i galeria przejść, UX B
 
 Przeciągnij granicę między biblioteką, podglądem i właściwościami, aby zmienić ich szerokości. Poziomy uchwyt nad osią ustawia jej wysokość. Każdy uchwyt obsługuje strzałki (Shift: większy krok), Home/End, Enter i dwuklik przywracające domyślny rozmiar; Escape anuluje aktywne przeciąganie. Minimalne rozmiary chronią podgląd i kontrolki. Przy niskiej osi tory przewijają się wspólnie z nagłówkami. Układ jest zapamiętywany lokalnie, poza JSON-em projektu i historią Undo; dopasowuje się do mniejszego okna.

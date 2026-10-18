@@ -49,3 +49,6 @@ pub mod recovery;
 
 #[path="../../src-tauri/src/source_preview.rs"]
 pub mod source_preview;
+
+#[path="../../src-tauri/src/recent_projects.rs"]
+pub mod recent_projects;

@@ -1,5 +1,6 @@
 // Real installed app, real native commands, real MLT, incremental file reads and MSE.
 // Only the OS project dialog is replaced in the separately compiled ui-tests binary.
+import {testRecentNative} from './test-recent-native.mjs';
 import {chromium} from 'playwright-core';
 import {execFileSync} from 'node:child_process';
 import fs from 'node:fs';
@@ -25,10 +26,9 @@ try{
  // CDP can be ready before Tauri performs its first navigation. Reloading
  // about:blank here cancels startup, leaving a healthy app with an empty test page.
  await page.waitForURL(/tauri\.localhost|^tauri:/,{timeout:45000});
- await page.waitForSelector('.project-menu summary');
+ await page.getByRole('main',{name:'Ekran startowy',exact:true}).waitFor();
  await page.reload();
- await page.locator('.project-menu summary').click();
- await page.locator('.project-menu-popup').getByRole('button',{name:'Otwórz',exact:true}).click();
+ await page.getByRole('main',{name:'Ekran startowy',exact:true}).getByRole('button',{name:'Otwórz projekt',exact:true}).click();
  await page.waitForSelector('.edit-clip');
  const state=()=>page.locator('video.mlt-video').evaluate(v=>({src:v.currentSrc,ready:v.readyState,network:v.networkState,time:v.currentTime,paused:v.paused,error:v.error&&{code:v.error.code,message:v.error.message},buffer:Array.from({length:v.buffered.length},(_,i)=>[v.buffered.start(i),v.buffered.end(i)])}));
  try{await page.waitForFunction(()=>document.querySelector('video.mlt-video')?.readyState>=2,{},{timeout:45000});}
@@ -203,6 +203,7 @@ try{
  await page.getByRole('tab',{name:'Napisy',exact:true}).click();const srtActions19=page.getByRole('group',{name:'Tworzenie i eksport napisów',exact:true});await srtActions19.getByRole('button',{name:'Eksport SRT',exact:true}).focus();await page.keyboard.press('Enter');
  const srtPath19=projectPath.replace(/\.json$/i,'.srt');for(let n=0;n<100&&!fs.existsSync(srtPath19);n++)await page.waitForTimeout(100);assert(fs.existsSync(srtPath19),'Native SRT export did not write the selected file');const srtBytes19=fs.readFileSync(srtPath19,'utf8');assert(srtBytes19.includes('Zażółć gęślą'));assert(srtBytes19.includes('00:00:01,250 --> 00:00:02,500'));await page.waitForFunction(()=>!document.querySelector('.header-project-name').disabled);
  assert.equal((await page.locator('.header-export').innerText()).trim(),'Eksportuj');await page.screenshot({path:'.tools/native-ux019.png'});console.log('Real 0.19 SRT: empty source transcript, montage captions, keyboard activation, Unicode and actual atomically saved file: OK');
+ await testRecentNative(page);
  // Leave a real recovery copy for the forced process-restart test in PowerShell.
  await page.locator('.header-project-name').click();await page.getByRole('textbox',{name:'Nazwa projektu',exact:true}).fill('Przed awarią procesu 0.17');await page.keyboard.press('Enter');await waitSnapshotName('Przed awarią procesu 0.17');
  assert.deepEqual(errors,[]);

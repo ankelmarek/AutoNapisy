@@ -39,6 +39,8 @@ import { useProjectHistory } from "./useHistory";
 import FrameEditor from './FrameEditor';
 import TransformControls from './TransformControls';
 import EditorWorkspace from './EditorWorkspace';
+import StartScreen from './StartScreen';
+import {useRecentProjects} from './recentProjects';
 import { useMltPlayback } from "./useMltPlayback";
 import {useVideoProxies} from './useVideoProxies';
 import {useSafeZones,SafeZoneControls,SafeZoneOverlay} from './SafeZones';
@@ -92,6 +94,11 @@ export default function App() {
   const [,refreshRecovery]=useReducer((n:number)=>n+1,0),recoveryRef=useRef<RecoveryWriter|null>(null);
   if(!recoveryRef.current)recoveryRef.current=new RecoveryWriter(async r=>{if(r.json===null){await invoke('clear_recovery',{session:r.session});return null;}return invoke<number>('write_recovery',{json:r.json,session:r.session});},refreshRecovery);
   const recovery=recoveryRef.current;
+  const recent=useRecentProjects();
+  const [homeMode,setHomeMode]=useState<'startup'|'initial'|'manual'|'closed'>('startup'),[startError,setStartError]=useState('');
+  const homeVisible=recoveryReady&&!recoveryInfo&&homeMode!=='closed';
+  useEffect(()=>{if(recoveryReady&&!recoveryInfo&&homeMode!=='closed'&&!recent.ready)void recent.refresh();},[recoveryReady,recoveryInfo,homeMode]);
+  useEffect(()=>{if(homeMode==='startup'&&recoveryReady&&!recoveryInfo&&recent.ready)setHomeMode(recent.showOnStartup?'initial':'closed');},[homeMode,recoveryReady,recoveryInfo,recent.ready]);
   const [timelineModal,setTimelineModal]=useState(false);
   const locked = timelineModal || busy || transcribing || exporting || !recoveryReady || !!recoveryInfo;
   useEffect(()=>{let alive=true;startup.current??=invoke<RecoveryInfo>('recovery_status');void startup.current.then(info=>{if(!alive)return;saver.accept(latestProject.current,'',info.session);if(info.available)setRecoveryInfo(info);if(info.warning){if(info.available)setRecoveryError(info.warning);else setMessage('Odzyskiwanie: '+info.warning);}setRecoveryReady(true);}).catch(e=>{if(alive){setRecoveryError(String(e));setRecoveryReady(true);}});return()=>{alive=false;};},[]);
@@ -137,7 +144,7 @@ export default function App() {
   const chosenSourceRange=useMemo(()=>{if(!sourceViewerItem)return null;try{return sourceRange(sourceViewerItem.duration!,sourceRanges.current.get(sourceViewerItem.path));}catch{return sourceRange(sourceViewerItem.duration!);}},[sourceViewerItem?.path,sourceViewerItem?.duration,sourceRangeRevision]);
   const viewSource=(id:string)=>{playback.pause();setSourceViewerId(id);};
   const proxies=useVideoProxies(project,sources),safeZones=useSafeZones();
-  const playback = useMltPlayback(project,proxies.revision,!sourceViewerItem);
+  const playback = useMltPlayback(project,proxies.revision,!sourceViewerItem&&!homeVisible);
   useEffect(()=>{if(playback.error&&proxies.active)void proxies.fallback();},[playback.error,proxies.revision]);
   const {time,playing,seek} = playback;
   const toggle=playback.toggle;
@@ -155,11 +162,11 @@ export default function App() {
   const redo = () => {playback.pause();history.redo();};
   useEffect(()=>{
     const key=(e:KeyboardEvent)=>{
-      if(locked || !(e.ctrlKey||e.metaKey) || (e.target instanceof HTMLElement && (e.target.isContentEditable || ['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))))return;
+      if(locked || homeVisible || !(e.ctrlKey||e.metaKey) || (e.target instanceof HTMLElement && (e.target.isContentEditable || ['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))))return;
       if(e.key.toLowerCase()==='z'){e.preventDefault();if(e.shiftKey)redo();else undo();}
       if(e.key.toLowerCase()==='y'){e.preventDefault();redo();}
     };window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key);
-  },[locked,history.canUndo,history.canRedo]);
+  },[locked,homeVisible,history.canUndo,history.canRedo]);
   useEffect(()=>{if(playback.error)setMessage(playback.error);},[playback.error]);
   const run = async (fn: () => Promise<void>) => {
     setBusy(true);
@@ -191,36 +198,28 @@ export default function App() {
   });
   const registerAudio=(item:LibraryAudio)=>{const next=registerMedia(latestProject.current,{path:item.path,name:item.name,duration:item.duration,provenance:item.provenance},'audio');if(next!==latestProject.current){latestProject.current=next;changeProject(next);}setSources(prev=>({...prev,[item.path]:convertFileSrc(item.path)}));return libraryItems(next).find(a=>a.path===item.path)!.id;};
   const importVideo=()=>importMedia('video');
-  const open = () =>
-    run(async () => {
+  const open = (id?:string) => run(async () => {
       if (saver.saving || !replace()) return;
-      recovery.update(null);try{await recovery.flush();}catch{}
-      const result = await backend.open();
-      if (!result) {resumeRecovery();return;}
-      const p = parseProject(result.json);
-      let url = "";const prepared:Record<string,string>={};const missing:string[]=[];
-      for(const m of [...(p.media?[p.media]:[]),...p.assets]){
-        try{prepared[m.path]=await preview.prepare(m.path);url ||= prepared[m.path];}catch{missing.push(m.name);}
-      }
-      setSources(prepared);
-      setSourceViewerId('');sourceRanges.current.clear();
-      resetPlayback();
-      history.reset(p);
-      recovered.current=false;
-      saver.accept(p,result.path,result.session);
-      setSource(url);
-      
-      setMessage(missing.length?`Projekt otwarty. Niedostępne pliki: ${missing.join(", ")}`:"Projekt otwarty.");
+      setStartError('');recovery.update(null);try{await recovery.flush();}catch{}
+      try{
+        const result=id?await invoke<{json:string;path:string;session:number}>('open_recent_project',{id}):await backend.open();
+        if(!result)return;
+        const p=parseProject(result.json),prepared:Record<string,string>={},missing:string[]=[];
+        for(const m of [...(p.media?[p.media]:[]),...p.assets]){try{prepared[m.path]=await preview.prepare(m.path);}catch{missing.push(m.name);}}
+        setSources(prepared);setSourceViewerId('');sourceRanges.current.clear();resetPlayback();latestProject.current=p;history.reset(p);recovered.current=false;saver.accept(p,result.path,result.session);setSource(Object.values(prepared)[0]??'');setHomeMode('closed');
+        void recent.refresh();setMessage(missing.length?`Projekt otwarty. Niedostępne pliki: ${missing.join(', ')}`:'Projekt otwarty.');
+      }catch(e){setStartError(String(e));throw e;}finally{resumeRecovery();}
     });
+  const showRecent=()=>{playback.pause();setSourceViewerId('');setStartError('');setHomeMode('manual');if(recent.ready)void recent.refresh();};
   const createNew=()=>run(async()=>{
     if(saver.saving||!replace())return;
     recovery.update(null);try{await recovery.flush();}catch{}const session=await backend.newProject();const p=newProject();
-    setSourceViewerId('');sourceRanges.current.clear();recovered.current=false;resetPlayback();history.reset(p);pristineRevision.current=projectRevision(p);saver.accept(p,'',session);setSource('');setSources({});
+    setSourceViewerId('');sourceRanges.current.clear();recovered.current=false;resetPlayback();latestProject.current=p;history.reset(p);pristineRevision.current=projectRevision(p);saver.accept(p,'',session);setSource('');setSources({});setHomeMode('closed');setStartError('');
   });
   const save=async(saveAs=false)=>{
     if(saver.saving)return;
     if(titleEditor.current&&!titleEditor.current.commit())return;
-    try{recovery.update(null);try{await recovery.flush();}catch{}const path=await saver.save(latestProject.current,saveAs);if(path){recovered.current=false;setMessage(`Zapisano projekt: ${path}`);}}
+    try{recovery.update(null);try{await recovery.flush();}catch{}const path=await saver.save(latestProject.current,saveAs);if(path){recovered.current=false;void recent.refresh();setMessage(`Zapisano projekt: ${path}`);}}
     catch(e){setMessage(`Błąd zapisu: ${e instanceof Error?e.message:String(e)} Użyj „Zapisz jako”, aby zapisać kopię.`);}
     finally{resumeRecovery();}
   };
@@ -231,7 +230,8 @@ export default function App() {
       if(result){
         const p=parseProject(result.json),prepared:Record<string,string>={},missing:string[]=[];
         for(const m of [...(p.media?[p.media]:[]),...p.assets]){try{prepared[m.path]=await preview.prepare(m.path);}catch{missing.push(m.name);}}
-        setSourceViewerId('');sourceRanges.current.clear();resetPlayback();history.reset(p);pristineRevision.current=projectRevision(p);recovered.current=action==='recover';saver.accept(p,result.path,result.session);setSources(prepared);setSource(Object.values(prepared)[0]??'');
+        setSourceViewerId('');sourceRanges.current.clear();resetPlayback();latestProject.current=p;history.reset(p);pristineRevision.current=projectRevision(p);recovered.current=action==='recover';setHomeMode('closed');saver.accept(p,result.path,result.session);setSources(prepared);setSource(Object.values(prepared)[0]??'');
+        if(action==='saved')void recent.refresh();
         setMessage(`${action==='recover'?'Odzyskano projekt. Zapisz go jako nowy plik.':'Otworzono zapisany projekt.'}${missing.length?' Niedostępne pliki: '+missing.join(', '):''}`);
       }else setMessage('Odrzucono kopię odzyskiwania.');
       setRecoveryInfo(null);
@@ -327,13 +327,14 @@ export default function App() {
   useEffect(()=>{
     const handler=(e:KeyboardEvent)=>{
       if(locked)return;const el=e.target as HTMLElement,text=el?.isContentEditable||el?.tagName==='TEXTAREA'||(el?.tagName==='INPUT'&&['text','search',''].includes((el as HTMLInputElement).type));
+      if(homeVisible){if(e.ctrlKey||e.metaKey){if(e.key.toLowerCase()==='n'){e.preventDefault();void createNew();}else if(e.key.toLowerCase()==='o'){e.preventDefault();void open();}else if(e.key.toLowerCase()==='s')e.preventDefault();}return;}
       if(e.code==='Space'&&(!text||e.ctrlKey)){if(sourceViewerItem){sourceKeys.current?.(e);return;}e.preventDefault();toggle();return;}
       if(e.ctrlKey||e.metaKey){if(e.key.toLowerCase()==='s'){e.preventDefault();void save(e.shiftKey);return;}if(e.key.toLowerCase()==='o'){e.preventDefault();void open();return;}if(e.key.toLowerCase()==='i'){e.preventDefault();if(e.shiftKey)void importMedia('audio');else void importVideo();return;}if(e.key.toLowerCase()==='n'){e.preventDefault();void createNew();return;}}
       if(text||['INPUT','SELECT'].includes(el?.tagName))return;
       if(sourceViewerItem){sourceKeys.current?.(e);return;}
       if(e.key==='Home'){e.preventDefault();seek(0);}else if(e.key==='End'){e.preventDefault();seek(duration);}else if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();seek(time+(e.key==='ArrowLeft'?-1:1)*(e.shiftKey?1:1/30));}
     };window.addEventListener('keydown',handler);return()=>window.removeEventListener('keydown',handler);
-  },[locked,project,time,playing,saveState,sourceViewerItem?.id]);
+  },[locked,homeVisible,project,time,playing,saveState,sourceViewerItem?.id]);
   const style = project.styles.default;
   const updateStyle = (patch: Partial<typeof style>) => {
     setProject((p) => ({
@@ -343,7 +344,9 @@ export default function App() {
     
   };
   return (
-    <div className="app">
+    <div className="app" data-startup-ready={recoveryReady&&(!!recoveryInfo||homeMode!=='startup')}>
+      {homeVisible&&<StartScreen recent={recent} busy={busy||saving} error={startError} canReturn={homeMode==='manual'} onNew={()=>void createNew()} onOpen={()=>void open()} onRecent={id=>void open(id)} onDismiss={()=>setStartError('')} onReturn={()=>setHomeMode('closed')}/>}
+      <div className="editor-ui" hidden={homeVisible} inert={homeVisible||!recoveryReady||!!recoveryInfo||undefined}>
       <header>
         <div className="brand">
           <img className="brand-icon" src={rolvixaIcon} alt=""/>
@@ -353,7 +356,8 @@ export default function App() {
         </div>
         <ProjectMenu actions={[
           {label:'Nowy',keys:'Ctrl+N',disabled:locked||saving,run:()=>void createNew()},
-          {label:'Otwórz',keys:'Ctrl+O',disabled:locked||saving,run:open},
+          {label:'Otwórz',keys:'Ctrl+O',disabled:locked||saving,run:()=>void open()},
+          {label:'Ostatnie projekty',disabled:locked||saving,run:showRecent},
           {label:'Zapisz',keys:'Ctrl+S',disabled:locked||saving,run:()=>void save()},
           {label:'Zapisz jako…',keys:'Ctrl+Shift+S',disabled:locked||saving,run:()=>void save(true)},
           {label:'Importuj filmy',keys:'Ctrl+I',disabled:locked,run:importVideo},
@@ -715,7 +719,7 @@ export default function App() {
             </div>
           </div>
         </section>
-      <Timeline project={project} time={time} locked={locked||settings} onPreviewOpen={setTimelineModal} onError={setMessage} onSeek={t=>{setSourceViewerId('');seek(t);}}
+      <Timeline project={project} time={time} locked={locked||settings||homeVisible} onPreviewOpen={setTimelineModal} onError={setMessage} onSeek={t=>{setSourceViewerId('');seek(t);}}
         onChange={(clips,mode)=>{if(mode!=='volume')playback.pause();changeProject({...latestProject.current,clips,transitions:reconcileTransitions(latestProject.current,clips)});}} onPreviewVolume={playback.previewVolume} onBeginAudio={playback.pause} onSelect={id=>{setSelectedClip(id);setSelectedTransition('');setInspectorTab('video');}} onCaptionSelect={selectCaption}
         onMediaDrop={(id,at,track,range)=>{try{playback.pause();setSourceViewerId('');changeProject(insertLibraryItem(latestProject.current,id,at,track,range));setMessage('Dodano plik na oś czasu.');}catch(e){setMessage(String(e));}}}
         onCaptionChange={p=>changeProject(p)} effectChoice={effectChoice} onTransition={(a,b,choice)=>{try{playback.pause();const next=applyTransition(project,a,b,choice.kind,choice.duration);changeProject(next);setSelectedTransition(next.transitions.find(t=>t.toId===b)!.id);setInspectorTab('video');}catch(e){setMessage(String(e));}}} onTransitionSelect={id=>{setSelectedTransition(id);setInspectorTab('video');}}
@@ -725,7 +729,9 @@ export default function App() {
         <span>{busy ? "Przetwarzanie…" : message}</span>
         <span className={`recovery-status ${recovery.error||recoveryError?'failed':''}`} title={recovery.error||recoveryError||'Kopia odzyskiwania jest oddzielona od ręcznego zapisu'} role="status">{recovery.error||recoveryError?'Błąd kopii odzyskiwania':recovery.writing?'Zapisywanie kopii…':recovery.capturedAt?'Kopia odzyskiwania · '+new Date(recovery.capturedAt).toLocaleTimeString('pl-PL'):''}</span>
 
+        {recent.warning&&<span className="recent-editor-warning" title={recent.warning}>Historia projektów: {recent.warning}</span>}
       </footer>
+      </div>
       {recoveryInfo&&<RecoveryDialog info={recoveryInfo} busy={busy} error={recoveryError} onChoose={resolveRecovery}/>}
       {settings && (
         <div className="overlay" onKeyDown={e=>{e.stopPropagation();if(e.key==='Escape'){e.preventDefault();setSettings(false);}if(e.key==='Tab'){const items=Array.from(e.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),summary')).filter(el=>el.getClientRects().length);const first=items[0],last=items[items.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}}}>
