@@ -721,7 +721,7 @@ export default function App() {
         </section>
       <Timeline project={project} time={time} locked={locked||settings||homeVisible} onPreviewOpen={setTimelineModal} onError={setMessage} onSeek={t=>{setSourceViewerId('');seek(t);}}
         onChange={(clips,mode)=>{if(mode!=='volume')playback.pause();changeProject({...latestProject.current,clips,transitions:reconcileTransitions(latestProject.current,clips)});}} onPreviewVolume={playback.previewVolume} onBeginAudio={playback.pause} onSelect={id=>{setSelectedClip(id);setSelectedTransition('');setInspectorTab('video');}} onCaptionSelect={selectCaption}
-        onMediaDrop={(id,at,track,range)=>{try{playback.pause();setSourceViewerId('');changeProject(insertLibraryItem(latestProject.current,id,at,track,range));setMessage('Dodano plik na oś czasu.');}catch(e){setMessage(String(e));}}}
+        onMediaDrop={(id,at,track,range,kind)=>{try{playback.pause();setSourceViewerId('');changeProject(insertLibraryItem(latestProject.current,id,at,track,range,kind));setMessage('Dodano plik na oś czasu.');}catch(e){setMessage(String(e));}}}
         onCaptionChange={p=>changeProject(p)} effectChoice={effectChoice} onTransition={(a,b,choice)=>{try{playback.pause();const next=applyTransition(project,a,b,choice.kind,choice.duration);changeProject(next);setSelectedTransition(next.transitions.find(t=>t.toId===b)!.id);setInspectorTab('video');}catch(e){setMessage(String(e));}}} onTransitionSelect={id=>{setSelectedTransition(id);setInspectorTab('video');}}
         undo={undo} redo={redo} canUndo={history.canUndo} canRedo={history.canRedo}/>
       </EditorWorkspace>

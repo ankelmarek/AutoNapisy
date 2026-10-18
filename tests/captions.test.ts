@@ -1,3 +1,4 @@
+import {legacyFixture} from './legacyFixture';
 import { describe, it, expect } from "vitest";
 import {
   captionCards,
@@ -110,8 +111,8 @@ describe("migracja i geometria", () => {
         },
       },
     };
-    const migrated = parseProject(JSON.stringify(old));
-    expect(migrated.schemaVersion).toBe(10);
+    const migrated = parseProject(JSON.stringify(legacyFixture(old)));
+    expect(migrated.schemaVersion).toBe(11);
     expect(migrated.styles.default.uppercase).toBe(false);
     expect(migrated.styles.default.fontFamily).toBe("Arial");
     expect(parseProject(serializeProject(migrated))).toEqual({

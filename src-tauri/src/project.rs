@@ -10,6 +10,8 @@ pub struct Project {
     pub canvas: Option<Canvas>,
     #[serde(default)]
     pub tracks: TrackControls,
+    #[serde(default = "default_track_layout")]
+    pub track_layout: Vec<TrackDescriptor>,
     #[serde(default)]
     pub clips: Option<Vec<Clip>>,
     pub name: String,
@@ -64,8 +66,27 @@ pub struct TrackState {
     #[serde(default = "auto_ripple")]
     pub ripple: String,
 }
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub const MAX_TRACKS: u8 = 16;
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct TrackDescriptor {
+    pub id: String,
+    pub kind: String,
+    pub index: u8,
+}
+pub fn default_track_layout() -> Vec<TrackDescriptor> {
+    ["video", "audio"]
+        .into_iter()
+        .flat_map(|kind| {
+            (0..2).map(move |index| TrackDescriptor {
+                id: format!("{}{}", if kind == "video" { "V" } else { "A" }, index + 1),
+                kind: kind.into(),
+                index,
+            })
+        })
+        .collect()
+}
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct TrackControls {
     #[serde(rename = "V1", default)]
     pub v1: TrackState,
@@ -77,6 +98,8 @@ pub struct TrackControls {
     pub a2: TrackState,
     #[serde(rename = "T", default)]
     pub captions: TrackState,
+    #[serde(flatten)]
+    pub extra: HashMap<String, TrackState>,
 }
 impl Default for TrackState {
     fn default() -> Self {
@@ -92,27 +115,32 @@ fn auto_ripple() -> String {
     "auto".into()
 }
 impl TrackControls {
+    pub fn state(&self, id: &str) -> Option<&TrackState> {
+        match id {
+            "V1" => Some(&self.v1),
+            "V2" => Some(&self.v2),
+            "A1" => Some(&self.a1),
+            "A2" => Some(&self.a2),
+            "T" => Some(&self.captions),
+            _ => self.extra.get(id),
+        }
+    }
     pub fn video_hidden(&self, c: &Clip) -> bool {
         c.kind != "audio"
-            && if c.track == 0 {
-                self.v1.hidden
-            } else {
-                self.v2.hidden
-            }
+            && self
+                .state(&format!("V{}", c.track as u16 + 1))
+                .is_some_and(|s| s.hidden)
     }
     pub fn audio_muted(&self, c: &Clip) -> bool {
         c.audio_detached
-            || (if c.track == 0 {
-                self.a1.muted
-            } else {
-                self.a2.muted
+            || c.audio_lane().is_some_and(|lane| {
+                self.state(&format!("A{}", lane as u16 + 1))
+                    .is_some_and(|s| s.muted)
             })
             || (c.kind != "audio"
-                && if c.track == 0 {
-                    self.v1.muted
-                } else {
-                    self.v2.muted
-                })
+                && self
+                    .state(&format!("V{}", c.track as u16 + 1))
+                    .is_some_and(|s| s.muted))
     }
 }
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -126,6 +154,8 @@ pub struct Clip {
     pub asset_id: Option<String>,
     #[serde(default)]
     pub track: u8,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub audio_route: Option<String>,
     #[serde(default = "video_kind")]
     pub kind: String,
     #[serde(default = "unit_volume")]
@@ -239,6 +269,19 @@ pub struct Transition {
     pub duration: f64,
 }
 impl Clip {
+    pub fn audio_lane(&self) -> Option<u8> {
+        if self.kind == "audio" {
+            return Some(self.track);
+        }
+        match self.audio_route.as_deref() {
+            Some("embedded") => None,
+            Some(id) => id
+                .strip_prefix('A')
+                .and_then(|n| n.parse::<u8>().ok())
+                .and_then(|n| n.checked_sub(1)),
+            None => (self.track < 2).then_some(self.track),
+        }
+    }
     pub fn end(&self) -> f64 {
         self.start + self.source_out - self.source_in
     }
@@ -328,9 +371,13 @@ pub fn parse(json: &str) -> Result<Project, String> {
     {
         return Err("Brak listy ujęć w projekcie v3".into());
     }
+    let legacy = raw["schemaVersion"].as_u64().is_some_and(|v| v <= 10);
+    if legacy && raw.get("trackLayout").is_some() {
+        return Err("Starszy projekt nie może definiować nowych ścieżek".into());
+    }
     let mut p: Project =
         serde_json::from_value(raw).map_err(|e| format!("Niepoprawny JSON projektu: {e}"))?;
-    if ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10].contains(&p.schema_version) {
+    if ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].contains(&p.schema_version) {
         return Err("Nieobsługiwana wersja projektu".into());
     }
     if p.schema_version < 3 {
@@ -365,14 +412,55 @@ pub fn parse(json: &str) -> Result<Project, String> {
     if p.schema_version < 10 {
         p.ripple_enabled = false;
     }
-    p.schema_version = 10;
+    if legacy {
+        if !p.tracks.extra.is_empty()
+            || p.clips
+                .as_deref()
+                .unwrap_or(&[])
+                .iter()
+                .any(|c| c.track > 1 || c.audio_route.is_some())
+        {
+            return Err("Nieprawidłowe ścieżki starszego projektu".into());
+        }
+        p.track_layout = default_track_layout();
+        for c in p.clips.as_deref_mut().unwrap_or(&mut []) {
+            if c.kind != "audio" {
+                c.audio_route = Some(format!("A{}", c.track + 1));
+            }
+        }
+    }
+    p.schema_version = 11;
+    let mut track_ids = HashSet::new();
+    if p.track_layout.len() < 4
+        || p.track_layout.len() > MAX_TRACKS as usize * 2
+        || p.track_layout.iter().any(|t| {
+            t.index >= MAX_TRACKS
+                || !["video", "audio"].contains(&t.kind.as_str())
+                || t.id
+                    != format!(
+                        "{}{}",
+                        if t.kind == "video" { "V" } else { "A" },
+                        t.index as u16 + 1
+                    )
+                || !track_ids.insert(t.id.clone())
+        })
+        || ["V1", "V2", "A1", "A2"]
+            .iter()
+            .any(|id| !track_ids.contains(*id))
+        || p.tracks.extra.keys().any(|id| !track_ids.contains(id))
+    {
+        return Err("Nieprawidłowa lista ścieżek".into());
+    }
     for t in [
         &p.tracks.v1,
         &p.tracks.v2,
         &p.tracks.a1,
         &p.tracks.a2,
         &p.tracks.captions,
-    ] {
+    ]
+    .into_iter()
+    .chain(p.tracks.extra.values())
+    {
         if !["auto", "on", "off"].contains(&t.ripple.as_str()) {
             return Err("Nieprawidłowy tryb Ripple".into());
         }
@@ -456,7 +544,15 @@ pub fn parse(json: &str) -> Result<Project, String> {
                 || c.source_out - c.source_in < 0.049999
                 || c.source_out > duration + 1e-6
                 || c.end() > 86400.0
-                || c.track > 1
+                || !track_ids.contains(&format!(
+                    "{}{}",
+                    if c.kind == "audio" { "A" } else { "V" },
+                    c.track as u16 + 1
+                ))
+                || (c.kind == "audio" && c.audio_route.is_some())
+                || c.audio_route.as_ref().is_some_and(|id| {
+                    id != "embedded" && (!id.starts_with('A') || !track_ids.contains(id))
+                })
                 || !["video", "audio"].contains(&c.kind.as_str())
                 || !c.volume.is_finite()
                 || !(0.0..=1.0).contains(&c.volume)
@@ -676,7 +772,7 @@ mod tests {
     #[test]
     fn migrate_v1_and_validate_layout() {
         let project = parse(&json()).unwrap();
-        assert_eq!(project.schema_version, 10);
+        assert_eq!(project.schema_version, 11);
         assert!(!project.styles["default"].uppercase);
         assert_eq!(project.styles["default"].max_lines, 2);
         let mut value = serde_json::to_value(project).unwrap();
@@ -783,7 +879,7 @@ mod edit018_tests {
         assert!(p.ripple_enabled && p.tracks.v1.locked);
         assert!(p.tracks.audio_muted(&p.clips.as_ref().unwrap()[0]));
         let q = parse(&serde_json::to_string(&p).unwrap()).unwrap();
-        assert_eq!(q.schema_version, 10);
+        assert_eq!(q.schema_version, 11);
         assert_eq!(q.tracks.v1.ripple, "on");
         assert_eq!(q.clips.unwrap()[1].sync_group.as_deref(), Some("pair"));
     }
@@ -810,5 +906,95 @@ mod edit018_tests {
         assert!((crate::audio_envelope::gain(&clips[1], 1.5) - 0.5).abs() < 1e-9);
         assert!((crate::audio_envelope::gain(&clips[1], 4.5) - 0.5).abs() < 1e-9);
         assert!(crate::audio_envelope::expression(&clips[1], "t").contains("clip"));
+    }
+}
+
+#[cfg(test)]
+mod dynamic022_tests {
+    use super::*;
+    fn fixture() -> serde_json::Value {
+        serde_json::from_str(include_str!("../../tests/fixtures/three-tracks-v11.json")).unwrap()
+    }
+    #[test]
+    fn shared_three_track_document_roundtrips_and_does_not_need_a_pair() {
+        let mut p = parse(&fixture().to_string()).unwrap();
+        assert_eq!(p.track_layout.len(), 6);
+        assert_eq!(p.clips.as_ref().unwrap()[2].audio_lane(), None);
+        p.clips.as_mut().unwrap().retain(|c| c.id != "a2");
+        p.track_layout.retain(|t| t.id != "A3");
+        p.tracks.extra.remove("A3");
+        assert_eq!(
+            parse(&serde_json::to_string(&p).unwrap())
+                .unwrap()
+                .schema_version,
+            11
+        );
+    }
+    #[test]
+    fn legacy_versions_preserve_routes_mute_locks_and_v10_ripple() {
+        for version in 1..=10 {
+            let mut value = fixture();
+            value["schemaVersion"] = version.into();
+            value.as_object_mut().unwrap().remove("trackLayout");
+            value["tracks"] = serde_json::json!({"A2":{"muted":true},"V2":{"locked":true}});
+            let clips = value["clips"].as_array_mut().unwrap();
+            clips.retain(|c| c["track"] != 2);
+            for c in clips {
+                c.as_object_mut().unwrap().remove("audioRoute");
+            }
+            let p = parse(&value.to_string()).unwrap();
+            assert_eq!(p.track_layout.len(), 4);
+            assert_eq!(p.ripple_enabled, version == 10);
+            assert!(p.tracks.v2.locked);
+            if version >= 3 {
+                let c = &p.clips.as_ref().unwrap()[1];
+                assert_eq!(c.audio_lane(), Some(1));
+                assert!(p.tracks.audio_muted(c));
+            }
+        }
+    }
+    #[test]
+    fn invalid_layout_tracks_routes_and_legacy_extensions_rejected() {
+        for bad in [
+            "duplicate",
+            "mismatch",
+            "missing",
+            "route",
+            "audio-route",
+            "legacy",
+            "limit",
+            "unknown",
+        ] {
+            let mut v = fixture();
+            match bad {
+                "duplicate" => {
+                    let first = v["trackLayout"][0].clone();
+                    v["trackLayout"].as_array_mut().unwrap().push(first);
+                }
+                "mismatch" => v["trackLayout"][2]["kind"] = "audio".into(),
+                "missing" => v["clips"][0]["track"] = 4.into(),
+                "route" => v["clips"][0]["audioRoute"] = "A4".into(),
+                "audio-route" => v["clips"][3]["audioRoute"] = "embedded".into(),
+                "legacy" => v["schemaVersion"] = 10.into(),
+                "limit" => v["trackLayout"][2]["index"] = 16.into(),
+                _ => v["tracks"]["X3"] = serde_json::json!({"muted":true}),
+            }
+            assert!(parse(&v.to_string()).is_err(), "accepted {bad}");
+        }
+    }
+    #[test]
+    fn dynamic_video_and_audio_mute_are_independent_of_visibility() {
+        let mut p = parse(&fixture().to_string()).unwrap();
+        p.tracks.a1.muted = true;
+        p.tracks.a2.muted = true;
+        let c = &p.clips.as_ref().unwrap()[2];
+        assert!(!p.tracks.audio_muted(c));
+        p.tracks.extra.entry("V3".into()).or_default().hidden = true;
+        assert!(p.tracks.video_hidden(c));
+        assert!(!p.tracks.audio_muted(c));
+        p.tracks.extra.entry("V3".into()).or_default().muted = true;
+        assert!(p.tracks.audio_muted(c));
+        p.tracks.extra.entry("A3".into()).or_default().muted = true;
+        assert!(p.tracks.audio_muted(&p.clips.as_ref().unwrap()[5]));
     }
 }

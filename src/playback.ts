@@ -9,12 +9,12 @@ export function playbackRuns(p:Project):PlaybackRun[]{
  const runs:PlaybackRun[]=[];
  for(const c of ordered(presentationClips(p))){
   const previous=[...runs].reverse().find(r=>(r.track??0)===(c.track??0)&&(r.kind??'video')===(c.kind??'video'));
-  if(previous&&!!previous.audioDetached===!!c.audioDetached&&previous.assetId===c.assetId&&Math.abs(clipEnd(previous)-c.start)<1e-6&&Math.abs(previous.sourceOut-c.sourceIn)<1e-6){previous.sourceOut=c.sourceOut;previous.clipIds.push(c.id);}
+  if(previous&&previous.audioRoute===c.audioRoute&&!!previous.audioDetached===!!c.audioDetached&&previous.assetId===c.assetId&&Math.abs(clipEnd(previous)-c.start)<1e-6&&Math.abs(previous.sourceOut-c.sourceIn)<1e-6){previous.sourceOut=c.sourceOut;previous.clipIds.push(c.id);}
   else runs.push({...c,clipIds:[c.id]});
  }
  return runs;
 }
-export const playbackKey=(p:Project)=>JSON.stringify([p.transitions,projectClips(p).map(c=>[c.id,c.assetId,c.track,c.kind,c.start,c.sourceIn,c.sourceOut,c.audioDetached,clipMedia(p,c)?.path])]);
+export const playbackKey=(p:Project)=>JSON.stringify([p.transitions,projectClips(p).map(c=>[c.id,c.assetId,c.track,c.kind,c.start,c.sourceIn,c.sourceOut,c.audioDetached,c.audioRoute,clipMedia(p,c)?.path])]);
 export class PlaybackController{
  private project:Project;
  runs:PlaybackRun[];

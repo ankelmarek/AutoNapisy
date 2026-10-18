@@ -1,0 +1,134 @@
+{
+  "schemaVersion": 11,
+  "rippleEnabled": true,
+  "trackLayout": [
+    {
+      "id": "V1",
+      "kind": "video",
+      "index": 0
+    },
+    {
+      "id": "V2",
+      "kind": "video",
+      "index": 1
+    },
+    {
+      "id": "V3",
+      "kind": "video",
+      "index": 2
+    },
+    {
+      "id": "A1",
+      "kind": "audio",
+      "index": 0
+    },
+    {
+      "id": "A2",
+      "kind": "audio",
+      "index": 1
+    },
+    {
+      "id": "A3",
+      "kind": "audio",
+      "index": 2
+    }
+  ],
+  "tracks": {
+    "V3": {
+      "ripple": "auto"
+    },
+    "A3": {
+      "ripple": "auto"
+    }
+  },
+  "name": "Trzy ścieżki Łódź",
+  "media": {
+    "path": "C:/Łódź/film.mp4",
+    "name": "Film",
+    "duration": 12
+  },
+  "assets": [
+    {
+      "id": "music",
+      "path": "C:/Łódź/muzyka.wav",
+      "name": "Muzyka",
+      "duration": 12,
+      "kind": "audio",
+      "segments": []
+    }
+  ],
+  "clips": [
+    {
+      "id": "v0",
+      "kind": "video",
+      "track": 0,
+      "start": 0,
+      "sourceIn": 0,
+      "sourceOut": 4,
+      "audioRoute": "A1",
+      "volume": 0.5
+    },
+    {
+      "id": "v1",
+      "kind": "video",
+      "track": 1,
+      "start": 0,
+      "sourceIn": 0,
+      "sourceOut": 4,
+      "audioRoute": "A2",
+      "volume": 0.5
+    },
+    {
+      "id": "v2",
+      "kind": "video",
+      "track": 2,
+      "start": 2,
+      "sourceIn": 0,
+      "sourceOut": 4,
+      "audioRoute": "embedded",
+      "volume": 0.5
+    },
+    {
+      "id": "a0",
+      "kind": "audio",
+      "track": 0,
+      "start": 0,
+      "sourceIn": 0,
+      "sourceOut": 4,
+      "assetId": "music",
+      "volume": 0.5
+    },
+    {
+      "id": "a1",
+      "kind": "audio",
+      "track": 1,
+      "start": 0,
+      "sourceIn": 0,
+      "sourceOut": 4,
+      "assetId": "music",
+      "volume": 0.5
+    },
+    {
+      "id": "a2",
+      "kind": "audio",
+      "track": 2,
+      "start": 4,
+      "sourceIn": 0,
+      "sourceOut": 4,
+      "assetId": "music",
+      "volume": 0.5
+    }
+  ],
+  "segments": [],
+  "styles": {
+    "default": {
+      "fontFamily": "Arial",
+      "fontSize": 42,
+      "color": "#ffffff",
+      "background": "#000000",
+      "position": "bottom"
+    }
+  },
+  "createdAt": "2026-10-18T00:00:00Z",
+  "updatedAt": "2026-10-18T00:00:00Z"
+}

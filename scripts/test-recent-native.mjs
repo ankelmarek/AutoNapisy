@@ -22,7 +22,7 @@ export async function testRecentNative(page){
  await page.locator(`.recent-card[data-recent-id="${entry.id}"] .recent-open`).focus();await page.keyboard.press('Enter');await home.waitFor({state:'detached'});await page.waitForFunction(()=>document.querySelector('.header-save')?.dataset.saveStatus==='saved');assert.equal(fs.readFileSync(projectPath,'utf8'),before);assert.equal(registry().entries[0].id,entry.id);
  // A broken history cannot turn a successful project save into an error.
  fs.renameSync(historyFile,historyFile+'.backup');fs.mkdirSync(historyFile);
- try{await page.keyboard.press('Control+s');await page.waitForFunction(()=>document.querySelector('.header-save')?.dataset.saveStatus==='saved'&&!!document.querySelector('.recent-editor-warning'));assert.equal(JSON.parse(fs.readFileSync(projectPath,'utf8')).schemaVersion,10);}
+ try{await page.keyboard.press('Control+s');await page.waitForFunction(()=>document.querySelector('.header-save')?.dataset.saveStatus==='saved'&&!!document.querySelector('.recent-editor-warning'));assert.equal(JSON.parse(fs.readFileSync(projectPath,'utf8')).schemaVersion,11);}
  finally{fs.rmdirSync(historyFile);fs.renameSync(historyFile+'.backup',historyFile);}
  await page.keyboard.press('Control+s');await page.waitForFunction(()=>document.querySelector('.header-save')?.dataset.saveStatus==='saved'&&!document.querySelector('.recent-editor-warning'));
  console.log('Real 0.21 MRU: native ID authorization, Open/Save/Save As ordering, Unicode, future/missing files, entry-only removal, preference/reload, keyboard open and save despite failed history: OK');

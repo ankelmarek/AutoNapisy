@@ -1,16 +1,18 @@
 import type {Project} from './model';
 import {projectClips,type Clip} from './editing';
+import {hasTrack,trackId} from './trackModel';
 import {clipLocked,clipMuted} from './trackControls';
 /** Capture the existing transition mix in source time; subsequent audio edits are independent. */
-export function detachAudio(p:Project,id:string,track:0|1=0,audioId:string=crypto.randomUUID()):Project {
+export function detachAudio(p:Project,id:string,track:number=0,audioId:string=crypto.randomUUID()):Project {
+ if(!hasTrack(p,'audio',track))throw Error('Nie ma docelowej ścieżki audio.');
  const clips=projectClips(p),c=clips.find(c=>c.id===id);
  if(!c||c.kind==='audio'||c.audioDetached)throw Error('Wybierz film z połączonym dźwiękiem.');
  if(clips.length>=100)throw Error('Projekt ma już 100 klipów.');
- if(clipLocked(p,c)||p.tracks[track===0?'A1':'A2']?.locked)throw Error('Odblokuj ścieżkę obrazu i docelową ścieżkę audio.');
+ if(clipLocked(p,c)||p.tracks[trackId('audio',track)]?.locked)throw Error('Odblokuj ścieżkę obrazu i docelową ścieżkę audio.');
  const incoming=p.transitions.find(t=>t.toId===id),outgoing=p.transitions.find(t=>t.fromId===id),group=c.syncGroup??crypto.randomUUID();
  const sound:Clip={id:audioId,kind:'audio',assetId:c.assetId,start:c.start-(incoming?.duration??0),sourceIn:c.sourceIn-(incoming?.duration??0),sourceOut:c.sourceOut,track,volume:clipMuted(p,c)?0:c.volume,audio:c.audio,syncGroup:group,
   ...(incoming||outgoing?{crossfade:{...(incoming?{fadeIn:{anchor:c.sourceIn-incoming.duration,duration:incoming.duration}}:{}),...(outgoing?{fadeOut:{anchor:c.sourceOut,duration:outgoing.duration}}:{})}}:{})};
- return {...p,clips:[...clips.map(x=>x.id===id?{...x,audioDetached:true,syncGroup:group}:x),sound]};
+ return {...p,clips:[...clips.map(x=>x.id===id?{...x,audioDetached:true,audioRoute:'embedded',syncGroup:group}:x),sound]};
 }
 /** Offset is measured from source alignment; J/L trims preserve it, independent moves change it. */
 export function syncOffset(p:Project,c:Clip):number|null {

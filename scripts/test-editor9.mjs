@@ -1,3 +1,4 @@
+import {testTracks022} from './test-tracks022.mjs';
 import {settleEditor,testStart021} from './test-start021.mjs';
 import {testUx020} from './test-ux020.mjs';
 import {testEdit018} from './test-edit018.mjs';
@@ -176,5 +177,6 @@ try{for(const [width,height]of[[1366,700],[1920,1080]]){
 
  await testEdit018(page,action,width,height);
  await testStart021(page,action,width,height);
+ await action('Importuj filmy');await page.waitForSelector('.library-file');await testTracks022(page,async()=>{await action('Zapisz');await page.waitForFunction(()=>document.querySelector('.header-save')?.dataset.saveStatus==='saved');},()=>page.evaluate(()=>structuredClone(window.__saved)),`docs/tracks022-${width}x${height}.png`);
  await page.screenshot({path:`docs/editor9-${width}x${height}.png`});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth||document.documentElement.scrollHeight>innerHeight),false,'page overflow');assert.deepEqual(errors,[]);console.log(JSON.stringify({viewport:[width,height],import:'multiple files/library only',captions:'edit/trim/persist',waveform:'rendered',transition:'drag/drop/export data',keyboard:'copy/paste/delete/undo/space/pan'}));if(!process.env.ROLVIXA_WEBVIEW_CDP)await page.close();
 }}catch(e){for(const p of browser.contexts()[0].pages()){console.log('UI failure',p.url(),await p.locator('footer').textContent().catch(()=>''),JSON.stringify(await p.evaluate(()=>window.__calls).catch(()=>[])));await p.screenshot({path:'.tools/editor-failure.png'}).catch(()=>{});}throw e;}finally{await browser.close();}
