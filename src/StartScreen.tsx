@@ -13,7 +13,7 @@ export default function StartScreen(p:Props){
    <button disabled={p.busy} onClick={p.onOpen}><Icon name="open" size={19}/>Otwórz projekt</button>
    {p.canReturn&&<button disabled={p.busy} onClick={p.onReturn}><Icon name="chevronLeft" size={16}/>Wróć do montażu</button>}
   </div></section>
-  <section className="recent-section" aria-labelledby="recent-heading"><div className="recent-heading"><h2 id="recent-heading">Ostatnie projekty</h2><button className="icon-button" title="Odśwież historię" aria-label="Odśwież historię" disabled={p.recent.loading||p.busy} onClick={()=>void p.recent.refresh()}><Icon name="restore" size={16}/></button></div>
+  <section className="recent-section" aria-labelledby="recent-heading"><div className="recent-heading"><h2 id="recent-heading">Ostatnie projekty</h2><button className="icon-button" title="Odśwież historię" aria-label="Odśwież historię" disabled={p.recent.loading||p.recent.pending||p.busy} onClick={()=>void p.recent.refresh()}><Icon name="restore" size={16}/></button></div>
    {(p.error||p.recent.warning)&&<div className="start-warning" role="alert"><p>{p.error||`Historia projektów: ${p.recent.warning}`}</p>{p.error&&<button aria-label="Zamknij komunikat" onClick={p.onDismiss}>Zamknij</button>}{p.recent.warning&&<button disabled={p.busy||p.recent.pending} onClick={()=>void p.recent.clear()}>Wyczyść historię</button>}</div>}
    {p.recent.loading&&!p.recent.ready&&<p className="start-loading" role="status">Wczytywanie ostatnich projektów…</p>}
    {p.recent.ready&&!p.recent.entries.length&&<div className="recent-empty"><Icon name="files" size={36}/><p>Tu znajdziesz ostatnio otwierane i zapisane projekty.</p></div>}

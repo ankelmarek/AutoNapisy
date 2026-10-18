@@ -12,5 +12,6 @@ export function useRecentProjects(){
   finally{if(ticket===epoch.current)setLoading(false);}
  },[]);
  const action=async(cmd:string,args?:Record<string,unknown>)=>{setPending(true);try{await invoke(cmd,args);await refresh();}catch(e){setData(old=>({...old,warning:String(e)}));}finally{setPending(false);}};
- return {...data,ready,loading,pending,refresh,remove:(id:string)=>action('remove_recent_project',{id}),preference:(enabled:boolean)=>action('set_startup_screen',{enabled}),clear:()=>action('clear_recent_projects')};
+ const preference=async(enabled:boolean)=>{const previous=data.showOnStartup;setPending(true);setData(old=>({...old,showOnStartup:enabled}));try{await invoke('set_startup_screen',{enabled});await refresh();}catch(e){setData(old=>({...old,showOnStartup:previous,warning:String(e)}));}finally{setPending(false);}};
+ return {...data,ready,loading,pending,refresh,remove:(id:string)=>action('remove_recent_project',{id}),preference,clear:()=>action('clear_recent_projects')};
 }
