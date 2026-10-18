@@ -1,9 +1,11 @@
 # RolVixa 0.24 — polska mowa → polskie napisy
 
-**Instalator 0.23:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39140872733/artifacts/12141718156), rozpakuj i uruchom `RolVixa_0.23.0_x64-setup.exe`. Pobranie z Actions wymaga zalogowania na GitHub.
+**Instalator 0.24:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39159998515/artifacts/12148458846), rozpakuj i uruchom `RolVixa_0.24.0_x64-setup.exe`. Pobranie z Actions wymaga zalogowania na GitHub.
 RolVixa (wcześniej AutoNapisy) to lokalna aplikacja Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Rozpoznaje polską mowę przez whisper.cpp, bez tłumaczenia. Transkrypcja i montaż działają na komputerze. Opcjonalna biblioteka muzyki łączy się z Openverse po wpisaniu frazy wyszukiwania; nie wysyła nagrań użytkownika.
 
-## Wersja 0.24 — pomiary i normalizacja miksu (odbiór w toku)
+## Wersja 0.24 — pomiary i normalizacja miksu (ukończona)
+
+**Pełny zielony [odbiór Windows 39159998515](https://github.com/ankelmarek/AutoNapisy/actions/runs/39159998515), również równoległy 39159995807:** 195 testów TypeScript, 85 Rust, 16 integracyjnych, instalator, próbna instalacja i rzeczywisty WebView2. Sprawdzono zrzuty 1366×700 i Full HD. [PR #10](https://github.com/ankelmarek/AutoNapisy/pull/10) połączony. Potwierdzone rzeczywiste LUFS/true peak/cisza/czarny obraz, cache/anulowanie/autoryzacja, zastosowanie/Undo/Redo/zapis/reopen/ponowny pomiar normalizacji, strefy napisów i usuwanie źródła bez kasowania pliku. Regresje montażu, Ripple/J/L-cut, dynamicznych torów, crash/restart, historii i zapisu także zielone. ZIP: **81 242 960 B**, SHA-256 `0ccb9d4a73323513dd896635e7bc6145bed3ad2e3b99903a8322d8de1bc0bb85`.
 
 W **Film / audio → Dźwięk całego filmu → Zmierz / normalizuj miks** uruchom pełną analizę. Można ją także włączyć w raporcie przed eksportem. Pomiar na żądanie pokazuje LUFS całego miksu, true peak w dBTP oraz zakresy ciszy, czarnego/bardzo ciemnego obrazu i ryzyka przesterowania. Link w ostrzeżeniu przenosi głowicę na oś. Pauzy i ciemne sceny mogą być zamierzone, więc ostrzeżenia nie blokują eksportu. Dostępność źródeł i ich zakresy nadal blokują nieprawidłowy eksport. Sprawdzane są rzeczywiste granice napisów i wybrana strefa bezpieczna dla 9:16, z tymi samymi fontami i łamaniem co renderer.
 
@@ -15,7 +17,7 @@ Analiza używa oryginalnych źródeł i produkcyjnego montażu MLT (stereo float
 
 Nowy schemat **v12** zawiera `masterAudio.gainDb` i opcjonalne dane celu normalizacji. Migracje v1–v11 ustawiają gain 0 dB, bez zmiany dotychczasowego miksu i torów. RolVixa 0.23 nie otworzy projektu v12 — **Zapisz jako** pozwala zachować poprzednią kopię. Definicja: `schemas/project-v12.schema.json`; relacje ID/czasów dodatkowo weryfikują walidatory TS/Rust. Nie ma nowych zależności ani usług sieciowych. Używane są dotychczasowe MLT/FFmpeg i Tabler Icons, z zachowanymi licencjami.
 
-Nowe moduły: `quality.rs`, `quality_commands.rs`, `qualityAnalysis.ts`, `PreflightDialog.tsx` (rozszerzony), `MasterAudioCard.tsx`, `masterAudio.ts`, `captionPreflight.ts`, `mediaRemoval.ts`; testy `tests/quality.test.ts`, `.test-core/tests/quality_audio.rs` i `scripts/test-quality024-native.mjs`. Uruchamianie: `npm ci`, `npm test`, `npm run tauri -- dev`. Instalator z narzędziami: `./scripts/build-windows.ps1` w Windows PowerShell. Weryfikacja natywna i link do instalatora zostaną dopisane po zielonym odbiorze Windows.
+Nowe moduły: `quality.rs`, `quality_commands.rs`, `qualityAnalysis.ts`, `PreflightDialog.tsx` (rozszerzony), `MasterAudioCard.tsx`, `masterAudio.ts`, `captionPreflight.ts`, `mediaRemoval.ts`; testy `tests/quality.test.ts`, `.test-core/tests/quality_audio.rs`, `scripts/test-quality024-native.mjs` i `tests/legacyBrowserFixture.test.ts` (sprawdza faktyczną próbkę v10 testu przeglądarkowego przed budową Windows). Uruchamianie: `npm ci`, `npm test`, `npm run tauri -- dev`. Instalator z narzędziami: `./scripts/build-windows.ps1` w Windows PowerShell. Lokalnie przeszły również 82 testy core Rust i rzeczywiste testy MLT/FFmpeg.
 
 ## Wersja 0.23 — źródła i sprawdzenie eksportu
 

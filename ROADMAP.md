@@ -305,7 +305,7 @@ Użytkownik zatwierdził z poprzedniej listy **punkty 1, 2, 3, 4, 6, 7, 8, 9**. 
 - Dotychczasowe napisy/transkrypcje źródłowe wymagają odświeżenia lub świadomego zachowania, gdy nie odpowiadają nowemu nagraniu; nie przenosić ich po cichu na obcą wypowiedź.
 - Unieważniać stare proxy, miniatury, waveforms i cache źródła; zachować dane autorskie/licencje audio z prawidłowym przypisaniem. Testy wielu wystąpień jednego źródła i cofania zamiany.
 
-### 8. Kontrola jakości przed eksportem (preflight) — podstawowy raport w 0.23
+### 8. Kontrola jakości przed eksportem (preflight) — raport 0.23, pomiary i napisy 0.24
 
 - Przed eksportem zaoferować raport z **ostrzeżeniami, nie automatyczną ingerencją**: brakujące źródła, możliwy clipping/przesterowanie audio, nieoczekiwana cisza, puste/czarne przerwy, napisy i grafiki poza wskazaną strefą, potencjalnie niewłaściwy format/kadr.
 - Wynik ma zawierać **lokalizację na osi czasu i przejście do problemu**. Rozdzielać błędy blokujące poprawny eksport od sugestii, z opcją „Eksportuj mimo ostrzeżeń”.
@@ -328,7 +328,7 @@ Użytkownik zatwierdził z poprzedniej listy **punkty 1, 2, 3, 4, 6, 7, 8, 9**. 
 5. Niezależnie dodać **6 (strefy bezpieczne)**, **7 (zastępowanie źródła)** oraz **8 (preflight)**; zastępowanie źródła uwzględnia mechanizm proxy, a preflight wymaga stabilnego i sprawdzalnego eksportu.
 6. Każdy etap wymaga testów TypeScript/Rust oraz realnego podglądu MLT i porównania z eksportem; potwierdzić migracje schematów, Undo/Redo, działania przy brakującym źródle i bez internetu.
 
-**Status:** punkty 1, 2, 3, 4, 6, 7 i 9 wykonane. Punkt 8 ma w 0.23 podstawowy raport źródeł i luk; pomiary miksu/obrazu i ocena stref nadal planowane. Dynamiczne V3/A3 wykonano w 0.22; zatwierdzone UX A/B/C z issue #4 wykonano w 0.19–0.21 jako osobne zmiany. Pozostałe rozszerzenia nadal planowane. Punkt 5 (kolorowe znaczniki na osi czasu) celowo pominięty.
+**Status:** punkty 1, 2, 3, 4, 6, 7 i 9 wykonane. Punkt 8 ma raport źródeł i luk z 0.23 oraz rzeczywiste pomiary miksu/obrazu i granice napisów/strefy z 0.24; ocena dowolnych przyszłych grafik i automatyczna ocena kompozycji kadru pozostają rozszerzeniami. Dynamiczne V3/A3 wykonano w 0.22; zatwierdzone UX A/B/C z issue #4 wykonano w 0.19–0.21 jako osobne zmiany. Pozostałe rozszerzenia nadal planowane. Punkt 5 (kolorowe znaczniki na osi czasu) celowo pominięty.
 
 
 
@@ -341,7 +341,7 @@ Raport przed eksportem sprawdza dostępność i parametry źródeł oraz luki be
 Odbiór 0.23: Windows run 39140872733, 184 TS, 79 Rust, 15 integracyjnych, instalacja i WebView2 1366×700 / Full HD; sprawdzone zrzuty. PR #9 połączony; instalator 12141718156. Odnajdywanie prawdziwego braku źródła, zapis/reopen i autoryzacja potwierdzone natywnie. Podmiana nieużywanego assetu zachowuje transkrypcję montażu; waveform czyści stare piksele podczas analizy zamiennika.
 
 
-## 0.24 — pełna analiza przed eksportem i normalizacja (odbiór w toku)
+## 0.24 — pełna analiza przed eksportem i normalizacja (ukończone)
 
 - [x] Pomiar rzeczywistego miksu MLT stereo float: EBU R128 LUFS, true peak, ryzyko przesterowania, zakresy ciszy i ciemnego obrazu, skok na oś.
 - [x] Granice napisów z rzeczywistym fontem i łamaniem, wybrana strefa bezpieczna 9:16.
@@ -349,6 +349,6 @@ Odbiór 0.23: Windows run 39140872733, 184 TS, 79 Rust, 15 integracyjnych, insta
 - [x] Normalizacja master: cel −14/−16/−23 LUFS lub własny, ograniczenie szczytów, uczciwy przewidywany wynik, zgodność podglądu/eksportu, jeden Undo i reset.
 - [x] Schemat v12 i migracje v1–v11 z gain 0; nie naruszać obwiedni i reguł montażu.
 - [x] Usuwanie tylko nieużywanych źródeł z biblioteki, bez usuwania plików, z Undo i ochroną blokad.
-- [ ] Pełny odbiór Windows: testy, rzeczywisty FFmpeg/MLT, WebView2 1366/Full HD, instalacja i instalator.
+- [x] Pełny zielony odbiór Windows 39159998515 i równoległy 39159995807: 195 TS, 85 Rust, 16 integracyjnych, rzeczywisty FFmpeg/MLT, WebView2 1366×700 / Full HD, crash/restart, instalacja i instalator 12148458846. Zrzuty sprawdzone. PR #10 połączony.
 
 Ograniczenia: pomiar obrazu przed napisami i w 320 px / 30 FPS; czarne/ciemne sceny są heurystyką. Normalizacja stałym wzmocnieniem nie kompresuje dynamiki i nie naprawia przesterowanych źródeł. Wynik po kodowaniu AAC może mieć nieco inne szczyty. Bez SmartCut, Export Studio, automatycznego duckingu i efektów odszumiania w tej paczce.
