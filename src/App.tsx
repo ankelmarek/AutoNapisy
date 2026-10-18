@@ -172,8 +172,12 @@ export default function App() {
     }
   };
   const resetPlayback = playback.reset;
-  const replace = () =>
-    !(saveState.baseline===null?revision!==pristineRevision.current:dirty) || window.confirm("Projekt ma niezapisane zmiany. Kontynuować?");
+  const replace = () => {
+    // Shortcuts may run before passive effects replace the previous key handler.
+    // The saver and project refs are authoritative immediately after a save/title commit.
+    const state=saver.state,current=projectRevision(latestProject.current);
+    return !(state.baseline===null?current!==pristineRevision.current:current!==state.baseline) || window.confirm("Projekt ma niezapisane zmiany. Kontynuować?");
+  };
   const importMedia = (kind:'video'|'audio') => run(async()=>{
     const files=await preview.import(kind);if(!files?.length)return;
     let next=latestProject.current;const prepared:Record<string,string>={},failed:string[]=[];let added=0;
