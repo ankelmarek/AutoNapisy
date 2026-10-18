@@ -1,5 +1,19 @@
 # Kolejne etapy RolVixa
 
+## Wykonane w 0.18 — Ripple i niezależne audio (odbiór Windows w toku)
+
+- [x] Globalne Ripple On/Off i zapisane per-tor auto/on/off, automatyczna ochrona późnych/pustych ścieżek.
+- [x] Usuwanie i oba brzegi trim z zachowaniem celowych luk, podgląd przed/po, konflikty i opcja wykonania bez Ripple.
+- [x] Blokady torów, ochrona połączonego i odłączonego audio, napisy źródłowe przesuwane raz i niezależne T według R.
+- [x] Odłącz audio na A1/A2 bez dublowania miksu, źródłowe obwiednie oraz zachowanie miksu istniejących przejść.
+- [x] Niezależne J-cut/L-cut przez trim audio, przesunięcie synchronizacji i świadome wyrównanie; pojedynczy Undo/Redo.
+- [x] Schemat v10 i migracje v1–v9; 147 testów TS, 60 rdzenia Rust i rzeczywisty miks/eksport MLT/FFmpeg lokalnie.
+- [ ] Pełny odbiór Windows, instalacja, WebView2 i udostępnienie instalatora.
+
+Zakres: Ripple przy usuwaniu i przycinaniu klipów, bez automatycznego cięcia przecinających elementów innych torów. Import i zwykłe przesuwanie zachowują dotychczasową semantykę. Konflikty wymagają decyzji; szczegóły ograniczeń w README.
+
+**Następny priorytet: dynamiczne V3/A3 i kolejne tory, issue #3.** Zachować wdrożone reguły R/blokad, trasowanie i brak zdublowanego dźwięku. SmartCut oraz Export Studio nadal osobno.
+
 ## Wykonane w 0.17 — odzyskiwanie i podgląd źródła/I/O
 
 Użytkownik połączył punkty 9 oraz 1+2 w jedną wersję. Wdrożono:
@@ -10,13 +24,13 @@ Użytkownik połączył punkty 9 oraz 1+2 w jedną wersję. Wdrożono:
 - [x] Osobny podgląd źródła MLT, zakres I/O, dokładne pola, dodawanie przyciskiem/przeciąganiem wybranego przedziału i pojedynczy Undo. Schemat pozostaje v9.
 - [x] Pełny zielony odbiór Windows: run 39097201488 — 125 TS, 59 Rust, 11 integracyjnych, kompilacja, instalator i WebView2 1366/Full HD. Potwierdzone wymuszona awaria, nowsze kopie i zapis przy błędzie autozapisu. README zawiera link i ograniczenia.
 
-Dalszy priorytet: **Ripple oraz odłączanie audio/J/L-cut**, a potem V3/A3 zgodnie z decyzją użytkownika poniżej. Nie wdrożono ich w 0.17.
+Ripple i odłączanie audio/J/L-cut wdrożono w 0.18. Po jego odbiorze priorytetem są V3/A3 zgodnie z decyzją użytkownika poniżej.
 
 ## Plan kolejnych etapów - ustalona kolejność
 
 1. **Autozapis i odzyskiwanie sesji** - wykonane w 0.17.
 2. **Podgląd źródeł i In/Out** - wykonane razem z odzyskiwaniem w 0.17.
-3. **Ripple Edit oraz odłączanie audio / J-cut / L-cut** - **najpierw** na obecnych V1/V2 i A1/A2. Reguły Ripple per ścieżka, automatyczna ochrona torów zaczynających się po 00:00, świadoma kontrola synchronizacji. Projektować algorytm bez założenia stałej liczby torów.
+3. **Ripple Edit oraz odłączanie audio / J-cut / L-cut** - wykonane w 0.18 (odbiór Windows w toku), **najpierw** na obecnych V1/V2 i A1/A2. Reguły Ripple per ścieżka, automatyczna ochrona torów zaczynających się po 00:00, świadoma kontrola synchronizacji. Projektować algorytm bez założenia stałej liczby torów.
 4. **Dynamiczne V3/A3 i kolejne tory** - **istotny priorytet po Ripple/J/L-cut**, domyślnie zachować prostą oś 2+2; nowe tory dodawane niezależnie przyciskami. Rozszerzyć już działające zasady Ripple na nowe tory.
 5. **Dalsze funkcje** - zastępowanie źródeł, kontrola przed eksportem, SmartCut i Export Studio w osobnych etapach.
 
