@@ -1,11 +1,13 @@
-# RolVixa 0.20 — polska mowa → polskie napisy
+# RolVixa 0.21 — polska mowa → polskie napisy
 
-**Instalator 0.20:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39122531200/artifacts/12134394783), rozpakuj i uruchom `RolVixa_0.20.0_x64-setup.exe`. Pobranie z Actions wymaga zalogowania na GitHub.
+**Instalator 0.21:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39128334953/artifacts/12137396252), rozpakuj i uruchom `RolVixa_0.21.0_x64-setup.exe`. Pobranie z Actions wymaga zalogowania na GitHub.
 RolVixa (wcześniej AutoNapisy) to lokalna aplikacja Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Rozpoznaje polską mowę przez whisper.cpp, bez tłumaczenia. Transkrypcja i montaż działają na komputerze. Opcjonalna biblioteka muzyki łączy się z Openverse po wpisaniu frazy wyszukiwania; nie wysyła nagrań użytkownika.
 
 ## Wersja 0.21 — ekran startowy i ostatnie projekty, UX C
 
-Implementacja gotowa; odbiór Windows i nowy instalator w przygotowaniu. Powyższy link prowadzi na razie do sprawdzonej wersji 0.20.
+**Ukończone, osobny [PR #7](https://github.com/ankelmarek/AutoNapisy/pull/7) połączony.** Pełny zielony [odbiór Windows 39128334953](https://github.com/ankelmarek/AutoNapisy/actions/runs/39128334953): **153 testy TypeScript, 71 Rust, 13 integracyjnych**, instalacja i rzeczywisty WebView2. Zrzuty 1366×700 (obszar roboczy laptopa) oraz 1920×1080 zostały przejrzane. Testy potwierdziły otwieranie przez ID, kolejność Open/Save/Save As, Unicode, brakujący/nowszy projekt, usuwanie tylko wpisu, preferencję po przeładowaniu, jej cofnięcie po błędzie, zapis mimo awarii historii oraz pierwszeństwo odzyskiwania po wymuszonym zakończeniu procesu. Spóźniony odczyt nie otwiera startu nad montażem.
+
+Instalator jest artefaktem **12137396252**; ZIP 81 106 085 B, SHA-256 `2d80a84c97b1832edbbcb5d0d6da316b956e41391ad2cb54547cba8c0913c626`. Wypakuj ZIP przed uruchomieniem EXE. Narzędzia i licencje są w paczce; model Whisper wybiera się osobno jak dotychczas.
 
 Po uruchomieniu wybierz **Nowy projekt**, **Otwórz projekt** lub jedną z maksymalnie **6 kart ostatnich projektów**. Karty pokazują nazwę, ścieżkę i datę ostatniego otwarcia lub zapisu. Kliknięcie albo Enter otwiera projekt. Krzyżyk usuwa wyłącznie wpis z historii. Brakujący lub niepoprawny plik wyświetla błąd bez zastępowania bieżącego montażu. Historię można ponownie otworzyć z **Projekt → Ostatnie projekty**, a checkbox **Pokazuj przy uruchomieniu** zapamiętuje preferencję. **Wróć do montażu** zachowuje aktywny projekt i jego Undo.
 

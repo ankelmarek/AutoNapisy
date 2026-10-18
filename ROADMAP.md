@@ -1,12 +1,12 @@
 # Kolejne etapy RolVixa
 
-## Wersja 0.21 — UX C (odbiór Windows w toku)
+## Wykonane w 0.21 — UX C (ukończone)
 
 - [x] Ekran startowy, sześć ostatnich projektów, Nowy/Otwórz, usuwanie wpisu i preferencja startowa.
 - [x] Backendowy rejestr ID, atomowy zapis i blokada; błędy historii nie blokują zapisu projektu.
 - [x] Pierwszeństwo odzyskiwania i ochrona przed spóźnioną odpowiedzią historii; schemat nadal v10.
 - [x] Testy rejestru, brakujących/nowszych plików, restartu, klawiatury i dwóch rozdzielczości.
-- [ ] Pełny odbiór Windows/WebView2, przegląd zrzutów i instalator; osobny PR C.
+- [x] Osobny PR #7 połączony; pełny zielony Windows run 39128334953: 153 TS, 71 Rust, 13 integracyjnych, instalator 12137396252, instalacja i WebView2 1366×700 / Full HD. Zrzuty sprawdzone; potwierdzone restart/odzyskiwanie, błędy historii, klawiatura i cofnięcie preferencji po błędzie zapisu.
 
 Karty używają symboli Tabler do czasu powstania cache miniatur projektów. Po odbiorze kolejnym dużym etapem pozostają dynamiczne V3/A3 (issue #3).
 
@@ -49,8 +49,8 @@ Zakres: Ripple przy usuwaniu i przycinaniu klipów, bez automatycznego cięcia p
 
 - **Etap A, wykonany w 0.19 / PR #5:** uprościć zakładkę napisów, usunąć zbędny tekst o zakresie montażu i o Whisperze w empty-state; dodać czytelne ikony Tabler do „Transkrybuj po polsku” i „Eksport SRT”, zachowując tekst; usunąć etykietę „MONTAŻ” na dolnej osi oraz stale wyświetlane objaśnienie V1/V2 i audio; do żółtego przycisku w nagłówku dopisać „Eksportuj”.
 - **Etap B, wykonany w 0.20 / PR #6:** usunąć mylącą zakładkę/polecenie „Warstwy” i niedziałające „Dodaj warstwę” (bez usuwania warstw obrazu, transformacji i ukrywania torów); zachować kadrowanie pod „Film / audio”. Przerobić duże karty efektów na siatkę kompaktowych kwadratowych kafli, z dwoma obrazami demo i faktycznym, lekkim podglądem danego przejścia. Dodać bezpieczne, ograniczone przeciąganie granic paneli z zapisem układu lokalnie.
-- **Etap C, osobny moduł:** galeria **6 ostatnich projektów** po uruchomieniu RolVixa, z kartami i akcjami „Nowy” / „Otwórz”. Okno odzyskiwania po awarii z 0.17 ma pierwszeństwo; historia opiera się o bezpieczny, backendowy rejestr plików, bez przenoszenia mediów.
-- [ ] Przegląd layoutu i dostępności 1366×768 / Full HD, klawiatura, ARIA, brak regresji MLT, transkrypcji, SRT, MP4 oraz save/recovery.
+- **Etap C, wykonany w 0.21 / PR #7:** galeria **6 ostatnich projektów** po uruchomieniu RolVixa, z kartami i akcjami „Nowy” / „Otwórz”. Okno odzyskiwania po awarii z 0.17 ma pierwszeństwo; historia opiera się o bezpieczny, backendowy rejestr plików, bez przenoszenia mediów.
+- [x] Odbiór A/B/C: layout laptop / Full HD, klawiatura, ARIA, istniejące testy MLT, transkrypcji, SRT, MP4 oraz save/recovery. Szczegóły i dokładne rozdzielczości obszaru roboczego w README.
 
 **Pozycja w planie:** małe poprawki A wykonać przy najbliższej bezpiecznej okazji; większe B i C w oddzielnych przetestowanych aktualizacjach. **Nie zmienia to przyjętej kolejności dużych etapów: Ripple/J/L-cut przed V3/A3.**
 
