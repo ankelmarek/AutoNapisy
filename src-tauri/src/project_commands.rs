@@ -206,6 +206,7 @@ mod tests {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RecoveryStatus {
+    recoverable: bool,
     session: u64,
     available: bool,
     name: String,
@@ -225,10 +226,11 @@ pub async fn recovery_status(app: tauri::AppHandle) -> Result<RecoveryStatus, St
             let (snap, warning) = store.load();
             state
                 .pending_recovery
-                .store(snap.is_some(), Ordering::Release);
+                .store(snap.is_some() || !warning.is_empty(), Ordering::Release);
             Ok(RecoveryStatus {
+                recoverable: snap.is_some(),
                 session,
-                available: snap.is_some(),
+                available: snap.is_some() || !warning.is_empty(),
                 name: snap
                     .as_ref()
                     .and_then(|s| s.project["name"].as_str())
@@ -253,6 +255,7 @@ pub async fn recovery_status(app: tauri::AppHandle) -> Result<RecoveryStatus, St
         });
         result.or_else(|e| {
             Ok(RecoveryStatus {
+                recoverable: false,
                 session,
                 available: false,
                 name: String::new(),
@@ -330,17 +333,17 @@ pub async fn resolve_recovery(
         if !state.pending_recovery.load(Ordering::Acquire) {
             return Err("Brak oczekującej kopii odzyskiwania".into());
         }
+        if action == "discard" {
+            state.store(&app, |store| store.clear())?;
+            state.pending_recovery.store(false, Ordering::Release);
+            return Ok(None);
+        }
         let snap = state.store(&app, |store| {
             store
                 .load()
                 .0
                 .ok_or("Brak poprawnej kopii odzyskiwania".to_string())
         })?;
-        if action == "discard" {
-            state.store(&app, |store| store.clear())?;
-            state.pending_recovery.store(false, Ordering::Release);
-            return Ok(None);
-        }
         let (json, path, target) = match action.as_str() {
             "recover" => (snap.json()?, String::new(), None),
             "saved" => {
