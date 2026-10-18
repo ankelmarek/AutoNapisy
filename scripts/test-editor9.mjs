@@ -39,7 +39,7 @@ try{for(const [width,height]of[[1366,700],[1920,1080]]){
  assert(!(await page.locator('.timeline-properties').innerText()).includes('V2 przykrywa'));
  await page.getByRole('tab',{name:'Napisy',exact:true}).click();
  const captionActions19=page.getByRole('group',{name:'Tworzenie i eksport napisów',exact:true});
- assert.equal(await captionActions19.locator('[data-icon="tabler-captions"]').count(),1);assert.equal(await captionActions19.locator('[data-icon="tabler-download"]').count(),1);
+ assert.equal(await captionActions19.locator('[data-icon="tabler-badge-cc"]').count(),1);assert.equal(await captionActions19.locator('[data-icon="tabler-download"]').count(),1);
  assert(await captionActions19.getByRole('button',{name:'Transkrybuj po polsku',exact:true}).isDisabled());assert(await captionActions19.getByRole('button',{name:'Eksport SRT',exact:true}).isDisabled());
  const empty19=page.locator('#captions-panel .empty');assert((await empty19.innerText()).includes('Tu pojawią się Twoje słowa'));assert(!(await empty19.innerText()).includes('Whisper'));assert.equal(await page.locator('.transcription-scope').count(),0);
  await page.screenshot({path:`docs/ux019-empty-${width}x${height}.png`});await page.getByRole('tab',{name:/Pliki/}).click();
