@@ -127,7 +127,14 @@ pub fn xml(
     let mut s=format!("<?xml version=\"1.0\" encoding=\"utf-8\"?><mlt producer=\"output\"><profile description=\"RolVixa\" width=\"{}\" height=\"{}\" frame_rate_num=\"30\" frame_rate_den=\"1\" progressive=\"1\" sample_aspect_num=\"1\" sample_aspect_den=\"1\" display_aspect_num=\"{}\" display_aspect_den=\"{}\" colorspace=\"709\"/>",meta.width,meta.height,meta.width,meta.height);
     s+=&format!("<producer id=\"black\" in=\"0\" out=\"{last}\">{}{}{}<property name=\"length\">{total}</property></producer><playlist id=\"base\"><entry producer=\"black\" in=\"0\" out=\"{last}\"/></playlist>",prop("mlt_service","color"),prop("resource","0x000000ff"),prop("set.test_audio",1));
     let mut tracks: Vec<(String, &'static str, String)> = vec![];
-    for lane in 0..2 {
+    let mut lanes: Vec<u8> = p
+        .track_layout
+        .iter()
+        .filter(|t| t.kind == "video")
+        .map(|t| t.index)
+        .collect();
+    lanes.sort_unstable();
+    for lane in lanes {
         for c in clips
             .iter()
             .filter(|c| c.kind == "video" && c.track == lane)

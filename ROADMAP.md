@@ -1,5 +1,16 @@
 # Kolejne etapy RolVixa
 
+## Wersja 0.22 — dynamiczne ścieżki (odbiór Windows w toku)
+
+- [x] Niezależne dodawanie V3/A3 i dalszych torów; stabilne ID bez renumeracji, do 16 każdego typu.
+- [x] Wspólna geometria osi, drop, pionowe przesuwanie, mute/oczko/R/blokada, zwijanie i wysokość audio.
+- [x] Oddzielne trasowanie połączonego audio, własny dźwięk V3 bez wymuszania A3; odłączanie do dowolnego A.
+- [x] Schemat v11 i migracje TS/Rust, zachowane v10 Ripple/blokady/miks, Undo/Redo i ochrona usuwania torów.
+- [x] Rzeczywisty test trzech obrazów i sześciu tonów, mute/visibility, J-cut, przejścia na V3, proxy i brakujące media w MLT/FFmpeg.
+- [ ] Pełny odbiór Windows/WebView2 i instalator; osobny PR dla issue #3.
+
+Solo, dowolne przestawianie kolejności torów oraz trwałe wysokości widoku pozostają przyszłymi rozszerzeniami. SmartCut i Export Studio poza tą paczką.
+
 ## Wykonane w 0.21 — UX C (ukończone)
 
 - [x] Ekran startowy, sześć ostatnich projektów, Nowy/Otwórz, usuwanie wpisu i preferencja startowa.

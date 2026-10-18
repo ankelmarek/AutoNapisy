@@ -1,3 +1,4 @@
+import {testTracks022} from './test-tracks022.mjs';
 // Real installed app, real native commands, real MLT, incremental file reads and MSE.
 // Only the OS project dialog is replaced in the separately compiled ui-tests binary.
 import {testRecentNative} from './test-recent-native.mjs';
@@ -75,7 +76,7 @@ try{
  await page.locator('.project-menu summary').click();await page.locator('.project-menu-popup').getByRole('button',{name:'Zapisz',exact:true}).click();await page.waitForFunction(()=>document.querySelector('.header-save').dataset.saveStatus==='saved');
  await page.waitForFunction(()=>!document.querySelector('select[aria-label="Format obrazu"]').disabled);
  const saved=JSON.parse(fs.readFileSync(process.env.ROLVIXA_TEST_PROJECT,'utf8'));
- assert.equal(saved.schemaVersion,10);assert.deepEqual(saved.canvas,{width:1080,height:1080});assert.equal(saved.clips[0].transform.scale,1.5);assert(Math.abs(saved.clips[0].transform.x-.2)<.02);
+ assert.equal(saved.schemaVersion,11);assert.deepEqual(saved.canvas,{width:1080,height:1080});assert.equal(saved.clips[0].transform.scale,1.5);assert(Math.abs(saved.clips[0].transform.x-.2)<.02);
  // Resizing keeps the same MLT stream and normalized frame transform.
  await page.waitForTimeout(250);await page.waitForFunction(()=>document.querySelector('video.mlt-video')?.readyState>=2);const stream020=await page.locator('video.mlt-video').getAttribute('src');const split020=page.getByRole('separator',{name:'Szerokość biblioteki',exact:true});await split020.focus();await page.keyboard.press('ArrowRight');await page.waitForTimeout(150);assert.equal(await page.locator('video.mlt-video').getAttribute('src'),stream020);assert(Math.abs(Number(await page.getByRole('spinbutton',{name:'Pozycja filmu X',exact:true}).inputValue())-20)<2);await split020.dblclick();console.log('Real 0.20 splitters preserve native MLT stream and normalized frame transform: OK');
  await page.getByRole('tab',{name:'Audio',exact:true}).click();
@@ -175,7 +176,7 @@ try{
  await page.getByRole('button',{name:'Odłącz audio → A1',exact:true}).click();
  await page.waitForFunction(()=>document.querySelector('video.mlt-video')?.readyState>=2);
  await page.locator('.header-save').click();await page.waitForFunction(()=>document.querySelector('.header-save').dataset.saveStatus==='saved');
- const detached18=JSON.parse(fs.readFileSync(projectPath,'utf8'));assert.equal(detached18.schemaVersion,10);assert.equal(detached18.clips.length,beforeDetach18.clips.length+1);assert(detached18.clips.find(c=>c.id==='first').audioDetached);assert(detached18.clips.some(c=>c.kind==='audio'&&c.syncGroup));assert.equal(await page.locator('.edit-clip[data-clip-id="first"].audio-clip').count(),0);
+ const detached18=JSON.parse(fs.readFileSync(projectPath,'utf8'));assert.equal(detached18.schemaVersion,11);assert.equal(detached18.clips.length,beforeDetach18.clips.length+1);assert(detached18.clips.find(c=>c.id==='first').audioDetached);assert(detached18.clips.some(c=>c.kind==='audio'&&c.syncGroup));assert.equal(await page.locator('.edit-clip[data-clip-id="first"].audio-clip').count(),0);
  await page.keyboard.press('Control+z');await page.locator('.header-save').click();await page.waitForFunction(()=>document.querySelector('.header-save').dataset.saveStatus==='saved');assert.deepEqual(JSON.parse(fs.readFileSync(projectPath,'utf8')).clips,beforeDetach18.clips);
  await page.getByRole('button',{name:'Tryb Ripple',exact:true}).click();await page.locator('.edit-clip[data-clip-id="first"]:not(.audio-clip)').click({position:{x:22,y:12}});
  await page.getByRole('spinbutton',{name:'Wyjście źródła',exact:true}).fill('3');await page.getByRole('spinbutton',{name:'Wyjście źródła',exact:true}).press('Enter');await page.getByRole('dialog',{name:'Podgląd Ripple',exact:true}).waitFor();await page.getByRole('button',{name:'Anuluj',exact:true}).click();await page.getByRole('button',{name:'Tryb Ripple',exact:true}).click();
@@ -203,6 +204,7 @@ try{
  await page.getByRole('tab',{name:'Napisy',exact:true}).click();const srtActions19=page.getByRole('group',{name:'Tworzenie i eksport napisów',exact:true});await srtActions19.getByRole('button',{name:'Eksport SRT',exact:true}).focus();await page.keyboard.press('Enter');
  const srtPath19=projectPath.replace(/\.json$/i,'.srt');for(let n=0;n<100&&!fs.existsSync(srtPath19);n++)await page.waitForTimeout(100);assert(fs.existsSync(srtPath19),'Native SRT export did not write the selected file');const srtBytes19=fs.readFileSync(srtPath19,'utf8');assert(srtBytes19.includes('Zażółć gęślą'));assert(srtBytes19.includes('00:00:01,250 --> 00:00:02,500'));await page.waitForFunction(()=>!document.querySelector('.header-project-name').disabled);
  assert.equal((await page.locator('.header-export').innerText()).trim(),'Eksportuj');await page.screenshot({path:'.tools/native-ux019.png'});console.log('Real 0.19 SRT: empty source transcript, montage captions, keyboard activation, Unicode and actual atomically saved file: OK');
+ await testTracks022(page,async()=>{await page.locator('.header-save').click();await page.waitForFunction(()=>document.querySelector('.header-save')?.dataset.saveStatus==='saved');},()=>JSON.parse(fs.readFileSync(projectPath,'utf8')),'.tools/native-tracks022.png');
  await testRecentNative(page);
  // Leave a real recovery copy for the forced process-restart test in PowerShell.
  await page.locator('.header-project-name').click();await page.getByRole('textbox',{name:'Nazwa projektu',exact:true}).fill('Przed awarią procesu 0.17');await page.keyboard.press('Enter');await waitSnapshotName('Przed awarią procesu 0.17');

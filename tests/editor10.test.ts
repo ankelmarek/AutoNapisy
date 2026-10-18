@@ -1,3 +1,4 @@
+import {legacyFixture} from './legacyFixture';
 import {describe,it,expect} from 'vitest';
 import {newProject,applyTimelineTranscript,parseProject,serializeProject} from '../src/model';
 import {applyTransition,timelineClips} from '../src/effects';
@@ -16,6 +17,6 @@ describe('napisy z montażu',()=>{
 describe('galeria i przejścia FFmpeg',()=>{
  it('wszystkie 20 typów przechodzą walidację',()=>{for(const kind of transitionKinds){const p=project();expect(parseProject(serializeProject(applyTransition(p,p.clips![0].id,p.clips![1].id,kind,.4))).transitions[0].kind).toBe(kind);}});
  it('pasek przejścia obejmuje końcówkę pierwszego i początek drugiego obrazu',()=>{const p=project(),t=applyTransition(p,p.clips![0].id,p.clips![1].id,'fade',1),[a,b]=timelineClips(t);expect(a.start+a.sourceOut-a.sourceIn).toBe(9.5);expect(b.start).toBe(9.5);expect(b.sourceIn).toBe(.5);});
- it('migracja v5 zastępuje stare implementacje odpowiednikami FFmpeg',()=>{const p=project(),old={...applyTransition(p,p.clips![0].id,p.clips![1].id,'slideleft',.4),schemaVersion:5};old.transitions[0].kind='left' as never;expect(parseProject(JSON.stringify(old)).transitions[0].kind).toBe('slideleft');});
+ it('migracja v5 zastępuje stare implementacje odpowiednikami FFmpeg',()=>{const p=project(),old={...applyTransition(p,p.clips![0].id,p.clips![1].id,'slideleft',.4),schemaVersion:5};old.transitions[0].kind='left' as never;expect(parseProject(JSON.stringify(legacyFixture(old))).transitions[0].kind).toBe('slideleft');});
  it('upuszczenie na wskazany pas respektuje go i dosuwa do dostępnego miejsca',()=>{const p=project();const added=insertLibraryItem(p,'primary',5,1);expect(added.clips!.at(-1)).toMatchObject({track:1,start:5});const next=insertLibraryItem(p,'primary',8,0);expect(next.clips!.at(-1)).toMatchObject({track:0,start:20});});
 });

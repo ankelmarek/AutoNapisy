@@ -81,7 +81,7 @@ pub async fn layer_frames(
        let original=p.clone();let p=proxies.project(&p);
        let scale=(540./meta.width.max(meta.height) as f64).min(1.);
        let width=((meta.width as f64*scale/2.).round() as u32*2).max(2);let height=((meta.height as f64*scale/2.).round() as u32*2).max(2);
-       if (0..2).any(|track|crate::effects::active_transition(&p,time,track).is_some()){return Err("Ustaw głowicę poza przejściem, aby kadrować film".into());}
+       if p.track_layout.iter().filter(|t|t.kind=="video").any(|track|crate::effects::active_transition(&p,time,track.index).is_some()){return Err("Ustaw głowicę poza przejściem, aby kadrować film".into());}
        let mut layers=vec![];
        for c in crate::effects::effective_clips(&p).iter().filter(|c|c.kind=="video"&&c.start<=time&&time<c.end()&&!p.tracks.video_hidden(c)){
         let path=Path::new(p.clip_path(c).ok_or("Brak filmu warstwy")?);
@@ -293,3 +293,4 @@ pub async fn source_thumbnail(
     .await
     .map_err(|e| e.to_string())?
 }
+

@@ -12,7 +12,7 @@ export default function FrameEditor(p:Props){
  const [frames,setFrames]=useState<Frames|null>(null),[hint,setHint]=useState(''),[draft,setDraft]=useState<{id:string;value:Transform}|null>(null);
  const root=useRef<HTMLDivElement>(null),current=useRef(p);current.current=p;
  const drag=useRef<{id:string;kind:'move'|'scale';x:number;y:number;base:Transform;next:Transform;w:number;h:number;distance:number}|null>(null);
- const clips=projectClips(p.project),key=JSON.stringify([Math.floor(p.time*30),p.project.canvas,p.project.media?.path,p.project.assets.map(a=>[a.id,a.path]),clips.map(({transform:_,volume:__,...c})=>c),p.project.tracks.V1?.hidden,p.project.tracks.V2?.hidden,p.project.transitions]);
+ const clips=projectClips(p.project),key=JSON.stringify([Math.floor(p.time*30),p.project.canvas,p.project.media?.path,p.project.assets.map(a=>[a.id,a.path]),clips.map(({transform:_,volume:__,...c})=>c),Object.entries(p.project.tracks).filter(([id,s])=>id.startsWith('V')&&s.hidden).map(([id])=>id).sort(),p.project.transitions]);
  useEffect(()=>{setFrames(null);setHint('');if(p.playing||!clips.length)return;let alive=true;const timer=setTimeout(()=>{
   void invoke<Frames>('layer_frames',{json:JSON.stringify(current.current.project),time:current.current.time}).then(v=>{if(!alive)return;setFrames(v);current.current.onAspects(Object.fromEntries(v.layers.map(f=>[f.id,f.sourceAspect])));}).catch(e=>{if(alive)setHint(String(e));});
  },120);return()=>{alive=false;clearTimeout(timer);};},[key,p.playing,p.proxyRevision]);

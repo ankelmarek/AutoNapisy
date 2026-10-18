@@ -1,16 +1,17 @@
 import type {Project} from './model';
 import {compositionSegments,projectClips,type Clip} from './editing';
-export type TrackId=keyof Project['tracks'];
-export const videoTrack=(c:Clip):'V1'|'V2'=>(c.track??0)===0?'V1':'V2';
-export const audioTrack=(c:Clip):'A1'|'A2'=>(c.track??0)===0?'A1':'A2';
+import {trackId,routedAudio,type TrackId} from './trackModel';
+export type {TrackId} from './trackModel';
+export const videoTrack=(c:Clip):TrackId=>trackId('video',c.track??0);
+export const audioTrack=(c:Clip):TrackId|null=>{const index=routedAudio(c);return index===null?null:trackId('audio',index);};
 export const videoHidden=(p:Project,c:Clip)=>c.kind!=='audio'&&!!p.tracks[videoTrack(c)]?.hidden;
-export const clipMuted=(p:Project,c:Clip)=>!!c.audioDetached||!!p.tracks[audioTrack(c)]?.muted||(c.kind!=='audio'&&!!p.tracks[videoTrack(c)]?.muted);
+export const clipMuted=(p:Project,c:Clip)=>!!c.audioDetached||!!(audioTrack(c)&&p.tracks[audioTrack(c)!]?.muted)||(c.kind!=='audio'&&!!p.tracks[videoTrack(c)]?.muted);
 export function toggleTrack(p:Project,id:TrackId,control:'muted'|'hidden'):Project{
  return {...p,tracks:{...p.tracks,[id]:{...p.tracks[id],[control]:!p.tracks[id]?.[control]}}};
 }
 
 /** Embedded sound occupies its routed A lane as well as the picture lane. */
-export const clipTracks=(c:Clip):TrackId[]=>c.kind==='audio'?[audioTrack(c)]:[videoTrack(c),...(!c.audioDetached?[audioTrack(c)]:[])];
+export const clipTracks=(c:Clip):TrackId[]=>c.kind==='audio'?[audioTrack(c)!]:[videoTrack(c),...(!c.audioDetached&&audioTrack(c)?[audioTrack(c)!]:[])];
 export const clipLocked=(p:Project,c:Clip)=>clipTracks(c).some(t=>p.tracks[t]?.locked);
 /** Enforce edit locks at the common project boundary, including inspector and clipboard operations. */
 export function assertUnlockedEdit(before:Project,next:Project){
