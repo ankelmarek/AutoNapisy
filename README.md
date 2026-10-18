@@ -1,7 +1,26 @@
-# RolVixa 0.17 — polska mowa → polskie napisy
+# RolVixa 0.18 — polska mowa → polskie napisy
 
-**Gotowy instalator 0.17:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39097201488/artifacts/12124839247), rozpakuj i uruchom `RolVixa_0.17.0_x64-setup.exe`.
+**Gotowy instalator 0.18:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39105640931/artifacts/12128183979), rozpakuj i uruchom `RolVixa_0.18.0_x64-setup.exe`. Pobranie z Actions wymaga zalogowania na GitHub.
 RolVixa (wcześniej AutoNapisy) to lokalna aplikacja Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Rozpoznaje polską mowę przez whisper.cpp, bez tłumaczenia. Transkrypcja i montaż działają na komputerze. Opcjonalna biblioteka muzyki łączy się z Openverse po wpisaniu frazy wyszukiwania; nie wysyła nagrań użytkownika.
+
+## Wersja 0.18 — Ripple i odłączanie audio
+
+- **Ripple On/Off** w belce osi. Usunięcie lub przycięcie skraca/rozsuwa dokładnie edytowany przedział; zachowuje pozostałe celowe odstępy. Zwykłe przesuwanie klipu działa jak wcześniej.
+- Każdy tor ma **R·A / R+ / R−**: automat / jawnie włączone / jawnie wyłączone. Automat obejmuje tylko tory zaczynające się od 00:00 (tolerancja pół klatki); późne i puste są chronione. Globalne On nie nadpisuje ręcznych decyzji. Podpowiedź przy R wyjaśnia stan.
+- **Kłódka** chroni edycję klipów danego toru. Dźwięk wbudowany w film zajmuje V oraz odpowiadający A; blokada którejkolwiek części chroni cały połączony klip.
+- Przed zatwierdzeniem Ripple jest osobne okno z pozycjami przed/po, długością montażu, zmianami napisów i utraconymi przejściami. Anulowanie nie zmienia projektu. Konflikty R, blokad, przecinających klipów lub synchronizacji blokują „Zastosuj Ripple”; można poprawić ustawienia albo wybrać samo cięcie **bez Ripple**.
+- **Odłącz audio → A1/A2** w menu prawego przycisku klipu lub panelu filmu. Osobne audio zachowuje źródło, zakres, głośność, punkty i fade’y; obraz przestaje odtwarzać dźwięk. Jeśli pierwotny dźwięk był wyciszony przez tor V lub A, odłączony klip otrzymuje głośność 0 — można ją później podnieść.
+- **J-cut / L-cut:** wyłącz Ripple, zaznacz osobny klip audio i przeciągnij jego lewy brzeg przed obraz lub prawy za obraz. Zakres ogranicza faktyczna długość źródła. Liczbowe In/Out zatwierdzaj Enter lub opuszczeniem pola (Esc anuluje). Przesunięcie synchronizacji jest w panelu; „Zsynchronizuj audio z obrazem” wyrównuje źródłowy czas, zachowując niezależne przycięcia.
+- Odłączając dźwięk filmu z przejściem, zachowujemy jego liniowy miks w źródłowej obwiedni. Można ją jawnie usunąć w panelu audio; późniejsza zmiana przejścia wideo nie steruje odłączonym dźwiękiem.
+- Operacja zatwierdzona to **jeden krok Undo/Redo**. R, blokady, powiązania i odłączenie zapisują się w **schemacie v10**; import v1–v9 automatycznie wyłącza globalne Ripple. Starsza aplikacja nie otworzy v10 — przed nadpisaniem zachowaj kopię projektu.
+
+Ograniczenia 0.18: nadal V1/V2 i A1/A2, 100 klipów i 30 FPS. Ripple działa przy usuwaniu oraz przycinaniu klipów, nie przy importowaniu/przesuwaniu ani przy samym skracaniu kart napisów. Nie przycina po cichu klipów innych torów przecinających usuwany przedział. Takie konflikty wymagają ręcznego cięcia lub wyłączenia R. Napisy pochodzące ze źródła nadal odnoszą się do obrazu; po zmianie treści słyszalnej przez J/L-cut warto ponownie transkrybować końcowy montaż. Niezależne napisy T wymagają odpowiedniego R lub ręcznej korekty. Nie łączy ponownie audio z wideo w jeden klip; dostępne jest wyrównanie synchronizacji. SmartCut i dynamiczne V3/A3 pozostają następnymi osobnymi etapami.
+
+Odbiór 0.18: **[pełny zielony przebieg Windows 39105640931](https://github.com/ankelmarek/AutoNapisy/actions/runs/39105640931)** — **150 testów TypeScript, 62 Rust i 12 rzeczywistych integracyjnych**, produkcyjny build, instalacja NSIS i WebView2. Sprawdzono Ripple (podgląd/anulowanie/zatwierdzanie, późne tory, konflikty), trim, blokady, odłączenie/J/L-cut, synchronizację, Undo/Redo, trwały zapis v10, przełączanie R bez restartu dekodera oraz 1366×700 obszaru roboczego laptopa i 1920×1080. Ponownie przeszły testy proxy, Openverse, transkrypcji montażu, eksportu i odzyskiwania po awarii procesu. Naprawiono wyścig przy Ctrl+O bezpośrednio po zapisie — decyzja o niezapisanych zmianach czyta bieżący stan zapisu.
+
+ZIP instalatora: **80 839 708 bajtów**, SHA-256 `0d8d46a7e5457cb3f16b4914510f27839d4e6bf0295b3ea37ca7e1035f8946f7`. Źródła binariów i licencje są dołączone. Instrumentację WebView2 zbudowano oddzielnie; instalator ma wyłączone DevTools i testowe dialogi. Lokalnie Linux: 150 TS, 60 Rust core i 3 rzeczywiste testy audio MLT/FFmpeg; pełną aplikację i instalator zweryfikowano na Windows.
+
+Nowe pliki 0.18: `src/ripple.ts`, `src/RipplePreview.tsx`, `src/detachedAudio.ts`, `schemas/project-v10.schema.json`, `tests/ripple.test.ts`, `scripts/test-edit018.mjs`. Zmodyfikowano model i parser TS/Rust, oś, inspektor, ochronę kadrowania, wspólny model audio oraz testy MLT/FFmpeg i WebView2. Użyte ikony kłódek pochodzą z tego samego oficjalnego Tabler Icons v3.35.0 (MIT); licencja pozostaje w `licenses/Tabler-Icons-MIT.txt`.
 
 ## Wersja 0.17 — odzyskiwanie i wybór ujęć
 
@@ -28,11 +47,11 @@ Odbiór 0.17:
 - ZIP instalatora: **80 806 310 bajtów**, SHA-256 `5d9ddbd1ad34ccc7099600f7805e3b3dfae1b98c6b85eca25eb0054c3c31938a`. Do pobrania z Actions wymagane jest zalogowanie na GitHub.
 - Lokalnie: 125 TS, 57 testów Rust core i rzeczywisty test FFmpeg/MLT zakresu źródła; kompilację całej aplikacji i instalatora sprawdzono na Windows, nie w środowisku Linux.
 
-Dalsza wersja: Ripple oraz odłączanie audio/J/L-cut, potem dynamiczne V3/A3 zgodnie z ROADMAP. Tych funkcji nie ma w 0.17.
+Ripple i odłączanie audio/J/L-cut wykonano w 0.18; następny priorytet: dynamiczne V3/A3 zgodnie z ROADMAP.
 
 ## Aktualizacja i uruchomienie ze źródeł
 
-Zachowaj projekty i nagrania. Pobierz ZIP z GitHuba i rozpakuj do nowego folderu, np. `C:\RolVixa-0.17`. Nie kopiuj starych `node_modules`, `dist` i `src-tauri/target`. Aplikacja otwiera projekty v1–v9 i zapisuje format v9. Przed zapisaniem zachowaj kopię JSON, jeśli chcesz wrócić do starszej wersji aplikacji.
+Zachowaj projekty i nagrania. Pobierz ZIP z GitHuba i rozpakuj do nowego folderu, np. `C:\RolVixa-0.18`. Nie kopiuj starych `node_modules`, `dist` i `src-tauri/target`. Aplikacja 0.18 otwiera projekty v1–v10 i zapisuje format v10. Przed zapisaniem zachowaj kopię JSON, jeśli chcesz wrócić do starszej wersji aplikacji.
 
 Wymagania: Node.js 22 lub 24, Rust stable ≥1.89 x64 MSVC (blokada pliku kopii odzyskiwania), Visual Studio Build Tools z „Desktop development with C++” i Windows SDK oraz WebView2 Runtime.
 
@@ -181,7 +200,7 @@ Importuj filmy i wycinaj z nich ujęcia. Oryginał pozostaje bez zmian.
 - **Zaznacz** (V): przeciągnij środek klipu, aby go przesunąć. Klipy wideo na tym samym pasie nie nakładają się. Przeniesienie fragmentu za inny zmienia kolejność.
 - Przeciągnij boczny uchwyt, aby skrócić lub przywrócić fragment w granicach źródła i wolnego miejsca.
 - **Magnes** przyciąga krawędzie do sąsiada (10 pikseli), uchwyty także do głowicy.
-- **Usuń ujęcie** / Delete usuwa zaznaczony fragment i pozostawia przerwę. **Dosuń wszystkie** zamyka wszystkie przerwy w aktualnej kolejności. Gdy oś jest pusta, **Przywróć cały film** dodaje pełne źródło, zachowując oryginalną transkrypcję.
+- **Usuń ujęcie** / Delete usuwa zaznaczony fragment i pozostawia przerwę. **Ripple On** po podglądzie domyka tylko edytowany przedział na uczestniczących torach; nie usuwa wszystkich przerw. Gdy oś jest pusta, **Przywróć cały film** dodaje pełne źródło, zachowując oryginalną transkrypcję.
 - **Cofnij/Ponów**: przyciski lub Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y. Jedno przeciągnięcie jest jedną zmianą.
 - Kliknij lub przeciągnij linijkę, aby przewinąć. Zoom i poziomy pasek przewijania pomagają przy dłuższych nagraniach. Pola pod osią umożliwiają dokładne ustawienie czasów w sekundach.
 

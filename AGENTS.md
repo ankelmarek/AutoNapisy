@@ -22,6 +22,14 @@ Połączono odzyskiwanie i podgląd źródła/I/O. Kopie: odrębny atomowy zapis
 
 Pełny odbiór Windows 0.17: run 39097201488, wszystkie kroki zielone — 125 TS, 59 Rust, 11 integracyjnych, instalacja i WebView2. Potwierdzone wymuszone zakończenie procesu, ponowne uruchomienie, przyszły schemat, zapis mimo błędu autozapisu, anulowanie dialogu, I/O/przeciąganie/Undo i widoki 1366/Full HD. Instalator: artefakt 12124839247. Szczegóły i ograniczenia w README. Dalej obowiązuje kolejność Ripple/J/L-cut → V3/A3 z sekcji priorytetów powyżej.
 
+## Wdrożenie 0.18
+
+Ripple/odłączanie audio/J-cut/L-cut ukończone na obecnych torach. Pełny zielony odbiór Windows: run 39105640931, 150 TS, 62 Rust, 12 integracyjnych, instalator 12128183979 i WebView2 1366/Full HD. Schemat v10; import v1–v9 ustawia globalne Ripple Off. TrackState ma locked i ripple auto/on/off, klip ma audioDetached, syncGroup i opcjonalny crossfade. Crossfade zachowuje liniowy miks dawnego przejścia w źródłowym czasie, mnożony przez volume, punkty i smoothstep fade’y; nie podwajać dźwięku odłączonego wideo. Ripple ma podgląd, zachowuje pozostałe luki, nie zmienia zwykłego ruchu klipu, wykrywa konflikty i chroni blokady. Nie używać closeGaps jako implementacji Ripple. Kolejny zatwierdzony priorytet po odbiorze: dynamiczne V3/A3 i dalsze tory (issue #3), bez zmiany reguł montażu. Nie wdrażać SmartCut w tej paczce.
+
 ## Zatwierdzone poprawki UX
 
 Użytkownik zakończył zbieranie ośmiu uwag do interfejsu. Dokładna specyfikacja i kryteria odbioru w [GitHub issue #4](https://github.com/ankelmarek/AutoNapisy/issues/4) i ROADMAP.md. Rozbić prace na 3 niezależne PR: A (napisy, ikony transkrypcji/SRT, skasowanie etykiety MONTAŻ i zbędnego opisu V1/V2, podpis „Eksportuj” na żółtym przycisku), B (usunąć redundantną zakładkę Warstwy, ale zachować FrameEditor/TransformControls i widoczność torów; siatka kafelków przejść z wiernym demo; przeciągane splittery paneli), C (ekran startowy z 6 ostatnimi projektami, z pierwszeństwem odzyskiwania po awarii i autoryzacją plików w backendzie). Nie mieszać UX z migracją schematu torów; zachować Ripple/J/L-cut → V3/A3. Używać wyłącznie istniejących Tabler Icons oraz testować WebView2/1366×768/Full HD.
+
+
+
+Ctrl+O/Nowy sprawdzają bieżące `saver.state` i `latestProject.current`, bez stanu z poprzedniego handlera klawiatury. R i blokady nie należą do klucza strumienia MLT (tylko mute/widoczność): ich przełączanie nie powinno restartować dekodera. Blokada chroni też docelowy tor przy przenoszeniu istniejącego klipu.

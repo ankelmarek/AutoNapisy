@@ -1,3 +1,4 @@
+import {clipLocked} from './trackControls';
 import {useEffect,useRef,useState,type PointerEvent} from 'react';
 import {invoke} from '@tauri-apps/api/core';
 import type {Project} from './model';
@@ -18,7 +19,7 @@ export default function FrameEditor(p:Props){
  const active=frames?.layers.map(f=>({frame:f,clip:clips.find(c=>c.id===f.id)})).filter((f):f is {frame:Frame;clip:Clip}=>!!f.clip&&!videoHidden(p.project,f.clip))??[];
  const selected=active.find(f=>f.clip.id===p.selectedId);
  const start=(e:PointerEvent,id:string,kind:'move'|'scale')=>{
-  if(p.locked||p.playing)return;e.preventDefault();e.stopPropagation();const box=root.current?.getBoundingClientRect(),clip=clips.find(c=>c.id===id);if(!box||!clip)return;
+  if(p.locked||p.playing)return;e.preventDefault();e.stopPropagation();const box=root.current?.getBoundingClientRect(),clip=clips.find(c=>c.id===id);if(!box||!clip||clipLocked(p.project,clip))return;
   p.onPause();p.onSelect(id);e.currentTarget.setPointerCapture(e.pointerId);const base=transformOf(clip),cx=box.left+box.width*(.5+base.x),cy=box.top+box.height*(.5+base.y);
   drag.current={id,kind,x:e.clientX,y:e.clientY,base,next:base,w:box.width,h:box.height,distance:Math.max(10,Math.hypot(e.clientX-cx,e.clientY-cy))};setDraft({id,value:base});
  };
@@ -31,9 +32,9 @@ export default function FrameEditor(p:Props){
  const cancel=()=>{drag.current=null;setDraft(null);};
  const rect=selected?frameRect(100,100,draft?.id===selected.clip.id?draft.value:transformOf(selected.clip)):null;
  return <div className="frame-editor" ref={root} aria-label="Warstwy podglądu" data-ready={!!frames&&!p.playing}>
-  {!p.playing&&active.map(({frame,clip})=>{const t=draft?.id===clip.id?draft.value:transformOf(clip);return <img draggable={false} className="frame-layer" data-layer-id={clip.id} key={clip.id} alt="" src={`data:image/png;base64,${frame.png}`} style={{zIndex:1+(clip.track??0),transform:`translate(${t.x*100}%,${t.y*100}%) scale(${t.scale})`,pointerEvents:p.locked?'none':'auto'}} onPointerDown={e=>start(e,clip.id,'move')} onPointerMove={move} onPointerUp={end} onPointerCancel={cancel}/>;})}
+  {!p.playing&&active.map(({frame,clip})=>{const t=draft?.id===clip.id?draft.value:transformOf(clip);return <img draggable={false} className="frame-layer" data-layer-id={clip.id} key={clip.id} alt="" src={`data:image/png;base64,${frame.png}`} style={{zIndex:1+(clip.track??0),transform:`translate(${t.x*100}%,${t.y*100}%) scale(${t.scale})`,pointerEvents:p.locked||clipLocked(p.project,clip)?'none':'auto'}} onPointerDown={e=>start(e,clip.id,'move')} onPointerMove={move} onPointerUp={end} onPointerCancel={cancel}/>;})}
   {!p.playing&&selected&&rect&&<div className="frame-selection" style={{left:`${rect.left}%`,top:`${rect.top}%`,width:`${rect.width}%`,height:`${rect.height}%`}}>
-   {(['nw','ne','sw','se'] as const).map(corner=><button key={corner} className={`frame-handle ${corner}`} disabled={p.locked} aria-label={`Skaluj film ${corner}`} onPointerDown={e=>start(e,selected.clip.id,'scale')} onPointerMove={move} onPointerUp={end} onPointerCancel={cancel}/>)}
+   {(['nw','ne','sw','se'] as const).map(corner=><button key={corner} className={`frame-handle ${corner}`} disabled={p.locked||clipLocked(p.project,selected.clip)} aria-label={`Skaluj film ${corner}`} onPointerDown={e=>start(e,selected.clip.id,'scale')} onPointerMove={move} onPointerUp={end} onPointerCancel={cancel}/>)}
   </div>}
   {draft&&<><i className="frame-guide vertical"/><i className="frame-guide horizontal"/><span className="frame-transform-value">{Math.round(draft.value.scale*100)}% · X {Math.round(draft.value.x*100)}% · Y {Math.round(draft.value.y*100)}%</span></>}
   {!p.playing&&hint&&<span className="frame-hint">{hint}</span>}

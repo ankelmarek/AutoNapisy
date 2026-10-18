@@ -111,7 +111,7 @@ describe("migracja i geometria", () => {
       },
     };
     const migrated = parseProject(JSON.stringify(old));
-    expect(migrated.schemaVersion).toBe(9);
+    expect(migrated.schemaVersion).toBe(10);
     expect(migrated.styles.default.uppercase).toBe(false);
     expect(migrated.styles.default.fontFamily).toBe("Arial");
     expect(parseProject(serializeProject(migrated))).toEqual({

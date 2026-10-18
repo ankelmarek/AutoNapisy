@@ -47,9 +47,11 @@ import { rendering, type ExportStatus } from "./rendering";
 import bebasLicense from "./assets/BebasNeue-OFL.txt?raw";
 import CaptionOverlay, { CaptionBox } from "./CaptionOverlay";
 import { captionExport, yellowPreset, referenceText } from "./captions";
+import {assertUnlockedEdit,clipLocked} from './trackControls';
 export default function App() {
   const history = useProjectHistory();
-  const {project,setProject} = history;
+  const {project,setProject:writeProject} = history;
+  const setProject=(value:Project|((p:Project)=>Project))=>{try{const next=typeof value==='function'?value(latestProject.current):value;assertUnlockedEdit(latestProject.current,next);writeProject(next);}catch(e){setMessage(String(e));}};
   const [source, setSource] = useState(""),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState(
@@ -90,7 +92,8 @@ export default function App() {
   const [,refreshRecovery]=useReducer((n:number)=>n+1,0),recoveryRef=useRef<RecoveryWriter|null>(null);
   if(!recoveryRef.current)recoveryRef.current=new RecoveryWriter(async r=>{if(r.json===null){await invoke('clear_recovery',{session:r.session});return null;}return invoke<number>('write_recovery',{json:r.json,session:r.session});},refreshRecovery);
   const recovery=recoveryRef.current;
-  const locked = busy || transcribing || exporting || !recoveryReady || !!recoveryInfo;
+  const [timelineModal,setTimelineModal]=useState(false);
+  const locked = timelineModal || busy || transcribing || exporting || !recoveryReady || !!recoveryInfo;
   useEffect(()=>{let alive=true;startup.current??=invoke<RecoveryInfo>('recovery_status');void startup.current.then(info=>{if(!alive)return;saver.accept(latestProject.current,'',info.session);if(info.available)setRecoveryInfo(info);if(info.warning){if(info.available)setRecoveryError(info.warning);else setMessage('Odzyskiwanie: '+info.warning);}setRecoveryReady(true);}).catch(e=>{if(alive){setRecoveryError(String(e));setRecoveryReady(true);}});return()=>{alive=false;};},[]);
   useEffect(()=>{
     const needed=saveState.baseline===null?(recovered.current||revision!==pristineRevision.current):dirty;
@@ -146,7 +149,7 @@ export default function App() {
   const caption=displayedSegments.find(s=>s.id===selectedCaption);
   const picture=visuals(project,Math.min(time,Math.max(0,duration-1e-7)));
   const selectCaption=(id:string)=>{setSelectedCaption(id);setInspectorTab('captions');requestAnimationFrame(()=>{captionInput.current?.focus();captionInput.current?.scrollIntoView({block:'nearest'});});};
-  const changeProject=(p:Project)=>{setProject(p);};
+  const changeProject=(p:Project)=>{try{assertUnlockedEdit(latestProject.current,p);setProject(p);}catch(e){setMessage(String(e));}};
   const gap = !visuals(project,Math.min(time,Math.max(0,duration-1e-7))).length;
   const undo = () => {playback.pause();history.undo();};
   const redo = () => {playback.pause();history.redo();};
@@ -169,8 +172,12 @@ export default function App() {
     }
   };
   const resetPlayback = playback.reset;
-  const replace = () =>
-    !(saveState.baseline===null?revision!==pristineRevision.current:dirty) || window.confirm("Projekt ma niezapisane zmiany. Kontynuować?");
+  const replace = () => {
+    // Shortcuts may run before passive effects replace the previous key handler.
+    // The saver and project refs are authoritative immediately after a save/title commit.
+    const state=saver.state,current=projectRevision(latestProject.current);
+    return !(state.baseline===null?current!==pristineRevision.current:current!==state.baseline) || window.confirm("Projekt ma niezapisane zmiany. Kontynuować?");
+  };
   const importMedia = (kind:'video'|'audio') => run(async()=>{
     const files=await preview.import(kind);if(!files?.length)return;
     let next=latestProject.current;const prepared:Record<string,string>={},failed:string[]=[];let added=0;
@@ -397,7 +404,7 @@ export default function App() {
           {leftTab==='audio'&&<AudioLibrary project={project} locked={locked} timelinePlaying={playing} onImport={()=>importMedia('audio')} onRegister={registerAudio} onPause={playback.pause} onAdd={id=>{try{playback.pause();changeProject(insertLibraryItem(latestProject.current,id,time));setMessage('Dodano audio na oś czasu.');}catch(e){setMessage(String(e));}}}/>}
           {leftTab==='effects'&&<EffectsLibrary chosen={effectChoice} onChoose={setEffectChoice}/>}
           {leftTab==='files'&&<MediaLibrary project={project} sources={sources} locked={locked} onView={viewSource} onImport={importVideo} proxies={proxies} onClearCache={()=>{if(window.confirm('Usunąć wszystkie kopie proxy z cache? Oryginalne nagrania i projekt zostaną zachowane.'))void playback.suspend().then(()=>new Promise(r=>setTimeout(r,200))).then(()=>proxies.clear()).then(()=>playback.retry()).catch(e=>setMessage(String(e)));}}
-            onAdd={id=>{try{playback.pause();const next=insertLibraryItem(project,id,time);setProject(next);setMessage('Dodano plik z biblioteki na oś czasu.');}catch(e){setMessage(String(e));}}}/>}
+            onAdd={id=>{try{playback.pause();const next=insertLibraryItem(project,id,time);changeProject(next);setMessage('Dodano plik z biblioteki na oś czasu.');}catch(e){setMessage(String(e));}}}/>}
           <div className="captions-tab-content" role="tabpanel" id="captions-panel" aria-labelledby="captions-tab" hidden={leftTab!=='captions'}>
           <div className="transcription-controls">
             <span className="transcription-scope">Napisy z montażu · tylko fragmenty na osi</span>
@@ -465,7 +472,7 @@ export default function App() {
           </div>
         </section>
         <section className="panel preview">
-          {sourceViewerItem&&chosenSourceRange&&<SourceViewer key={sourceViewerItem.path} item={sourceViewerItem} range={chosenSourceRange} keyHandler={sourceKeys} proxyRevision={JSON.stringify([proxies.records[sourceViewerItem.path]?.previewPath,proxies.records[sourceViewerItem.path]?.enabled])} locked={locked||settings} onRange={r=>{sourceRanges.current.set(sourceViewerItem.path,r);bumpSourceRange();}} onClose={()=>setSourceViewerId('')} onAdd={range=>{try{const next=insertLibraryItem(latestProject.current,sourceViewerItem.id,time,undefined,range);setSourceViewerId('');setProject(next);setMessage('Dodano zaznaczony fragment na oś czasu.');}catch(e){setMessage(String(e));}}}/>}
+          {sourceViewerItem&&chosenSourceRange&&<SourceViewer key={sourceViewerItem.path} item={sourceViewerItem} range={chosenSourceRange} keyHandler={sourceKeys} proxyRevision={JSON.stringify([proxies.records[sourceViewerItem.path]?.previewPath,proxies.records[sourceViewerItem.path]?.enabled])} locked={locked||settings} onRange={r=>{sourceRanges.current.set(sourceViewerItem.path,r);bumpSourceRange();}} onClose={()=>setSourceViewerId('')} onAdd={range=>{try{const next=insertLibraryItem(latestProject.current,sourceViewerItem.id,time,undefined,range);setSourceViewerId('');changeProject(next);setMessage('Dodano zaznaczony fragment na oś czasu.');}catch(e){setMessage(String(e));}}}/>}
           <div className="montage-preview" hidden={!!sourceViewerItem}>
           <div className="panelhead">
             <h2>Podgląd wideo</h2>
@@ -531,8 +538,8 @@ export default function App() {
           <div className="panelbody">
             <div className="inspector-tabs"><button aria-pressed={inspectorTab==='video'} onClick={()=>setInspectorTab('video')}>Film / audio</button><button aria-pressed={inspectorTab==='captions'} onClick={()=>setInspectorTab('captions')}>Napisy</button><button aria-pressed={inspectorTab==='layers'} onClick={()=>setInspectorTab('layers')}>Warstwy</button></div>
             {inspectorTab==='layers'&&<LayersPanel project={project} time={time} selectedId={selected?.id??''} locked={locked} onSelect={id=>{playback.pause();const c=projectClips(project).find(c=>c.id===id)!;if(time<c.start||time>=c.start+c.sourceOut-c.sourceIn)seek(c.start);setSelectedClip(id);setSelectedTransition('');}} onCaptions={()=>setInspectorTab('captions')} onChange={changeProject}/>}
-            {(inspectorTab==='video'||inspectorTab==='layers')&&<TransformControls project={project} clip={selected} sourceAspect={frameAspects[selected?.id??'']??0} canvasAspect={canvasAspect} locked={locked} onChange={changeProject}/>}
-            {inspectorTab==='video'&&<VideoProperties project={project} clip={selected} locked={locked} transitionId={selectedTransition} onChange={changeProject}/>}
+            {(inspectorTab==='video'||inspectorTab==='layers')&&<TransformControls project={project} clip={selected} sourceAspect={frameAspects[selected?.id??'']??0} canvasAspect={canvasAspect} locked={locked||!!selected&&clipLocked(project,selected)} onChange={changeProject}/>}
+            {inspectorTab==='video'&&<VideoProperties project={project} clip={selected} locked={locked||!!selected&&clipLocked(project,selected)} transitionId={selectedTransition} onChange={changeProject}/>}
             <div hidden={inspectorTab!=='captions'}>
             {caption&&<div className="caption-editor"><h3>Edycja zaznaczonego napisu</h3><textarea ref={captionInput} aria-label="Tekst zaznaczonego napisu" value={caption.text} disabled={locked} onChange={e=>changeProject(editCaption(project,caption,{text:e.target.value}))}/><div><label>Początek<input aria-label="Początek napisu" type="number" step={.01} value={Number(caption.start.toFixed(3))} disabled={locked} onChange={e=>{if(Number.isFinite(e.target.valueAsNumber))changeProject(resizeCaption(project,caption,'left',e.target.valueAsNumber-caption.start));}}/></label><label>Koniec<input aria-label="Koniec napisu" type="number" step={.01} value={Number(caption.end.toFixed(3))} disabled={locked} onChange={e=>{if(Number.isFinite(e.target.valueAsNumber))changeProject(resizeCaption(project,caption,'right',e.target.valueAsNumber-caption.end));}}/></label></div></div>}
             <div className="caption-presets">{[
@@ -710,8 +717,8 @@ export default function App() {
           </div>
         </section>
       </main>
-      <Timeline project={project} time={time} locked={locked} onSeek={t=>{setSourceViewerId('');seek(t);}}
-        onChange={(clips,mode)=>{if(mode!=='volume')playback.pause();setProject(p=>({...p,clips,transitions:reconcileTransitions(p,clips)}));}} onPreviewVolume={playback.previewVolume} onBeginAudio={playback.pause} onSelect={id=>{setSelectedClip(id);setSelectedTransition('');setInspectorTab('video');}} onCaptionSelect={selectCaption}
+      <Timeline project={project} time={time} locked={locked||settings} onPreviewOpen={setTimelineModal} onError={setMessage} onSeek={t=>{setSourceViewerId('');seek(t);}}
+        onChange={(clips,mode)=>{if(mode!=='volume')playback.pause();changeProject({...latestProject.current,clips,transitions:reconcileTransitions(latestProject.current,clips)});}} onPreviewVolume={playback.previewVolume} onBeginAudio={playback.pause} onSelect={id=>{setSelectedClip(id);setSelectedTransition('');setInspectorTab('video');}} onCaptionSelect={selectCaption}
         onMediaDrop={(id,at,track,range)=>{try{playback.pause();setSourceViewerId('');changeProject(insertLibraryItem(latestProject.current,id,at,track,range));setMessage('Dodano plik na oś czasu.');}catch(e){setMessage(String(e));}}}
         onCaptionChange={p=>changeProject(p)} effectChoice={effectChoice} onTransition={(a,b,choice)=>{try{playback.pause();const next=applyTransition(project,a,b,choice.kind,choice.duration);changeProject(next);setSelectedTransition(next.transitions.find(t=>t.toId===b)!.id);setInspectorTab('video');}catch(e){setMessage(String(e));}}} onTransitionSelect={id=>{setSelectedTransition(id);setInspectorTab('video');}}
         undo={undo} redo={redo} canUndo={history.canUndo} canRedo={history.canRedo}/>

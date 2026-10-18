@@ -1,7 +1,7 @@
 import { z } from "zod";
 import {transitionKinds,legacyTransition} from "./transitionCatalog";
 const time = z.number().finite().nonnegative();
-const trackState=z.object({muted:z.boolean().optional(),hidden:z.boolean().optional()}).strict();
+const trackState=z.object({muted:z.boolean().optional(),hidden:z.boolean().optional(),locked:z.boolean().optional(),ripple:z.enum(["auto","on","off"]).optional()}).strict();
 const tracksSchema=z.object({V1:trackState.optional(),V2:trackState.optional(),A1:trackState.optional(),A2:trackState.optional(),T:trackState.optional()}).strict();
 export const styleSchema = z
   .object({
@@ -49,14 +49,15 @@ const fadeSchema=z.object({anchor:time,duration:z.number().finite().positive().m
 export const audioEnvelopeSchema=z.object({points:z.array(z.object({id:z.string().min(1).max(100),time,gain:z.number().finite().min(0).max(1)}).strict()).max(64),fadeIn:fadeSchema.optional(),fadeOut:fadeSchema.optional()}).strict();
 const currentProjectSchema = z
   .object({
-    schemaVersion: z.literal(9),
+    schemaVersion: z.literal(10),
+    rippleEnabled:z.boolean().default(false),
     canvas:z.object({width:z.number().int().min(128).max(3840).multipleOf(2),height:z.number().int().min(128).max(3840).multipleOf(2)}).strict().nullable().default(null),
     tracks:tracksSchema.default({}),
     timelineSegments:z.array(segment).nullable().default(null),
     captionEdits:z.record(z.object({trimStart:time,trimEnd:time,text:z.string().max(100000).optional(),hidden:z.boolean().optional()}).strict()).default({}),
     transitions:z.array(z.object({id:z.string().min(1),fromId:z.string().min(1),toId:z.string().min(1),kind:z.enum(transitionKinds),duration:z.number().min(.1).max(2)}).strict()).max(99).default([]),
     assets: z.array(z.object({id:z.string().min(1),path:z.string().min(1),name:z.string(),duration:time,kind:z.enum(["video","audio"]),provenance:provenanceSchema.optional(),segments:z.array(segment)}).strict()).max(100).default([]),
-    clips: z.array(z.object({id:z.string().min(1),sourceIn:time,sourceOut:time,start:time,assetId:z.string().optional(),track:z.union([z.literal(0),z.literal(1)]).optional(),kind:z.enum(["video","audio"]).optional(),volume:z.number().min(0).max(1).optional(),audio:audioEnvelopeSchema.optional(),transform:transformSchema.optional(),adjustments:z.object({brightness:z.number().min(.25).max(2),contrast:z.number().min(.25).max(2),saturation:z.number().min(0).max(2)}).strict().optional()}).strict()).max(100).nullable(),
+    clips: z.array(z.object({id:z.string().min(1),sourceIn:time,sourceOut:time,start:time,assetId:z.string().optional(),track:z.union([z.literal(0),z.literal(1)]).optional(),kind:z.enum(["video","audio"]).optional(),volume:z.number().min(0).max(1).optional(),audio:audioEnvelopeSchema.optional(),audioDetached:z.boolean().optional(),syncGroup:z.string().min(1).max(100).optional(),crossfade:z.object({fadeIn:fadeSchema.optional(),fadeOut:fadeSchema.optional()}).strict().optional(),transform:transformSchema.optional(),adjustments:z.object({brightness:z.number().min(.25).max(2),contrast:z.number().min(.25).max(2),saturation:z.number().min(0).max(2)}).strict().optional()}).strict()).max(100).nullable(),
     name: z.string().min(1).max(200),
     media: z
       .object({
@@ -82,9 +83,14 @@ const currentProjectSchema = z
         (clip.kind!=='audio' && 'kind' in m && m.kind==='audio') ||
         (clip.kind!=='audio' && clips.slice(0,i).some(o=>o.kind!=='audio' && (o.track??0)===(clip.track??0) && clip.start<o.start+o.sourceOut-o.sourceIn-1e-6));
     })) c.addIssue({code:'custom',message:'Nieprawidłowe lub nakładające się ujęcia na tej samej ścieżce wideo'});
-    for(const clip of clips){const a=clip.audio,d=asset(clip)?.duration??0;if(!a)continue;
-      if(new Set(a.points.map(p=>p.id)).size!==a.points.length||a.points.some((p,i)=>p.time>d+1e-6||(i>0&&p.time-a.points[i-1].time<.000999))||
+    for(const clip of clips){
+      if((clip.audioDetached && clip.kind==='audio') || (clip.crossfade && clip.kind!=='audio'))c.addIssue({code:'custom',message:'Nieprawidłowe odłączenie audio'});
+      const d=asset(clip)?.duration??0;
+      for(const a of [clip.audio,clip.crossfade]){if(!a)continue;
+      const points=('points' in a?a.points:[]) as {id:string;time:number;gain:number}[];
+      if(new Set(points.map(p=>p.id)).size!==points.length||points.some((p,i)=>p.time>d+1e-6||(i>0&&p.time-points[i-1].time<.000999))||
         (a.fadeIn&&(a.fadeIn.anchor+a.fadeIn.duration>d+1e-6))||(a.fadeOut&&(a.fadeOut.anchor>d+1e-6||a.fadeOut.anchor-a.fadeOut.duration< -1e-6)))c.addIssue({code:'custom',message:'Nieprawidłowa obwiednia audio'});
+      }
     }
     const toIds=new Set<string>();
     if(new Set(p.transitions.map(t=>t.id)).size!==p.transitions.length||p.transitions.some(t=>{
@@ -110,15 +116,16 @@ const currentProjectSchema = z
       });
   });
 export const projectSchema = z.preprocess((value) => {
-  if(value&&typeof value==='object'&&'schemaVersion' in value&&[1,2,3,4,5,6,7,8].includes(Number(value.schemaVersion))){
+  if(value&&typeof value==='object'&&'schemaVersion' in value&&[1,2,3,4,5,6,7,8,9].includes(Number(value.schemaVersion))){
     const p=value as Project;
-    return {...p,assets:p.assets??[],captionEdits:p.captionEdits??{},timelineSegments:p.schemaVersion>=6?p.timelineSegments:null,transitions:(p.transitions??[]).map(t=>({...t,kind:legacyTransition(t.kind)})),schemaVersion:9,clips:p.schemaVersion>=3?p.clips:p.media?.duration?[{id:'original',sourceIn:0,sourceOut:p.media.duration,start:0}]:null};
+    return {...p,assets:p.assets??[],captionEdits:p.captionEdits??{},timelineSegments:p.schemaVersion>=6?p.timelineSegments:null,transitions:(p.transitions??[]).map(t=>({...t,kind:legacyTransition(t.kind)})),schemaVersion:10,rippleEnabled:false,clips:p.schemaVersion>=3?p.clips:p.media?.duration?[{id:'original',sourceIn:0,sourceOut:p.media.duration,start:0}]:null};
   }
   return value;
 }, currentProjectSchema);
 export type Project = z.infer<typeof currentProjectSchema>;
 export const newProject = (): Project => ({
-  schemaVersion: 9,
+  schemaVersion: 10,
+  rippleEnabled:false,
   canvas:null,
   tracks:{},
   timelineSegments:null,
