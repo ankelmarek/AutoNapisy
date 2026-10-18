@@ -1,7 +1,19 @@
-# RolVixa 0.18 — polska mowa → polskie napisy
+# RolVixa 0.19 — polska mowa → polskie napisy
 
-**Gotowy instalator 0.18:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39105640931/artifacts/12128183979), rozpakuj i uruchom `RolVixa_0.18.0_x64-setup.exe`. Pobranie z Actions wymaga zalogowania na GitHub.
+**Poprzedni stabilny instalator 0.18 (0.19 w weryfikacji):** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39105640931/artifacts/12128183979), rozpakuj i uruchom `RolVixa_0.18.0_x64-setup.exe`. Pobranie z Actions wymaga zalogowania na GitHub.
 RolVixa (wcześniej AutoNapisy) to lokalna aplikacja Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Rozpoznaje polską mowę przez whisper.cpp, bez tłumaczenia. Transkrypcja i montaż działają na komputerze. Opcjonalna biblioteka muzyki łączy się z Openverse po wpisaniu frazy wyszukiwania; nie wysyła nagrań użytkownika.
+
+## Wersja 0.19 — porządki interfejsu, UX A
+
+Zakładka **Napisy** ma kompaktowy obszar akcji z ikonami Tabler i czytelnymi opisami „Transkrybuj po polsku” oraz „Eksport SRT”. Postęp i anulowanie pozostają w tym samym miejscu. Pusty stan krótko wskazuje następny krok; konfiguracja silnika jest w Ustawieniach.
+
+Żółty przycisk nagłówka ma stale widoczny podpis **Eksportuj** i uruchamia dotychczasowy eksport MP4. Z osi usunięto etykietę MONTAŻ i stały opis V1/V2/audio. Pozostają kontrolki klipu, suwak czasu, timecode oraz dostępna nazwa obszaru „Montaż filmu”.
+
+Podczas odbioru poprawiono eksport SRT transkrypcji montażu: brak napisów źródłowych nie blokuje już eksportu faktycznych napisów z osi. Puste, ukryte i wychodzące poza montaż napisy są sprawdzane przed otwarciem dialogu. Zapis nadal jest atomowy, UTF-8 z czasami montażu. Nie zmieniono schematu **v10**, Ripple, obwiedni ani trasowania dźwięku.
+
+Zakres to etap A z [issue #4](https://github.com/ankelmarek/AutoNapisy/issues/4). Warstwy/przejścia/splittery (B) i ostatnie projekty (C) pozostają osobnymi zmianami; dynamiczne V3/A3 pozostają kolejnym dużym etapem montażu.
+
+Weryfikacja 0.19: lokalnie 150 TS, 62 Rust core i build frontendu; pełna kompilacja, instalacja oraz odbiór WebView2 na Windows w toku. Lista zmienionych obszarów: `src/App.tsx`, `src/Timeline.tsx`, `src/style.css`, walidacja SRT w `src-tauri/src/subtitles.rs` / `commands.rs`, istniejące skrypty odbioru oraz manifesty wersji. Ikony i licencja Tabler MIT pochodzą z dotychczasowego podzbioru v3.35.0.
 
 ## Wersja 0.18 — Ripple i odłączanie audio
 
