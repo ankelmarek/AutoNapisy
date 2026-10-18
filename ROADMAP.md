@@ -298,7 +298,7 @@ Użytkownik zatwierdził z poprzedniej listy **punkty 1, 2, 3, 4, 6, 7, 8, 9**. 
 - Przezroczysta nakładka jest wyłącznie pomocą edycyjną i **nie trafia do eksportu**. Ma skalować się razem z kadrem i nie przechwytywać gestów transformacji i zaznaczania napisów.
 - Presety mają charakter przybliżony, mogą zmieniać się wraz z interfejsem platform. Udostępnić możliwość dostosowania marginesów i wyłączenia warstwy; unikać deklaracji „gwarantowanej bezpiecznej strefy”.
 
-### 7. „Zastąp źródło” bez utraty montażu — implementacja 0.23, odbiór w toku
+### 7. „Zastąp źródło” bez utraty montażu — wykonane w 0.23 / PR #9
 
 - Akcja dla pliku w bibliotece: zamiana odwołania do źródła przy zachowaniu tożsamości klipów, ich pozycji, ręcznych cięć, kadrowania, transformacji i efektów tam, gdzie wynik pozostaje poprawny.
 - Najpierw sprawdzić zgodność nowego pliku przez FFprobe (czas, liczba i typ strumieni, proporcje/obrót, FPS, audio). Jeśli wymiana skróci materiał poniżej użytych `sourceOut`, pokazać konkretne konflikty i zaoferować anulowanie albo jawne, kontrolowane dopasowanie.
@@ -328,12 +328,14 @@ Użytkownik zatwierdził z poprzedniej listy **punkty 1, 2, 3, 4, 6, 7, 8, 9**. 
 5. Niezależnie dodać **6 (strefy bezpieczne)**, **7 (zastępowanie źródła)** oraz **8 (preflight)**; zastępowanie źródła uwzględnia mechanizm proxy, a preflight wymaga stabilnego i sprawdzalnego eksportu.
 6. Każdy etap wymaga testów TypeScript/Rust oraz realnego podglądu MLT i porównania z eksportem; potwierdzić migracje schematów, Undo/Redo, działania przy brakującym źródle i bez internetu.
 
-**Status:** punkty 1, 2, 3, 4, 6 i 9 wykonane. Dynamiczne V3/A3 wykonano w 0.22; zatwierdzone UX A/B/C z issue #4 wykonano w 0.19–0.21 jako osobne zmiany. Pozostałe rozszerzenia nadal planowane. Punkt 5 (kolorowe znaczniki na osi czasu) celowo pominięty.
+**Status:** punkty 1, 2, 3, 4, 6, 7 i 9 wykonane. Punkt 8 ma w 0.23 podstawowy raport źródeł i luk; pomiary miksu/obrazu i ocena stref nadal planowane. Dynamiczne V3/A3 wykonano w 0.22; zatwierdzone UX A/B/C z issue #4 wykonano w 0.19–0.21 jako osobne zmiany. Pozostałe rozszerzenia nadal planowane. Punkt 5 (kolorowe znaczniki na osi czasu) celowo pominięty.
 
 
 
-## 0.23 — źródła i podstawowy preflight (odbiór w toku)
+## 0.23 — źródła i podstawowy preflight (ukończone)
 
 Odnajdywanie plików i zastępowanie źródła z wyborem polityki napisów, ochroną licencji i blokad, zgodnością FFprobe, pełną walidacją zakresów i pojedynczym Undo. Zbyt krótki plik można anulować lub zastąpić innym; bez automatycznych zmian ujęć. Pojedynczy plik, bez batch relink. Tożsamość klipów i schemat v11 pozostają bez zmian. Odświeżane proxy, miniatury i waveforms, jednorazowa akceptacja identyfikatora backendu z ponownym sprawdzeniem odcisku pliku.
 
 Raport przed eksportem sprawdza dostępność i parametry źródeł oraz luki bez obrazu na widocznych torach; oddziela blokady od ostrzeżeń i pozwala przejść do pliku/czasu. To podstawowa część punktu 8: **pomiary miksu, clippingu, ciszy, czarnych klatek, stref i kadrowania nadal planowane**. Nie deklarować tych analiz jako wdrożonych. SmartCut/Export Studio nadal osobno.
+
+Odbiór 0.23: Windows run 39140872733, 184 TS, 79 Rust, 15 integracyjnych, instalacja i WebView2 1366×700 / Full HD; sprawdzone zrzuty. PR #9 połączony; instalator 12141718156. Odnajdywanie prawdziwego braku źródła, zapis/reopen i autoryzacja potwierdzone natywnie. Podmiana nieużywanego assetu zachowuje transkrypcję montażu; waveform czyści stare piksele podczas analizy zamiennika.

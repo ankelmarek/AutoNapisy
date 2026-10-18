@@ -1,11 +1,13 @@
 # RolVixa 0.23 — polska mowa → polskie napisy
 
-**Instalator 0.22:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39135310340/artifacts/12140085502), rozpakuj i uruchom `RolVixa_0.22.0_x64-setup.exe`. Pobranie z Actions wymaga zalogowania na GitHub.
+**Instalator 0.23:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39140872733/artifacts/12141718156), rozpakuj i uruchom `RolVixa_0.23.0_x64-setup.exe`. Pobranie z Actions wymaga zalogowania na GitHub.
 RolVixa (wcześniej AutoNapisy) to lokalna aplikacja Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Rozpoznaje polską mowę przez whisper.cpp, bez tłumaczenia. Transkrypcja i montaż działają na komputerze. Opcjonalna biblioteka muzyki łączy się z Openverse po wpisaniu frazy wyszukiwania; nie wysyła nagrań użytkownika.
 
 ## Wersja 0.23 — źródła i sprawdzenie eksportu
 
-W trakcie odbioru Windows; poprzedni zweryfikowany instalator jest podany wyżej. Schemat projektu pozostaje **v11**, bez migracji.
+**Ukończone, osobny [PR #9](https://github.com/ankelmarek/AutoNapisy/pull/9) połączony.** Pełny zielony [odbiór Windows 39140872733](https://github.com/ankelmarek/AutoNapisy/actions/runs/39140872733): **184 testy TypeScript, 79 Rust, 15 integracyjnych**, instalator, próbna instalacja i rzeczywisty WebView2. Obejrzano zrzuty laptopa 1366×700 i Full HD. Potwierdzono podmianę wielu użyć, konflikt zbyt krótkiego pliku, anulowanie, świadome zachowanie/usunięcie napisów, pojedyncze Undo/Redo, zapis v11, faktyczny brak źródła, naprawę i ponowne otwarcie z odtwarzaniem. Backend odrzuca nieznane, zmienione i wycofane identyfikatory; nieudany wybór nie zmienia projektu. Raport pozostaje w natywnej warstwie modalnej i wskazuje źródło także przy aktywnym filtrze biblioteki. Schemat projektu pozostaje **v11**, bez migracji.
+
+Instalator: artefakt **12141718156**, ZIP 81,174,894 B, SHA-256 `2930e9fc4e33e6be443dd1511098b52aee1f1d6d8ad34bfd3687da8e86f187ba`. Wypakuj archiwum przed uruchomieniem EXE. Zawiera narzędzia i licencje jak poprzednie wydanie; model Whisper nadal wybiera się osobno.
 
 **Pliki → Źródło → Odnajdź plik…** służy do wskazania przeniesionego nagrania. Trzeba potwierdzić, że to ten sam materiał: zachowane zostają napisy oraz dane autorstwa/licencji. **Zastąp źródło…** wymienia nagranie na inne; domyślnie usuwa jego napisy, a zachowanie tekstu wymaga jawnego zaznaczenia. Transkrypcja całego montażu nie ma przypisania do pojedynczych źródeł, dlatego przy wymianie źródła użytego na osi jej wyczyszczenie obejmuje cały montaż i jest opisane przed zatwierdzeniem. Podmiana źródła spoza osi nie usuwa napisów montażu. Napisy źródłowe innych materiałów pozostają zachowane. Dane licencji poprzedniego pliku nie są przenoszone na nowe nagranie.
 
