@@ -219,6 +219,9 @@ pub fn xml(
             prop("fill", 1)
         );
     }
+    if p.master_audio.gain_db.abs()>1e-9 {
+        s+=&filter("volume", &[("level",format!("{}dB",p.master_audio.gain_db)),("max_gain","0".into())],None,None);
+    }
     s += "</tractor>";
     if let Some(ranges) = ranges {
         s += "<playlist id=\"output\">";

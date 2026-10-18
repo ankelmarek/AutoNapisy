@@ -5,7 +5,7 @@ import {projectClips,editDuration,clipEnd} from './editing';
 import {presentationClips} from './effects';
 import {videoHidden} from './trackControls';
 export type SourceCheck={id:string;available:boolean;error:string;info:SourceInfo|null};
-export type PreflightIssue={severity:'error'|'warning';message:string;time?:number;end?:number;sourceId?:string};
+export type PreflightIssue={severity:'error'|'warning';kind?:'caption'|'audio'|'black';message:string;time?:number;end?:number;sourceId?:string};
 /** Structural checks only: a gap is uncovered picture, not measured black pixels. */
 export function preflightIssues(p:Project,checks:SourceCheck[]):PreflightIssue[]{
  const clips=projectClips(p),issues:PreflightIssue[]=[];

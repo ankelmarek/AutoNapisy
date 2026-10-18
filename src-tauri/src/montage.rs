@@ -238,7 +238,7 @@ pub fn assemble(
             for s in &sound {
                 filter.push_str(&format!("[{s}]"));
             }
-            filter.push_str(&format!("amix=inputs={}:normalize=0:duration=longest,alimiter=limit=0.95:level=0:latency=1,atrim=duration={duration}[a]",sound.len()));
+            filter.push_str(&format!("amix=inputs={}:normalize=0:duration=longest,volume={}dB,alimiter=limit=0.95:level=0:latency=1,atrim=duration={duration}[a]",sound.len(),p.master_audio.gain_db));
         }
         let name = format!("piece-{i:04}.mp4");
         args.extend(strings(&[

@@ -19,6 +19,8 @@ mod recovery;
 mod source_preview;
 mod media_sources;
 mod source_commands;
+mod quality;
+mod quality_commands;
 mod project_commands;
 mod rendering;
 mod subtitles;
@@ -194,6 +196,7 @@ fn main() {
     let app = tauri::Builder::default()
         .manage(Access::default())
         .manage(source_commands::SourceState::default())
+        .manage(quality_commands::QualityState::default())
         .manage(project_commands::ProjectState::default())
         .manage(proxy_commands::ProxyState::default())
         .manage(audio_commands::AudioLibraryState::default())
@@ -218,6 +221,10 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             import_video,
+            quality_commands::start_quality_analysis,
+            quality_commands::quality_analysis_status,
+            quality_commands::cancel_quality_analysis,
+            quality_commands::plan_normalization,
             source_commands::choose_source_replacement,
             source_commands::confirm_source_replacement,
             source_commands::discard_source_replacement,
@@ -273,6 +280,7 @@ fn main() {
         .expect("Nie można uruchomić RolVixa");
     app.run(|handle, event| {
         if let tauri::RunEvent::ExitRequested { .. } = event {
+            handle.state::<quality_commands::QualityState>().shutdown();
             handle.state::<source_commands::SourceState>().shutdown();
             handle.state::<proxy_commands::ProxyState>().shutdown();
             handle
