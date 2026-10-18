@@ -12,7 +12,7 @@ export async function testRecentNative(page){
  await menu('Ostatnie projekty');const home=page.getByRole('main',{name:'Ekran startowy',exact:true});await home.waitFor();await page.locator(`.recent-card[data-recent-id="${entry.id}"]`).waitFor();
  const copyBytes=fs.readFileSync(copy.path,'utf8');
  try{
-  fs.writeFileSync(copy.path,JSON.stringify({schemaVersion:99}));await page.locator(`.recent-card[data-recent-id="${copy.id}"] .recent-open`).click();await home.getByRole('alert').waitFor();assert((await home.innerText()).includes('wersj'));assert.equal(registry().entries[0].id,catalog.entries[0].id);
+  fs.writeFileSync(copy.path,JSON.stringify({...JSON.parse(copyBytes),schemaVersion:99}));await page.locator(`.recent-card[data-recent-id="${copy.id}"] .recent-open`).click();await home.getByRole('alert').waitFor();assert((await home.innerText()).includes('wersj'));assert.equal(registry().entries[0].id,catalog.entries[0].id);
   fs.writeFileSync(copy.path,copyBytes);fs.renameSync(copy.path,copy.path+'.missing');
   try{await page.locator(`.recent-card[data-recent-id="${copy.id}"] .recent-open`).click();await page.waitForFunction(()=>document.querySelector('.start-warning')?.textContent.includes('niedostępny'));await page.locator(`.recent-card[data-recent-id="${copy.id}"] .recent-remove`).click();await page.locator(`.recent-card[data-recent-id="${copy.id}"]`).waitFor({state:'detached'});assert(fs.existsSync(copy.path+'.missing'));}
   finally{fs.renameSync(copy.path+'.missing',copy.path);}
