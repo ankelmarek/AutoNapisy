@@ -64,7 +64,7 @@ try{
  await seek.fill('1');
  await page.getByRole('combobox',{name:'Format obrazu'}).selectOption('1080x1080');
  await page.waitForSelector('.frame-editor[data-ready=true] .frame-layer');
- await page.getByRole('button',{name:'Warstwy',exact:true}).first().click();
+ assert.equal(await page.getByRole('button',{name:'Warstwy',exact:true}).count(),0);await page.getByRole('button',{name:'Film / audio',exact:true}).click();
  await page.getByRole('slider',{name:'Skala filmu',exact:true}).fill('1.5');
  await page.getByRole('spinbutton',{name:'Pozycja filmu X',exact:true}).fill('10');
  const layer=page.locator('.frame-layer[data-layer-id="first"]');
@@ -76,6 +76,8 @@ try{
  await page.waitForFunction(()=>!document.querySelector('select[aria-label="Format obrazu"]').disabled);
  const saved=JSON.parse(fs.readFileSync(process.env.ROLVIXA_TEST_PROJECT,'utf8'));
  assert.equal(saved.schemaVersion,10);assert.deepEqual(saved.canvas,{width:1080,height:1080});assert.equal(saved.clips[0].transform.scale,1.5);assert(Math.abs(saved.clips[0].transform.x-.2)<.02);
+ // Resizing keeps the same MLT stream and normalized frame transform.
+ await page.waitForTimeout(250);await page.waitForFunction(()=>document.querySelector('video.mlt-video')?.readyState>=2);const stream020=await page.locator('video.mlt-video').getAttribute('src');const split020=page.getByRole('separator',{name:'Szerokość biblioteki',exact:true});await split020.focus();await page.keyboard.press('ArrowRight');await page.waitForTimeout(150);assert.equal(await page.locator('video.mlt-video').getAttribute('src'),stream020);assert(Math.abs(Number(await page.getByRole('spinbutton',{name:'Pozycja filmu X',exact:true}).inputValue())-20)<2);await split020.dblclick();console.log('Real 0.20 splitters preserve native MLT stream and normalized frame transform: OK');
  await page.getByRole('tab',{name:'Audio',exact:true}).click();
  await page.getByRole('button',{name:'Dźwięki',exact:true}).click();
  await page.waitForFunction(()=>document.querySelectorAll('.audio-library-item').length===100);

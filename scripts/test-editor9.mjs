@@ -1,3 +1,4 @@
+import {testUx020} from './test-ux020.mjs';
 import {testEdit018} from './test-edit018.mjs';
 import {chromium as nativeChromium} from 'playwright-core';
 const {chromium}=process.env.ROLVIXA_WEBVIEW_CDP?{chromium:nativeChromium}:await import('../.tools/browser/node_modules/playwright/index.mjs');
@@ -31,6 +32,7 @@ try{for(const [width,height]of[[1366,700],[1920,1080]]){
  const action=async name=>{await page.locator('.project-menu summary').click();await page.locator('.project-menu-popup').getByRole('button',{name,exact:true}).click();};
  if(!process.env.ROLVIXA_WEBVIEW_CDP)await page.goto(process.env.AUTONAPISY_VITE_URL??'http://127.0.0.1:1420');await page.evaluate(setup,stream);await page.waitForFunction(()=>document.querySelector('.brand-icon')?.naturalWidth>0);assert.equal(await page.locator('.projectbar').count(),0);
 
+ await testUx020(page,setup,stream,width,height);
  assert.equal(await page.locator('.header-save').getAttribute('data-save-status'),'dirty');
  assert(await page.locator('.header-export').isDisabled());
  // UX A: labels stay visible; decorative explanations no longer consume editor space.

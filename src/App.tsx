@@ -38,7 +38,7 @@ import {libraryItems,insertLibraryItem,registerMedia} from "./library";
 import { useProjectHistory } from "./useHistory";
 import FrameEditor from './FrameEditor';
 import TransformControls from './TransformControls';
-import LayersPanel from './LayersPanel';
+import EditorWorkspace from './EditorWorkspace';
 import { useMltPlayback } from "./useMltPlayback";
 import {useVideoProxies} from './useVideoProxies';
 import {useSafeZones,SafeZoneControls,SafeZoneOverlay} from './SafeZones';
@@ -127,7 +127,7 @@ export default function App() {
   const elements=useRef(new Map<string,HTMLMediaElement>());
   const [sources,setSources]=useState<Record<string,string>>({});
   const [leftTab,setLeftTab]=useState<"files"|"captions"|"effects"|"audio">("files");
-  const [inspectorTab,setInspectorTab]=useState<'video'|'captions'|'layers'>('video'),[selectedClip,setSelectedClip]=useState(''),[selectedCaption,setSelectedCaption]=useState(''),[selectedTransition,setSelectedTransition]=useState('');
+  const [inspectorTab,setInspectorTab]=useState<'video'|'captions'>('video'),[selectedClip,setSelectedClip]=useState(''),[selectedCaption,setSelectedCaption]=useState(''),[selectedTransition,setSelectedTransition]=useState('');
   const [effectChoice,setEffectChoice]=useState<EffectChoice>({kind:'fade',duration:.4});
   const captionInput=useRef<HTMLTextAreaElement>(null);
   const [sourceViewerId,setSourceViewerId]=useState('');
@@ -393,12 +393,12 @@ export default function App() {
           </button>
         </section>
       )}
-      <main>
+      <EditorWorkspace>
         <section className="panel transcript">
           <div className="panelhead">
             <div className="library-tabs" role="tablist" aria-label="Zasoby projektu">
               <button id="files-tab" role="tab" aria-selected={leftTab==='files'} aria-controls="files-panel" onClick={()=>setLeftTab('files')}><Icon name="files" size={16}/>Pliki <small>{libraryItems(project).length}</small></button>
-              <button id="captions-tab" role="tab" aria-selected={leftTab==='captions'} aria-controls="captions-panel" onClick={()=>setLeftTab('captions')}><Icon name="captions" size={16}/>Napisy</button><button id="audio-tab" role="tab" aria-selected={leftTab==='audio'} aria-controls="audio-panel" onClick={()=>setLeftTab('audio')}><Icon name="audio" size={15}/>Audio</button><button role="tab" aria-selected={leftTab==='effects'} onClick={()=>setLeftTab('effects')}><Icon name="effects" size={15}/>Efekty</button>
+              <button id="captions-tab" role="tab" aria-selected={leftTab==='captions'} aria-controls="captions-panel" onClick={()=>setLeftTab('captions')}><Icon name="captions" size={16}/>Napisy</button><button id="audio-tab" role="tab" aria-selected={leftTab==='audio'} aria-controls="audio-panel" onClick={()=>setLeftTab('audio')}><Icon name="audio" size={15}/>Audio</button><button id="effects-tab" role="tab" aria-controls="effects-panel" aria-selected={leftTab==='effects'} onClick={()=>setLeftTab('effects')}><Icon name="effects" size={15}/>Efekty</button>
             </div>
           </div>
           {leftTab==='audio'&&<AudioLibrary project={project} locked={locked} timelinePlaying={playing} onImport={()=>importMedia('audio')} onRegister={registerAudio} onPause={playback.pause} onAdd={id=>{try{playback.pause();changeProject(insertLibraryItem(latestProject.current,id,time));setMessage('Dodano audio na oś czasu.');}catch(e){setMessage(String(e));}}}/>}
@@ -477,14 +477,14 @@ export default function App() {
             <h2>Podgląd wideo</h2>
             <span>{project.media?.name ?? "Brak filmu"}</span>
           </div>
-          <div className="preview-toolbar"><label>Format<select aria-label="Format obrazu" disabled={locked} value={project.canvas?`${project.canvas.width}x${project.canvas.height}`:'source'} onChange={e=>{playback.pause();const [width,height]=e.target.value.split('x').map(Number);changeProject({...project,canvas:e.target.value==='source'?null:{width,height}});}}><option value="source">Źródłowy</option><option value="1080x1920">9:16 · Rolka</option><option value="1920x1080">16:9 · Poziomo</option><option value="1080x1080">1:1 · Kwadrat</option></select></label><SafeZoneControls value={safeZones} portrait={Math.abs(canvasAspect-9/16)<.01}/><button aria-pressed={inspectorTab==='layers'} onClick={()=>setInspectorTab('layers')}><Icon name="layers" size={13}/>Warstwy</button></div>
+          <div className="preview-toolbar"><label>Format<select aria-label="Format obrazu" disabled={locked} value={project.canvas?`${project.canvas.width}x${project.canvas.height}`:'source'} onChange={e=>{playback.pause();const [width,height]=e.target.value.split('x').map(Number);changeProject({...project,canvas:e.target.value==='source'?null:{width,height}});}}><option value="source">Źródłowy</option><option value="1080x1920">9:16 · Rolka</option><option value="1920x1080">16:9 · Poziomo</option><option value="1080x1080">1:1 · Kwadrat</option></select></label><SafeZoneControls value={safeZones} portrait={Math.abs(canvasAspect-9/16)<.01}/></div>
           <div className="stage" ref={stage}>
             {libraryItems(project).length ? (
               <div className="composition-surface" ref={captionSurface} style={{width:surfaceWidth,height:surfaceWidth/canvasAspect}}>
                 <video ref={playback.video} className="mlt-video" preload="auto" playsInline/>
                 {playback.loading&&<span className="transition-preparing">Przygotowywanie podglądu MLT…</span>}
                 {playback.error&&<div className="preview-error" role="alert"><strong>Podgląd niedostępny</strong><p>{playback.error}</p><button onClick={playback.retry}>Ponów podgląd</button></div>}
-                <FrameEditor project={project} proxyRevision={proxies.revision} time={Math.min(time,Math.max(0,duration-1/30))} playing={playing} locked={locked} selectedId={selected?.id??''} onSelect={id=>{setSelectedClip(id);setSelectedTransition('');setInspectorTab('layers');}} onPause={playback.pause} onChange={changeProject} onAspects={setFrameAspects}/>
+                <FrameEditor project={project} proxyRevision={proxies.revision} time={Math.min(time,Math.max(0,duration-1/30))} playing={playing} locked={locked} selectedId={selected?.id??''} onSelect={id=>{setSelectedClip(id);setSelectedTransition('');setInspectorTab('video');}} onPause={playback.pause} onChange={changeProject} onAspects={setFrameAspects}/>
                 <CaptionOverlay video={captionSurface} project={displayed} time={time} compositionCanvas />
                 <SafeZoneOverlay value={safeZones} portrait={Math.abs(canvasAspect-9/16)<.01}/>
                 {gap && <span className="gap-label">{duration?'Przerwa między ujęciami':'Dodaj film z biblioteki na oś czasu'}</span>}
@@ -535,9 +535,9 @@ export default function App() {
             <h2>Właściwości</h2>
           </div>
           <div className="panelbody">
-            <div className="inspector-tabs"><button aria-pressed={inspectorTab==='video'} onClick={()=>setInspectorTab('video')}>Film / audio</button><button aria-pressed={inspectorTab==='captions'} onClick={()=>setInspectorTab('captions')}>Napisy</button><button aria-pressed={inspectorTab==='layers'} onClick={()=>setInspectorTab('layers')}>Warstwy</button></div>
-            {inspectorTab==='layers'&&<LayersPanel project={project} time={time} selectedId={selected?.id??''} locked={locked} onSelect={id=>{playback.pause();const c=projectClips(project).find(c=>c.id===id)!;if(time<c.start||time>=c.start+c.sourceOut-c.sourceIn)seek(c.start);setSelectedClip(id);setSelectedTransition('');}} onCaptions={()=>setInspectorTab('captions')} onChange={changeProject}/>}
-            {(inspectorTab==='video'||inspectorTab==='layers')&&<TransformControls project={project} clip={selected} sourceAspect={frameAspects[selected?.id??'']??0} canvasAspect={canvasAspect} locked={locked||!!selected&&clipLocked(project,selected)} onChange={changeProject}/>}
+            <div className="inspector-tabs"><button aria-pressed={inspectorTab==='video'} onClick={()=>setInspectorTab('video')}>Film / audio</button><button aria-pressed={inspectorTab==='captions'} onClick={()=>setInspectorTab('captions')}>Napisy</button></div>
+
+            {inspectorTab==='video'&&<TransformControls project={project} clip={selected} sourceAspect={frameAspects[selected?.id??'']??0} canvasAspect={canvasAspect} locked={locked||!!selected&&clipLocked(project,selected)} onChange={changeProject}/>}
             {inspectorTab==='video'&&<VideoProperties project={project} clip={selected} locked={locked||!!selected&&clipLocked(project,selected)} transitionId={selectedTransition} onChange={changeProject}/>}
             <div hidden={inspectorTab!=='captions'}>
             {caption&&<div className="caption-editor"><h3>Edycja zaznaczonego napisu</h3><textarea ref={captionInput} aria-label="Tekst zaznaczonego napisu" value={caption.text} disabled={locked} onChange={e=>changeProject(editCaption(project,caption,{text:e.target.value}))}/><div><label>Początek<input aria-label="Początek napisu" type="number" step={.01} value={Number(caption.start.toFixed(3))} disabled={locked} onChange={e=>{if(Number.isFinite(e.target.valueAsNumber))changeProject(resizeCaption(project,caption,'left',e.target.valueAsNumber-caption.start));}}/></label><label>Koniec<input aria-label="Koniec napisu" type="number" step={.01} value={Number(caption.end.toFixed(3))} disabled={locked} onChange={e=>{if(Number.isFinite(e.target.valueAsNumber))changeProject(resizeCaption(project,caption,'right',e.target.valueAsNumber-caption.end));}}/></label></div></div>}
@@ -715,12 +715,12 @@ export default function App() {
             </div>
           </div>
         </section>
-      </main>
       <Timeline project={project} time={time} locked={locked||settings} onPreviewOpen={setTimelineModal} onError={setMessage} onSeek={t=>{setSourceViewerId('');seek(t);}}
         onChange={(clips,mode)=>{if(mode!=='volume')playback.pause();changeProject({...latestProject.current,clips,transitions:reconcileTransitions(latestProject.current,clips)});}} onPreviewVolume={playback.previewVolume} onBeginAudio={playback.pause} onSelect={id=>{setSelectedClip(id);setSelectedTransition('');setInspectorTab('video');}} onCaptionSelect={selectCaption}
         onMediaDrop={(id,at,track,range)=>{try{playback.pause();setSourceViewerId('');changeProject(insertLibraryItem(latestProject.current,id,at,track,range));setMessage('Dodano plik na oś czasu.');}catch(e){setMessage(String(e));}}}
         onCaptionChange={p=>changeProject(p)} effectChoice={effectChoice} onTransition={(a,b,choice)=>{try{playback.pause();const next=applyTransition(project,a,b,choice.kind,choice.duration);changeProject(next);setSelectedTransition(next.transitions.find(t=>t.toId===b)!.id);setInspectorTab('video');}catch(e){setMessage(String(e));}}} onTransitionSelect={id=>{setSelectedTransition(id);setInspectorTab('video');}}
         undo={undo} redo={redo} canUndo={history.canUndo} canRedo={history.canRedo}/>
+      </EditorWorkspace>
       <footer role="status">
         <span>{busy ? "Przetwarzanie…" : message}</span>
         <span className={`recovery-status ${recovery.error||recoveryError?'failed':''}`} title={recovery.error||recoveryError||'Kopia odzyskiwania jest oddzielona od ręcznego zapisu'} role="status">{recovery.error||recoveryError?'Błąd kopii odzyskiwania':recovery.writing?'Zapisywanie kopii…':recovery.capturedAt?'Kopia odzyskiwania · '+new Date(recovery.capturedAt).toLocaleTimeString('pl-PL'):''}</span>

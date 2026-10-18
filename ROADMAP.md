@@ -1,5 +1,14 @@
 # Kolejne etapy RolVixa
 
+## Wdrożenie 0.20 — UX B (odbiór Windows w toku)
+
+- [x] Regulowane szerokości trzech paneli i wysokość osi; minima, klawiatura, Escape, reset i lokalny zapis układu poza projektem.
+- [x] Kwadratowe kafle z dwoma obrazami i rzeczywistymi demonstracjami wszystkich 20 xfade; pojedynczy dekoder, pauza i ograniczenie ruchu.
+- [x] Usunięta redundantna zakładka Warstwy; zachowane FrameEditor, TransformControls i widoczność torów.
+- [x] Test integralności zasobów oraz porównanie demonstracji z właściwym rendererem montażu.
+- [ ] Osobny PR B i pełny odbiór Windows/WebView2, gestów, małego okna, eksportu, zapisu i odzyskiwania. UX C pozostaje osobno; schemat nadal v10.
+
+
 ## Wykonane w 0.19 — UX A (ukończone)
 
 - [x] Kompaktowe akcje napisów: istniejące ikony Tabler i tekst, postęp/anulowanie w jednym obszarze.
