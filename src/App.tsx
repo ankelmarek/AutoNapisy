@@ -323,6 +323,7 @@ export default function App() {
       await playback.suspend();
       const path=await invoke<string>('confirm_source_replacement',{token:replacement.candidate.token});
       if(path!==replacement.candidate.path)throw Error('Nieprawidłowe potwierdzenie źródła.');
+      if(latestProject.current!==replacement.project)throw Error('Projekt zmienił się podczas zatwierdzania. Wybierz źródło ponownie.');
       const old=libraryItems(replacement.project).find(m=>m.id===replacement.id)!;
       sourceRanges.current.delete(old.path);sourceRanges.current.delete(path);
       invalidateMedia(old.path);if(old.path!==path)invalidateMedia(path);

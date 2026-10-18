@@ -21,8 +21,9 @@ export function replacementConflicts(p:Project,id:string,r:Replacement,policy:Re
   }
  }
  const segments=id==='primary'?p.segments:p.assets.find(a=>a.id===id)!.segments;
+ const used=projectClips(p).some(c=>(c.assetId??'primary')===id);
  if(policy.keepCaptions&&segments.some(s=>s.end>d+1e-6))conflicts.push({message:'Zachowywane napisy wychodzą poza długość nowego źródła.'});
- if(!policy.keepCaptions&&p.tracks.T?.locked&&(segments.length||p.timelineSegments!==null))conflicts.push({message:'Odblokuj ścieżkę napisów przed ich odświeżeniem.'});
+ if(used&&!policy.keepCaptions&&p.tracks.T?.locked&&(segments.length||p.timelineSegments!==null))conflicts.push({message:'Odblokuj ścieżkę napisów przed ich odświeżeniem.'});
  return conflicts;
 }
 export function replaceSource(p:Project,id:string,r:Replacement,policy:ReplacementPolicy):Project{
@@ -32,15 +33,16 @@ export function replaceSource(p:Project,id:string,r:Replacement,policy:Replaceme
  const patch={path:r.path,name:r.name,duration:r.info.duration};
  const clear=!policy.keepCaptions;
  const targetIds=new Set(clips.filter(c=>(c.assetId??'primary')===id).map(c=>c.id));
+ const clearTimeline=clear&&targetIds.size>0&&p.timelineSegments!==null;
  const edits=Object.fromEntries(Object.entries(p.captionEdits).filter(([key])=>{
-  if(key.startsWith('timeline:'))return p.timelineSegments===null;
+  if(key.startsWith('timeline:'))return !clearTimeline;
   try{const value:unknown=JSON.parse(key);return !Array.isArray(value)||!targetIds.has(value[0]);}catch{return true;}
  }));
  const next:Project={...p,clips,
   media:id==='primary'?{...p.media!,...patch}:p.media,
   assets:p.assets.map(a=>a.id===id?{...a,...patch,segments:policy.keepCaptions?a.segments:[],...(!policy.sameMaterial?{provenance:undefined}:{})}:a),
   segments:id==='primary'&&!policy.keepCaptions?[]:p.segments,
-  timelineSegments:clear?null:p.timelineSegments,
+  timelineSegments:clearTimeline?null:p.timelineSegments,
   captionEdits:clear?edits:p.captionEdits,
  };
  assertUnlockedEdit(p,next);return projectSchema.parse(next);
