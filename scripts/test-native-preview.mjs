@@ -1,3 +1,4 @@
+import {testCaption033} from './test-caption033-native.mjs';
 import {testSmartExport032} from './test-smart-export032.mjs';
 import {testStudio031} from './test-studio031.mjs';
 import {testSmartCut030} from './test-smartcut030.mjs';
@@ -89,7 +90,7 @@ try{
  await page.locator('.project-menu summary').click();await page.locator('.project-menu-popup').getByRole('button',{name:'Zapisz',exact:true}).click();await page.waitForFunction(()=>document.querySelector('.header-save').dataset.saveStatus==='saved');
  await page.waitForFunction(()=>!document.querySelector('select[aria-label="Format obrazu"]').disabled);
  const saved=JSON.parse(fs.readFileSync(process.env.ROLVIXA_TEST_PROJECT,'utf8'));
- assert.equal(saved.schemaVersion,14);assert.deepEqual(saved.canvas,{width:1080,height:1080});assert.equal(saved.clips[0].transform.scale,1.5);assert(Math.abs(saved.clips[0].transform.x-.2)<.02);
+ assert.equal(saved.schemaVersion,15);assert.deepEqual(saved.canvas,{width:1080,height:1080});assert.equal(saved.clips[0].transform.scale,1.5);assert(Math.abs(saved.clips[0].transform.x-.2)<.02);
  // Resizing keeps the same MLT stream and normalized frame transform.
  await page.waitForTimeout(250);await page.waitForFunction(()=>document.querySelector('video.mlt-video')?.readyState>=2);const stream020=await page.locator('video.mlt-video').getAttribute('src');const split020=page.getByRole('separator',{name:'Szerokość biblioteki',exact:true});await split020.focus();await page.keyboard.press('ArrowRight');await page.waitForTimeout(150);assert.equal(await page.locator('video.mlt-video').getAttribute('src'),stream020);assert(Math.abs(Number(await page.getByRole('spinbutton',{name:'Pozycja filmu X',exact:true}).inputValue())-20)<2);await split020.dblclick();console.log('Real 0.20 splitters preserve native MLT stream and normalized frame transform: OK');
  await page.getByRole('tab',{name:'Audio',exact:true}).click();
@@ -189,7 +190,7 @@ try{
  await page.getByRole('button',{name:'Odłącz audio → A1',exact:true}).click();
  await page.waitForFunction(()=>document.querySelector('video.mlt-video')?.readyState>=2);
  await page.locator('.header-save').click();await page.waitForFunction(()=>document.querySelector('.header-save').dataset.saveStatus==='saved');
- const detached18=JSON.parse(fs.readFileSync(projectPath,'utf8'));assert.equal(detached18.schemaVersion,14);assert.equal(detached18.clips.length,beforeDetach18.clips.length+1);assert(detached18.clips.find(c=>c.id==='first').audioDetached);assert(detached18.clips.some(c=>c.kind==='audio'&&c.syncGroup));assert.equal(await page.locator('.edit-clip[data-clip-id="first"] .linked-audio').count(),0);
+ const detached18=JSON.parse(fs.readFileSync(projectPath,'utf8'));assert.equal(detached18.schemaVersion,15);assert.equal(detached18.clips.length,beforeDetach18.clips.length+1);assert(detached18.clips.find(c=>c.id==='first').audioDetached);assert(detached18.clips.some(c=>c.kind==='audio'&&c.syncGroup));assert.equal(await page.locator('.edit-clip[data-clip-id="first"] .linked-audio').count(),0);
  await page.keyboard.press('Control+z');await page.locator('.header-save').click();await page.waitForFunction(()=>document.querySelector('.header-save').dataset.saveStatus==='saved');assert.deepEqual(JSON.parse(fs.readFileSync(projectPath,'utf8')).clips,beforeDetach18.clips);
  await page.getByRole('button',{name:'Tryb Ripple',exact:true}).click();await page.locator('.edit-clip[data-clip-id="first"]:not(.audio-clip)').click({position:{x:22,y:12}});
  await page.getByRole('spinbutton',{name:'Wyjście źródła',exact:true}).fill('3');await page.getByRole('spinbutton',{name:'Wyjście źródła',exact:true}).press('Enter');await page.locator('.header-save').click();await page.waitForFunction(()=>document.querySelector('.header-save').dataset.saveStatus==='saved');assert.equal(await page.getByRole('dialog',{name:'Podgląd Ripple',exact:true}).count(),0);assert.equal(JSON.parse(fs.readFileSync(projectPath,'utf8')).clips.find(c=>c.id==='first').sourceOut,3);await page.keyboard.press('Control+z');await page.getByRole('button',{name:'Tryb Ripple',exact:true}).click();
@@ -230,6 +231,7 @@ try{
  await testMissingRelink023(page,projectPath);
  await testQuality024(page,projectPath);
  await testRecentNative(page);
+ await testCaption033(page,projectPath);
  // Leave a real recovery copy for the forced process-restart test in PowerShell.
  await page.locator('.header-project-name').click();await page.getByRole('textbox',{name:'Nazwa projektu',exact:true}).fill('Przed awarią procesu 0.17');await page.keyboard.press('Enter');await waitSnapshotName('Przed awarią procesu 0.17');
  assert.deepEqual(errors,[]);

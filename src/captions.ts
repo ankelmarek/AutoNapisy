@@ -6,6 +6,7 @@ export type CaptionCard = {
   start: number;
   end: number;
   styleId: string;
+  words?: Project['segments'][number]['words'];
 };
 const dangling = new Set([
   "a",
@@ -137,6 +138,7 @@ export function captionCards(
         start: segment.start,
         end: segment.end,
         styleId: segment.styleId,
+        words: matches ? words : [],
       },
     ];
   const cards: CaptionCard[] = [];
@@ -183,6 +185,7 @@ export function captionCards(
       start,
       end,
       styleId: segment.styleId,
+      words: words.slice(from, to),
     });
     from = to;
   }
@@ -224,7 +227,7 @@ export function captionExport(project: Project): Project {
       return captionCards(s, style).map((c) => ({
         ...c,
         text: wrapCaption(c.text, style, measure, width).join("\n"),
-        words: [],
+        words: c.words ?? [],
       }));
     }),
   };

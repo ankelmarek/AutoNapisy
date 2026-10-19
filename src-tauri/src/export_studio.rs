@@ -401,6 +401,7 @@ impl Entry {
         job: Arc<Job>,
     ) -> Result<Self, String> {
         options.validate()?;
+        if options.captions == "burn" && project.segments.iter().any(|s|project.styles.get(&s.style_id).is_some_and(|s|s.animation.is_some())) { return Err("Animowane napisy: eksport produktu będzie dostępny po odbiorze 0.33c. W 0.33a dostępny jest test techniczny.".into()); }
         let basis = source_basis(&project, &ff, &melt)?;
         let dir = tempfile::Builder::new()
             .prefix("rolvixa-studio-")

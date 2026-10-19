@@ -193,7 +193,7 @@ pub(crate) fn run_process_capture(
     cwd: &Path,
     capture: Option<&Path>,
 ) -> Result<(), String> {
-    run_process_inner(job, program, args, whisper, cwd, capture, None)
+    run_process_inner(job, program, args, whisper, cwd, capture, None, None)
 }
 pub(crate) fn run_process_bounded(
     job: &Arc<Job>,
@@ -211,6 +211,7 @@ pub(crate) fn run_process_bounded(
         cwd,
         None,
         Some(&[(output, max_bytes)]),
+        None,
     )
 }
 pub(crate) fn run_process_files_bounded(
@@ -220,7 +221,13 @@ pub(crate) fn run_process_files_bounded(
     cwd: &Path,
     files: &[(&Path, u64)],
 ) -> Result<(), String> {
-    run_process_inner(job, program, args, false, cwd, None, Some(files))
+    run_process_inner(job, program, args, false, cwd, None, Some(files), None)
+}
+pub(crate) fn run_process_stream(
+    job: &Arc<Job>, program: &Path, args: &[std::ffi::OsString], cwd: &Path,
+    output: &Path, max_bytes: u64, input: std::sync::mpsc::Receiver<Vec<u8>>,
+) -> Result<(), String> {
+    run_process_inner(job, program, args, false, cwd, None, Some(&[(output, max_bytes)]), Some(input))
 }
 fn run_process_inner(
     job: &Arc<Job>,
@@ -230,6 +237,7 @@ fn run_process_inner(
     cwd: &Path,
     capture: Option<&Path>,
     limit: Option<&[(&Path, u64)]>,
+    input: Option<std::sync::mpsc::Receiver<Vec<u8>>>,
 ) -> Result<(), String> {
     job.check()?;
     let mut command = Command::new(program);
@@ -237,7 +245,7 @@ fn run_process_inner(
     command
         .args(args)
         .current_dir(cwd)
-        .stdin(Stdio::null())
+        .stdin(if input.is_some() { Stdio::piped() } else { Stdio::null() })
         .stdout(Stdio::null())
         .stderr(Stdio::piped());
     if let Some(path) = capture {
@@ -258,6 +266,26 @@ fn run_process_inner(
         .stderr
         .take()
         .ok_or("Brak strumienia diagnostycznego")?;
+    let process_done = Arc::new(AtomicBool::new(false));
+    let writer = input.map(|rx| {
+        let mut pipe = child.stdin.take().expect("piped stdin");
+        let running = job.clone();
+        let done = process_done.clone();
+        thread::spawn(move || -> Result<(), String> {
+            use std::io::Write;
+            let mut last = std::time::Instant::now();
+            loop {
+                if done.load(Ordering::SeqCst) { return Ok(()); }
+                running.check()?;
+                match rx.recv_timeout(Duration::from_millis(100)) {
+                    Ok(bytes) => { pipe.write_all(&bytes).map_err(|e| e.to_string())?; last = std::time::Instant::now(); }
+                    Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => return Ok(()),
+                    Err(std::sync::mpsc::RecvTimeoutError::Timeout) if last.elapsed() > Duration::from_secs(30) => { running.cancel(); return Err("Przerwano nieaktywny strumień napisów".into()); }
+                    Err(_) => {}
+                }
+            }
+        })
+    });
     *job.child.lock().unwrap() = Some(child);
     let reporter = Arc::clone(job);
     let reader = thread::spawn(move || {
@@ -364,6 +392,8 @@ fn run_process_inner(
         drop(slot);
         thread::sleep(Duration::from_millis(100));
     };
+    process_done.store(true, Ordering::SeqCst);
+    let write_result = writer.map(|w| w.join().unwrap_or_else(|_| Err("Błąd strumienia napisów".into()))).unwrap_or(Ok(()));
     let diagnostic = reader
         .join()
         .unwrap_or_else(|_| "Nie można odczytać diagnostyki procesu".into());
@@ -384,6 +414,7 @@ fn run_process_inner(
             program.file_name().unwrap_or_default().to_string_lossy()
         ));
     }
+    write_result?;
     Ok(())
 }
 

@@ -73,8 +73,9 @@ export function compositionSegments(p: Project): EditedSegment[] {
     });
     return ranges.flatMap((range,index)=>(c.assetId?p.assets.find(a=>a.id===c.assetId)?.segments??[]:p.segments).flatMap(s=>{
       const offset=c.start-c.sourceIn,start=Math.max(c.sourceIn,s.start,range.start-offset),end=Math.min(c.sourceOut,s.end,range.end-offset);if(end<=start)return [];
-      const words=s.words.filter(w=>w.start<end&&w.end>start).map(w=>({...w,start:Math.max(start,w.start)+offset,end:Math.min(end,w.end)+offset}));
-      const text=s.words.length?words.map(w=>w.text).join(' ').trim():s.text;if(!text)return [];
+      const matches=s.words.map(w=>w.text.trim()).join(' ').replace(/\s+/g,' ').trim()===s.text.replace(/\s+/g,' ').trim();
+      const words=(matches?s.words:[]).filter(w=>w.start<end&&w.end>start).map(w=>({...w,start:Math.max(start,w.start)+offset,end:Math.min(end,w.end)+offset}));
+      const text=s.words.length&&matches?words.map(w=>w.text).join(' ').trim():s.text;if(!text)return [];
       return [{...s,id:JSON.stringify([c.id,s.id,index]),sourceId:s.id,clipId:c.id,assetId:c.assetId,start:start+offset,end:end+offset,text,words}];
     }));
   })).flatMap(s=>{

@@ -78,6 +78,7 @@ pub async fn begin_video_export(
         return Err("Montaż jest pusty".into());
     }
     project.segments = project::export_captions(&project, captions.as_deref())?;
+    if project.segments.iter().any(|s|project.styles.get(&s.style_id).is_some_and(|s|s.animation.is_some())) {return Err("Animowane napisy wymagają ukończenia 0.33c; standardowy eksport nie może ich spłaszczyć.".into());}
     if project.segments.len() > rendering::MAX_FRAMES {
         return Err(
             "Eksport wymaga od 0 do 3000 plansz napisów. Dłuższy film podziel na projekty.".into(),

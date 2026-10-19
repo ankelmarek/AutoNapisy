@@ -1,4 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+mod caption_stream;
+mod caption_poc_commands;
 mod export_studio;
 mod smart_export;
 mod sample_commands;
@@ -202,6 +204,7 @@ fn diagnostics(
 fn main() {
     let app = tauri::Builder::default()
         .manage(Access::default())
+        .manage(caption_poc_commands::CaptionPocState::default())
         .manage(studio_commands::StudioState::default())
         .manage(sample_commands::SampleState::default())
         .manage(smart_cut_commands::SmartCutState::default())
@@ -230,6 +233,10 @@ fn main() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            caption_poc_commands::caption_poc_begin,
+            caption_poc_commands::caption_poc_frame,
+            caption_poc_commands::caption_poc_finish,
+            caption_poc_commands::caption_poc_cancel,
             import_video,
             smart_cut_commands::analyze_smartcut,
             smart_cut_commands::analyze_smartcut_visual,
@@ -314,6 +321,7 @@ fn main() {
         .expect("Nie można uruchomić RolVixa");
     app.run(|handle, event| {
         if let tauri::RunEvent::ExitRequested { .. } = event {
+            handle.state::<caption_poc_commands::CaptionPocState>().shutdown();
             handle.state::<sample_commands::SampleState>().shutdown();
             handle.state::<studio_commands::StudioState>().shutdown();
             handle.state::<smart_cut_commands::SmartCutState>().shutdown();

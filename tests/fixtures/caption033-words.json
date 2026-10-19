@@ -1,0 +1,41 @@
+[
+  {
+    "id": "whisper-0",
+    "start": 0.0,
+    "end": 3.96,
+    "text": "And so, my fellow Americans, ask!",
+    "words": [
+      {
+        "text": "And",
+        "start": 0.32,
+        "end": 0.32
+      },
+      {
+        "text": "so,",
+        "start": 0.33,
+        "end": 0.74
+      },
+      {
+        "text": "my",
+        "start": 0.74,
+        "end": 0.95
+      },
+      {
+        "text": "fellow",
+        "start": 0.95,
+        "end": 1.59
+      },
+      {
+        "text": "Americans,",
+        "start": 1.59,
+        "end": 3.0
+      },
+      {
+        "text": "ask!",
+        "start": 3.29,
+        "end": 3.96
+      }
+    ],
+    "styleId": "default"
+  }
+]
