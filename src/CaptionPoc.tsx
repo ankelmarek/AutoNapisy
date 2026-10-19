@@ -4,7 +4,7 @@ import {editDuration} from './editing';
 import {parseProject} from './model';
 import {activeCaption} from './captions';
 import {createAnimatedCaptionRenderer} from './animatedCaptionCanvas';
-import {pocProject,streamCaptionPoc} from './captionPoc';
+import {pocProject,streamCaptionPoc} from './captionPocTransport';
 /** Separate technical harness, only reachable with ?caption-poc. Backend requires ui-tests build. */
 export default function CaptionPoc(){
  const [json,setJson]=useState(''),[preset,setPreset]=useState<'karaoke-flow'|'pop-beat'>('karaoke-flow'),[result,setResult]=useState<Awaited<ReturnType<typeof streamCaptionPoc>>|null>(null),[time,setTime]=useState(0),[progress,setProgress]=useState<number|null>(null),[error,setError]=useState(''),[fallback,setFallback]=useState(false);
