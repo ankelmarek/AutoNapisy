@@ -12,6 +12,8 @@ use tauri::{Manager, State};
 #[derive(Default)]
 pub struct SmartCutState {
     inner: Arc<Mutex<VecDeque<Entry>>>,
+    visual: Arc<Mutex<VecDeque<Entry>>>,
+    visual_gate: Arc<Mutex<()>>,
 }
 struct Entry {
     key: String,
@@ -21,8 +23,10 @@ struct Entry {
 }
 impl SmartCutState {
     pub fn shutdown(&self) {
-        for e in self.inner.lock().unwrap().iter() {
-            e.job.cancel();
+        for queue in [&self.inner, &self.visual] {
+            for e in queue.lock().unwrap().iter() {
+                e.job.cancel();
+            }
         }
     }
 }
@@ -123,21 +127,23 @@ pub async fn analyze_smartcut(
 #[tauri::command]
 pub fn cancel_smartcut(key: String, state: State<'_, SmartCutState>) -> Result<(), String> {
     valid_key(&key)?;
-    let mut entries = state.inner.lock().map_err(|_| "Błąd SmartCut")?;
-    if let Some(e) = entries.iter_mut().find(|e| e.key == key) {
-        e.cancelled = true;
-        e.job.cancel();
-    } else {
-        let job = Arc::new(Job::new(0));
-        job.cancel();
-        entries.push_back(Entry {
-            key,
-            job,
-            fingerprint: None,
-            cancelled: true,
-        });
-        while entries.len() > 32 {
-            entries.pop_front();
+    for queue in [&state.inner, &state.visual] {
+        let mut entries = queue.lock().map_err(|_| "Błąd SmartCut")?;
+        if let Some(e) = entries.iter_mut().find(|e| e.key == key) {
+            e.cancelled = true;
+            e.job.cancel();
+        } else {
+            let job = Arc::new(Job::new(0));
+            job.cancel();
+            entries.push_back(Entry {
+                key: key.clone(),
+                job,
+                fingerprint: None,
+                cancelled: true,
+            });
+            while entries.len() > 32 {
+                entries.pop_front();
+            }
         }
     }
     Ok(())
@@ -170,6 +176,107 @@ pub async fn validate_smartcut(
             return Err(
                 "Projekt, źródła lub narzędzia zmieniły się. Uruchom analizę ponownie.".into(),
             );
+        }
+        Ok(())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn analyze_smartcut_visual(
+    json: String,
+    key: String,
+    at: f64,
+    app: tauri::AppHandle,
+) -> Result<crate::smart_cut_visual::VisualAnalysis, String> {
+    valid_key(&key)?;
+    let p = crate::mlt_commands::authorized(&json, &app.state::<Access>())?;
+    let tool = ffmpeg(&app)?;
+    let melt = app.state::<crate::mlt_commands::MltState>().path()?;
+    let queue = app.state::<SmartCutState>().visual.clone();
+    let gate = app.state::<SmartCutState>().visual_gate.clone();
+    let job = Arc::new(Job::new(0));
+    {
+        let mut entries = queue.lock().map_err(|_| "Błąd SmartCut")?;
+        if entries.iter().any(|e| e.key == key) {
+            return Err("Ta analiza została już użyta lub anulowana".into());
+        }
+        for e in entries.iter_mut().filter(|e| e.job.active()) {
+            e.cancelled = true;
+            e.job.cancel();
+        }
+        entries.push_back(Entry {
+            key: key.clone(),
+            job: job.clone(),
+            fingerprint: None,
+            cancelled: false,
+        });
+        while entries.len() > 32 {
+            entries.pop_front();
+        }
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        let result = (|| {
+            let _guard = gate.lock().map_err(|_| "Błąd kolejki obrazu SmartCut")?;
+            job.check()?;
+            let basis = crate::smart_cut_visual::fingerprint(&p, &tool, &melt)?;
+            let result = crate::smart_cut_visual::analyze(&job, &melt, &tool, &p, at, key.clone())?;
+            job.check()?;
+            if crate::smart_cut_visual::fingerprint(&p, &tool, &melt)? != basis {
+                return Err("Źródła zmieniły się podczas porównania. Ponów analizę.".into());
+            }
+            let mut entries = queue.lock().map_err(|_| "Błąd SmartCut")?;
+            let e = entries
+                .iter_mut()
+                .find(|e| e.key == key)
+                .ok_or("Analiza utraciła ważność")?;
+            job.check()?;
+            if e.cancelled {
+                return Err("Analiza została anulowana".into());
+            }
+            e.fingerprint = Some(basis);
+            Ok(result)
+        })();
+        job.status.lock().unwrap().state = if result.is_ok() {
+            "completed"
+        } else {
+            "failed"
+        }
+        .into();
+        result
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn validate_smartcut_visual(
+    json: String,
+    key: String,
+    app: tauri::AppHandle,
+) -> Result<(), String> {
+    valid_key(&key)?;
+    let p = crate::mlt_commands::authorized(&json, &app.state::<Access>())?;
+    let tool = ffmpeg(&app)?;
+    let melt = app.state::<crate::mlt_commands::MltState>().path()?;
+    let queue = app.state::<SmartCutState>().visual.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let entries = queue.lock().map_err(|_| "Błąd SmartCut")?;
+        let e = entries
+            .iter()
+            .find(|e| e.key == key)
+            .ok_or("Ponów porównanie obrazu")?;
+        e.job.check()?;
+        if e.cancelled {
+            return Err("Analiza została anulowana".into());
+        }
+        let basis = e
+            .fingerprint
+            .as_ref()
+            .ok_or("Porównanie nie jest zakończone")?;
+        if &crate::smart_cut_visual::fingerprint(&p, &tool, &melt)? != basis {
+            return Err("Projekt, źródła lub narzędzia zmieniły się. Ponów porównanie.".into());
         }
         Ok(())
     })

@@ -1,5 +1,15 @@
 # Kolejne etapy RolVixa
 
+## 0.30 — SmartCut 0.2: obraz przy cięciu i jawna przebitka
+
+- [x] Ostatnia/pierwsza klatka z oryginalnej kompozycji MLT, porównanie z sąsiednim ruchem; wskazówka bez fikcyjnej punktacji jakości.
+- [x] Regulacja kandydatury o klatkę, ponowne porównanie, rzeczywisty podgląd w pętli i dokładne cięcie przy niedostępności analizy.
+- [x] Jawny wybór przebitki z biblioteki: zakres źródła, 0,2–4 s po obu stronach styku, górna warstwa, bez dodawania jej dźwięku.
+- [x] Zachowanie napisów wypowiedzi, blokad, limitów torów oraz jeden Undo obejmujący wycięcie i nakładkę. Schemat v14 bez migracji.
+- [ ] Odbiór Windows: testy natywnego IPC/WebView2 1366 / Full HD, instalacja i instalator.
+
+Pomiar do czterech klatek / 320 px nie jest rozpoznawaniem osoby ani automatyczną oceną montażu. Przebitka i regulacja pozostają decyzją użytkownika. Export Studio osobno.
+
 ## Wykonane w 0.29 — zaznaczenie i transkrypcja mowy
 
 Ctrl+kółko ze stałym czasem pod kursorem; fit obok skali z istniejącą pustą lupką Tabler. Ctrl/Shift+klik, prostokąt i Ctrl+A zaznaczają klipy na różnych torach; grupa zachowuje odstępy i powiązane odłączone audio, blokady/kolizje oraz jeden Undo. Napisy można przesuwać bez trimowania; offset jest zapisany w v14 z migracją v1–v13. Dwuklik nadal edytuje tekst.

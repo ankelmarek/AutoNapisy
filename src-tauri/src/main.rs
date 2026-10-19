@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod smart_cut;
+mod smart_cut_visual;
 mod smart_cut_commands;
 mod analysis_commands;
 mod audio_commands;
@@ -225,6 +226,8 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             import_video,
             smart_cut_commands::analyze_smartcut,
+            smart_cut_commands::analyze_smartcut_visual,
+            smart_cut_commands::validate_smartcut_visual,
             smart_cut_commands::cancel_smartcut,
             smart_cut_commands::validate_smartcut,
             quality_commands::start_quality_analysis,
