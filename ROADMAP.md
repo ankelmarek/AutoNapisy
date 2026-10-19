@@ -1,8 +1,8 @@
 # Kolejne etapy RolVixa
 
-## W realizacji 0.28 — SmartCut 0.1
+## Wykonane w 0.28 — SmartCut 0.1
 
-Zatwierdzone zaznaczanie zakresu / istniejącego połączenia, Dokładne / Naturalne / Wygładzone, pomiar krótkich okien dźwięku i istniejące czasy słów, porównanie krótkiego montażu MLT, pętla i jeden Undo. Zachowane Ripple, J/L-cut, blokady, źródłowe obwiednie i muzyka Auto. Zakres 0.1 mieści się w jednym wybranym filmie; konflikty są jawne. Schemat nadal v13. Szczegółowa obsługa i ograniczenia w README. Naprawa aktywnej strefy drag/drop przejść i pojedyncze kodowanie AAC w składaniu FFmpeg należą do tej iteracji. Odbiór Windows/WebView2/instalatora w toku; SmartCut 0.2 / Export Studio poza paczką.
+Zatwierdzone zaznaczanie zakresu / istniejącego połączenia, Dokładne / Naturalne / Wygładzone, pomiar krótkich okien dźwięku i istniejące czasy słów, porównanie krótkiego montażu MLT, pętla i jeden Undo. Zachowane Ripple, J/L-cut, blokady, źródłowe obwiednie i muzyka Auto. Zakres 0.1 mieści się w jednym wybranym filmie; konflikty są jawne. Schemat nadal v13. Szczegółowa obsługa i ograniczenia w README. Naprawa aktywnej strefy drag/drop przejść i pojedyncze kodowanie AAC w składaniu FFmpeg należą do tej iteracji. Pełny zielony Windows run 39220210425: 252 TS, 90 Rust, 19 rzeczywistych integracyjnych, produkcyjny build, instalacja oraz WebView2 1366×700 / Full HD. Zrzuty SmartCut i natywnego zdekodowanego podglądu sprawdzone. PR #15 połączony; instalator 12172325679. SmartCut 0.2 / Export Studio poza paczką.
 
 
 ## Wykonane w 0.27 — sterowanie torami
@@ -154,7 +154,7 @@ Openverse łączy się z internetem po wyszukaniu frazy; dostęp realizują kont
 
 Proxy SDR wdrożono w 0.14, a P1 (nagłówek i zapis) w 0.15. Dalszy kierunek: fade in/out i automatyka głośności zgodnie z planem audio poniżej. SmartCut i Export Studio pozostają osobnymi przyszłymi etapami.
 
-## SmartCut: inteligentny podgląd i propozycje cięcia (0.1 w realizacji 0.28)
+## SmartCut: inteligentny podgląd i propozycje cięcia (0.1 wdrożone w 0.28)
 
 Cel: przyspieszyć precyzyjny montaż bez zastępowania decyzji użytkownika. SmartCut jest asystentem osi czasu, **nie** montażem przez edycję transkrypcji. Żadna analiza ani odsłuch propozycji nie zmienia projektu przed jednoznacznym zatwierdzeniem.
 
@@ -182,7 +182,7 @@ Cel: przyspieszyć precyzyjny montaż bez zastępowania decyzji użytkownika. Sm
 4. Testy jednostkowe granic i synchronizacji oraz integracyjne z prawdziwym FFmpeg/MLT; sprawdzić też ręcznie naturalność łączenia wypowiedzi i responsywność podglądu na typowych nagraniach.
 5. Nie pogarszać działania istniejących narzędzi cięcia. W razie niedostępności analizy przycisk zwykłego, dokładnego cięcia pozostaje dostępny.
 
-Status: **SmartCut 0.1 wdrażany w 0.28**, odbiór Windows w toku. Ocena obrazu 0.2 pozostaje przyszłym etapem.
+Status: **SmartCut 0.1 wdrożono w 0.28 / PR #15**. Pełny zielony Windows run 39220210425: 252 TS, 90 Rust, 19 rzeczywistych integracyjnych, produkcyjny build, instalacja oraz WebView2 1366×700 / Full HD. Zrzuty SmartCut i natywnego zdekodowanego podglądu sprawdzone. PR #15 połączony; instalator 12172325679. Ocena obrazu 0.2 pozostaje przyszłym etapem.
 
 ## Proxy wideo: inteligentny import i płynny montaż (SDR wdrożone w 0.14)
 
@@ -392,3 +392,7 @@ Następnie oddzielny PR: czytelne pełne A i zwięzły waveform połączonego d�
 - [x] Pełny zielony Windows run 39189432808 i push 39189417417: 220 TS, 85 Rust, 17 rzeczywistych integracyjnych, produkcyjna kompilacja, instalacja, WebView2 1366×700 / Full HD, crash/restart i instalator 12160120281. Zrzuty sprawdzone; PR #13 połączony.
 
 SmartCut / Export Studio nadal oddzielnymi etapami. Solo, dowolną kolejność V/A i trwałe wysokości wdrożono w 0.27.
+
+## Stabilizacja testów po 0.28
+
+- [ ] Audio026: wyczekiwać rzeczywistego zakończenia ponownego Open tej samej nazwy przed następnym otwieraniem; wyścig ujawniony w równoległym push 39220204501. Pełny odbiór PR 39220210425 przeszedł.
