@@ -488,7 +488,7 @@ pub fn fingerprint(p: &Project, ffmpeg: &Path, melt: &Path) -> Result<String, St
         })
         .map(|a| (&a.id, &a.path, a.duration, &a.kind))
         .collect();
-    let value = serde_json::json!({"analysisVersion":1,"clips":p.clips,"primary":p.media.as_ref().map(|m|(&m.path,m.duration)),"assets":assets,"transitions":p.transitions,"canvas":p.canvas,"tracks":tracks,"gain":p.master_audio.gain_db,"sources":stamps,"ffmpeg":crate::proxy::stamp(ffmpeg)?,"melt":crate::proxy::stamp(melt)?});
+    let value = serde_json::json!({"analysisVersion":2,"videoOrder":p.track_layout.iter().filter(|t|t.kind=="video").map(|t|t.index).collect::<Vec<_>>(),"clips":p.clips,"primary":p.media.as_ref().map(|m|(&m.path,m.duration)),"assets":assets,"transitions":p.transitions,"canvas":p.canvas,"tracks":tracks,"gain":p.master_audio.gain_db,"sources":stamps,"ffmpeg":crate::proxy::stamp(ffmpeg)?,"melt":crate::proxy::stamp(melt)?});
     serde_json::to_string(&value).map_err(|e| e.to_string())
 }
 pub fn key_label(key: &str) -> String {

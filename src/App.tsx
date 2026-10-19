@@ -60,7 +60,7 @@ import { rendering, type ExportStatus } from "./rendering";
 import bebasLicense from "./assets/BebasNeue-OFL.txt?raw";
 import CaptionOverlay, { CaptionBox } from "./CaptionOverlay";
 import { captionExport, yellowPreset, referenceText } from "./captions";
-import {assertUnlockedEdit,clipLocked} from './trackControls';
+import {assertUnlockedEdit,clipLocked,auditionProject} from './trackControls';
 export default function App() {
   const history = useProjectHistory();
   const {project,setProject:writeProject} = history;
@@ -157,7 +157,10 @@ export default function App() {
   const chosenSourceRange=useMemo(()=>{if(!sourceViewerItem)return null;try{return sourceRange(sourceViewerItem.duration!,sourceRanges.current.get(sourceViewerItem.path));}catch{return sourceRange(sourceViewerItem.duration!);}},[sourceViewerItem?.path,sourceViewerItem?.duration,sourceRangeRevision]);
   const viewSource=(id:string)=>{playback.pause();setSourceViewerId(id);};
   const proxies=useVideoProxies(project,sources,sourceRevision),safeZones=useSafeZones();
-  const playback = useMltPlayback(project,proxies.revision+sourceRevision,!sourceViewerItem&&!homeVisible);
+  const [solo,setSolo]=useState<Set<string>>(new Set());
+  useEffect(()=>setSolo(new Set()),[saveState.session]);
+  const audition=useMemo(()=>auditionProject(project,solo),[project,solo]);
+  const playback = useMltPlayback(audition,proxies.revision+sourceRevision,!sourceViewerItem&&!homeVisible);
   useEffect(()=>{if(playback.error&&proxies.active)void proxies.fallback();},[playback.error,proxies.revision]);
   const {time,playing,seek} = playback;
   const toggle=playback.toggle;
@@ -165,7 +168,7 @@ export default function App() {
   const duration = editDuration(project);
   const displayed = useMemo(()=>compositionProject(project),[project]);
   const displayedSegments = useMemo(()=>compositionSegments(project),[project]);
-  const selected=projectClips(project).find(c=>c.id===selectedClip)??clipAt(projectClips(project),time);
+  const selected=projectClips(project).find(c=>c.id===selectedClip)??clipAt(projectClips(project),time,project);
   const caption=displayedSegments.find(s=>s.id===selectedCaption);
   const picture=visuals(project,Math.min(time,Math.max(0,duration-1e-7)));
   const selectCaption=(id:string)=>{setSelectedCaption(id);setInspectorTab('captions');requestAnimationFrame(()=>{captionInput.current?.focus();captionInput.current?.scrollIntoView({block:'nearest'});});};
@@ -781,7 +784,7 @@ export default function App() {
             </div>
           </div>
         </section>
-      <Timeline project={project} time={time} locked={locked||settings||homeVisible} onError={setMessage} onSeek={t=>{setSourceViewerId('');seek(t);}}
+      <Timeline solo={solo} onSolo={id=>setSolo(old=>{const next=new Set(old);next.has(id)?next.delete(id):next.add(id);return next;})} onClearSolo={()=>setSolo(new Set())} project={project} time={time} locked={locked||settings||homeVisible} onError={setMessage} onSeek={t=>{setSourceViewerId('');seek(t);}}
         onChange={(clips,mode)=>{if(mode!=='volume')playback.pause();changeProject({...latestProject.current,clips,transitions:reconcileTransitions(latestProject.current,clips)});}} onPreviewVolume={playback.previewVolume} onBeginAudio={playback.pause} onSelect={id=>{setSelectedClip(id);setSelectedTransition('');setInspectorTab('video');}} onCaptionSelect={selectCaption}
         onMediaDrop={(id,at,track,range,kind)=>{try{playback.pause();setSourceViewerId('');const next=insertLibraryItem(latestProject.current,id,at,track,range,kind);changeProject(next);setMessage('Dodano plik na oś czasu.');adviseAddedAudio(next);}catch(e){setMessage(String(e));}}}
         onCaptionChange={p=>changeProject(p)} effectChoice={effectChoice} onTransition={(a,b,choice)=>{try{playback.pause();const next=applyTransition(project,a,b,choice.kind,choice.duration);changeProject(next);setSelectedTransition(next.transitions.find(t=>t.toId===b)!.id);setInspectorTab('video');}catch(e){setMessage(String(e));}}} onTransitionSelect={id=>{setSelectedTransition(id);setInspectorTab('video');}}

@@ -1,3 +1,4 @@
+import {videoRank,visibleVideoOrder} from './trackModel';
 import {clipLocked} from './trackControls';
 import {useEffect,useRef,useState,type PointerEvent} from 'react';
 import {invoke} from '@tauri-apps/api/core';
@@ -12,7 +13,7 @@ export default function FrameEditor(p:Props){
  const [frames,setFrames]=useState<Frames|null>(null),[hint,setHint]=useState(''),[draft,setDraft]=useState<{id:string;value:Transform}|null>(null);
  const root=useRef<HTMLDivElement>(null),current=useRef(p);current.current=p;
  const drag=useRef<{id:string;kind:'move'|'scale';x:number;y:number;base:Transform;next:Transform;w:number;h:number;distance:number}|null>(null);
- const clips=projectClips(p.project),key=JSON.stringify([Math.floor(p.time*30),p.project.canvas,p.project.media?.path,p.project.assets.map(a=>[a.id,a.path]),clips.map(({transform:_,volume:__,...c})=>c),Object.entries(p.project.tracks).filter(([id,s])=>id.startsWith('V')&&s.hidden).map(([id])=>id).sort(),p.project.transitions]);
+ const clips=projectClips(p.project),key=JSON.stringify([Math.floor(p.time*30),visibleVideoOrder(p.project),p.project.canvas,p.project.media?.path,p.project.assets.map(a=>[a.id,a.path]),clips.map(({transform:_,volume:__,...c})=>c),Object.entries(p.project.tracks).filter(([id,s])=>id.startsWith('V')&&s.hidden).map(([id])=>id).sort(),p.project.transitions]);
  useEffect(()=>{setFrames(null);setHint('');if(p.playing||!clips.length)return;let alive=true;const timer=setTimeout(()=>{
   void invoke<Frames>('layer_frames',{json:JSON.stringify(current.current.project),time:current.current.time}).then(v=>{if(!alive)return;setFrames(v);current.current.onAspects(Object.fromEntries(v.layers.map(f=>[f.id,f.sourceAspect])));}).catch(e=>{if(alive)setHint(String(e));});
  },120);return()=>{alive=false;clearTimeout(timer);};},[key,p.playing,p.proxyRevision]);
@@ -32,7 +33,7 @@ export default function FrameEditor(p:Props){
  const cancel=()=>{drag.current=null;setDraft(null);};
  const rect=selected?frameRect(100,100,draft?.id===selected.clip.id?draft.value:transformOf(selected.clip)):null;
  return <div className="frame-editor" ref={root} aria-label="Warstwy podglądu" data-ready={!!frames&&!p.playing}>
-  {!p.playing&&active.map(({frame,clip})=>{const t=draft?.id===clip.id?draft.value:transformOf(clip);return <img draggable={false} className="frame-layer" data-layer-id={clip.id} key={clip.id} alt="" src={`data:image/png;base64,${frame.png}`} style={{zIndex:1+(clip.track??0),transform:`translate(${t.x*100}%,${t.y*100}%) scale(${t.scale})`,pointerEvents:p.locked||clipLocked(p.project,clip)?'none':'auto'}} onPointerDown={e=>start(e,clip.id,'move')} onPointerMove={move} onPointerUp={end} onPointerCancel={cancel}/>;})}
+  {!p.playing&&active.map(({frame,clip})=>{const t=draft?.id===clip.id?draft.value:transformOf(clip);return <img draggable={false} className="frame-layer" data-layer-id={clip.id} key={clip.id} alt="" src={`data:image/png;base64,${frame.png}`} style={{zIndex:1+videoRank(p.project,clip.track??0),transform:`translate(${t.x*100}%,${t.y*100}%) scale(${t.scale})`,pointerEvents:p.locked||clipLocked(p.project,clip)?'none':'auto'}} onPointerDown={e=>start(e,clip.id,'move')} onPointerMove={move} onPointerUp={end} onPointerCancel={cancel}/>;})}
   {!p.playing&&selected&&rect&&<div className="frame-selection" style={{left:`${rect.left}%`,top:`${rect.top}%`,width:`${rect.width}%`,height:`${rect.height}%`}}>
    {(['nw','ne','sw','se'] as const).map(corner=><button key={corner} className={`frame-handle ${corner}`} disabled={p.locked||clipLocked(p.project,selected.clip)} aria-label={`Skaluj film ${corner}`} onPointerDown={e=>start(e,selected.clip.id,'scale')} onPointerMove={move} onPointerUp={end} onPointerCancel={cancel}/>)}
   </div>}

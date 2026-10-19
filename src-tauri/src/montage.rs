@@ -123,8 +123,8 @@ pub fn assemble(
         let top = active
             .iter()
             .filter(|c| c.kind == "video" && !p.tracks.video_hidden(c))
-            .map(|c| c.track)
-            .max();
+            .max_by_key(|c| p.video_rank(c.track))
+            .map(|c| c.track);
         let transition =
             top.and_then(|track| crate::effects::active_transition(p, start + 1e-6, track));
         let visible = if let Some(t) = transition {
@@ -133,7 +133,7 @@ pub fn assemble(
             active
                 .iter()
                 .filter(|c| c.kind == "video" && !p.tracks.video_hidden(c))
-                .max_by_key(|c| c.track)
+                .max_by_key(|c| p.video_rank(c.track))
                 .map(|c| vec![c.id.as_str()])
                 .unwrap_or_default()
         };

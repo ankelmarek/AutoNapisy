@@ -1,7 +1,18 @@
-# RolVixa 0.26 — polska mowa → polskie napisy
+# RolVixa 0.27 — polska mowa → polskie napisy
 
 **Instalator 0.26:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39189432808/artifacts/12160120281), rozpakuj i uruchom `RolVixa_0.26.0_x64-setup.exe`. Pobranie z Actions wymaga zalogowania na GitHub.
 RolVixa (wcześniej AutoNapisy) to lokalna aplikacja Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Rozpoznaje polską mowę przez whisper.cpp, bez tłumaczenia. Transkrypcja i montaż działają na komputerze. Opcjonalna biblioteka muzyki łączy się z Openverse po wpisaniu frazy wyszukiwania; nie wysyła nagrań użytkownika.
+
+## Wersja 0.27 — sterowanie torami (odbiór w toku)
+
+- **Solo** (ikona audio w nagłówku V/A) izoluje odsłuch. Można włączyć kilka torów; A obejmuje także dźwięk filmów trasowany do tego busa, V tylko filmy na tym V. Istniejący mute oraz odłączenie pozostają respektowane. Przycisk **Solo · pełny miks** przywraca odsłuch. Solo jest sesyjne, resetowane po otwarciu/utworzeniu projektu, poza Undo, pomiarami, transkrypcją i eksportem.
+- **Przeciągnij numer V/A** na nagłówek tego samego typu, w jego górną/dolną połowę. Alternatywnie: fokus numeru i **Alt+↑/↓**. Wideo wyżej na osi zasłania niższe w podglądzie i eksporcie. Numery, trasy audio, klipy, przejścia i synchronizacja pozostają bez zmian. Nie można przekraczać zablokowanego toru; zmiana kolejności jest jednym Undo i zapisuje się w projekcie. T pozostaje na górze.
+- **Dolna krawędź nagłówka** reguluje wysokość V/A (40–240 px na rząd; minimum 84 px dla filmu z dźwiękiem). Strzałki zmieniają ją o 8 px, Shift o 24 px, Home/dwuklik resetuje; Escape/anulowanie gestu przywraca poprzednią. Nakładające się A zachowują osobne pełne rzędy. Zwijanie przywraca ustawioną wysokość po rozwinięciu. Preferencje `rolvixa.timeline.v1` są lokalne dla edytora, poza projektem i Undo; nie zmieniają dekodera.
+- **Cały montaż** dopasowuje skalę i wraca do początku poziomego przewijania, także dla długich projektów. Nie przesuwa głowicy ani klipów.
+
+Schemat **v13** (`schemas/project-v13.schema.json`): kolejność `trackLayout` ma znaczenie (V od dołu do góry, A od góry do dołu), z dotychczasowymi stabilnymi ID/indeksami. Import v1–v12 zachowuje historyczną kolejność numeryczną i miks. Projekty zapisane jako v13 wymagają nowej aplikacji. Produkcyjny MLT, wybór warstwy, FrameEditor oraz render FFmpeg respektują tę samą kolejność. Analiza obrazu unieważnia cache po zmianie kolejności V; zmiana samej kolejności A nie zmienia miksu/normalizacji. Limit nadal 16 V / 16 A, 100 klipów i MLT 30 FPS. SmartCut / Export Studio poza tą paczką.
+
+Nowe pliki: `src/TrackResize.tsx`, `src/timelineView.ts`, `tests/timeline027.test.ts`, `scripts/test-timeline027.mjs`. Testy obejmują migrację, blokady/Undo, Solo/busy/mute, geometrię/preferencje/dopasowanie i rzeczywiste kolory/sześć tonów obu silników po przestawieniu V1 ponad V3 oraz izolowany odsłuch. Pełny odbiór Windows/WebView2 i instalator 0.27 jeszcze niepotwierdzone; link powyżej dotyczy odebranej 0.26.
 
 ## Wersja 0.26 — czytelne audio (ukończona)
 

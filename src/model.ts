@@ -51,7 +51,7 @@ const fadeSchema=z.object({anchor:time,duration:z.number().finite().positive().m
 export const audioEnvelopeSchema=z.object({points:z.array(z.object({id:z.string().min(1).max(100),time,gain:z.number().finite().min(0).max(1)}).strict()).max(64),fadeIn:fadeSchema.optional(),fadeOut:fadeSchema.optional()}).strict();
 const currentProjectSchema = z
   .object({
-    schemaVersion: z.literal(12),
+    schemaVersion: z.literal(13),
     masterAudio:z.object({gainDb:z.number().finite().min(-60).max(24),normalization:z.object({targetLufs:z.number().finite().min(-30).max(-9),basis:z.string().regex(/^[0-9a-f]{16}$/),stale:z.boolean().optional()}).strict().optional()}).strict().default({gainDb:0}),
     trackLayout:trackLayoutSchema.default(defaultTrackLayout),
     rippleEnabled:z.boolean().default(false),
@@ -124,19 +124,19 @@ const currentProjectSchema = z
   });
 export const projectSchema = z.preprocess((value) => {
   if(value&&typeof value==='object'&&'schemaVersion' in value&&Number(value.schemaVersion)<=11&&'masterAudio' in value)return value;
-  if(value&&typeof value==='object'&&'schemaVersion' in value&&value.schemaVersion===11)return {...value,schemaVersion:12,masterAudio:{gainDb:0}};
+  if(value&&typeof value==='object'&&'schemaVersion' in value&&[11,12].includes(Number(value.schemaVersion))){const p=value as Project,layout=p.trackLayout===undefined?defaultTrackLayout():p.trackLayout;if(!Array.isArray(layout)||layout.some(t=>!t||typeof t!=='object'))return value;return {...p,schemaVersion:13,masterAudio:Number(value.schemaVersion)===11?{gainDb:0}:p.masterAudio,trackLayout:[...layout].sort((a,b)=>a.kind===b.kind?a.index-b.index:a.kind==='video'?-1:1)};}
   if(value&&typeof value==='object'&&'schemaVersion' in value&&[1,2,3,4,5,6,7,8,9,10].includes(Number(value.schemaVersion))){
     const p=value as Project,version=Number(value.schemaVersion);
     // Legacy schemas could never authorize extra tracks or explicit audio routing.
     if('trackLayout' in value||Object.keys(p.tracks??{}).some(k=>!['V1','V2','A1','A2','T'].includes(k))||(p.clips??[]).some(c=>(c.track??0)>1||c.audioRoute!==undefined))return value;
     const clips=version>=3?p.clips:p.media?.duration?[{id:'original',sourceIn:0,sourceOut:p.media.duration,start:0}]:null;
-    return {...p,trackLayout:defaultTrackLayout(),assets:p.assets??[],captionEdits:p.captionEdits??{},timelineSegments:version>=6?p.timelineSegments:null,transitions:(p.transitions??[]).map(t=>({...t,kind:legacyTransition(t.kind)})),schemaVersion:12,masterAudio:{gainDb:0},rippleEnabled:version<10?false:p.rippleEnabled,clips:clips?.map(c=>c.kind==='audio'?c:{...c,audioRoute:trackId('audio',c.track??0)})??null};
+    return {...p,trackLayout:defaultTrackLayout(),assets:p.assets??[],captionEdits:p.captionEdits??{},timelineSegments:version>=6?p.timelineSegments:null,transitions:(p.transitions??[]).map(t=>({...t,kind:legacyTransition(t.kind)})),schemaVersion:13,masterAudio:{gainDb:0},rippleEnabled:version<10?false:p.rippleEnabled,clips:clips?.map(c=>c.kind==='audio'?c:{...c,audioRoute:trackId('audio',c.track??0)})??null};
   }
   return value;
 }, currentProjectSchema);
 export type Project = z.infer<typeof currentProjectSchema>;
 export const newProject = (): Project => ({
-  schemaVersion: 12,
+  schemaVersion: 13,
   masterAudio:{gainDb:0},
   trackLayout:defaultTrackLayout(),
   rippleEnabled:false,
