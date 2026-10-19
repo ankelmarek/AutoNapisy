@@ -22,9 +22,11 @@ export function assertUnlockedEdit(before:Project,next:Project){
  if(before.tracks.T?.locked&&(JSON.stringify(before.timelineSegments)!==JSON.stringify(next.timelineSegments)||JSON.stringify(before.captionEdits)!==JSON.stringify(next.captionEdits)||JSON.stringify(compositionSegments(before))!==JSON.stringify(compositionSegments(next))))throw Error('Ścieżka napisów jest zablokowana.');
 }
 
+export const soloIncludes=(c:Clip,solo:ReadonlySet<string>)=>solo.has(c.kind==='audio'?trackId('audio',c.track??0):videoTrack(c))||!!(audioTrack(c)&&solo.has(audioTrack(c)!));
+export const auditionMuted=(p:Project,c:Clip,solo:ReadonlySet<string>)=>clipMuted(p,c)||(p.trackLayout.some(t=>solo.has(t.id))&&!soloIncludes(c,solo));
 /** Solo is an audition overlay, never a project edit or an export setting. Bus solo includes routed video sound. */
 export function auditionProject(p:Project,solo:ReadonlySet<string>):Project{
  const active=new Set([...solo].filter(id=>p.trackLayout.some(t=>t.id===id)));
  if(!active.size)return p;
- return {...p,clips:projectClips(p).map(c=>active.has(c.kind==='audio'?trackId('audio',c.track??0):videoTrack(c))||(audioTrack(c)&&active.has(audioTrack(c)!))?c:{...c,volume:0})};
+ return {...p,clips:projectClips(p).map(c=>soloIncludes(c,active)?c:{...c,volume:0})};
 }

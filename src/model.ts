@@ -124,7 +124,7 @@ const currentProjectSchema = z
   });
 export const projectSchema = z.preprocess((value) => {
   if(value&&typeof value==='object'&&'schemaVersion' in value&&Number(value.schemaVersion)<=11&&'masterAudio' in value)return value;
-  if(value&&typeof value==='object'&&'schemaVersion' in value&&[11,12].includes(Number(value.schemaVersion))){const p=value as Project;return {...p,schemaVersion:13,masterAudio:Number(value.schemaVersion)===11?{gainDb:0}:p.masterAudio,trackLayout:[...(p.trackLayout??defaultTrackLayout())].sort((a,b)=>a.kind===b.kind?a.index-b.index:a.kind==='video'?-1:1)};}
+  if(value&&typeof value==='object'&&'schemaVersion' in value&&[11,12].includes(Number(value.schemaVersion))){const p=value as Project,layout=p.trackLayout===undefined?defaultTrackLayout():p.trackLayout;if(!Array.isArray(layout)||layout.some(t=>!t||typeof t!=='object'))return value;return {...p,schemaVersion:13,masterAudio:Number(value.schemaVersion)===11?{gainDb:0}:p.masterAudio,trackLayout:[...layout].sort((a,b)=>a.kind===b.kind?a.index-b.index:a.kind==='video'?-1:1)};}
   if(value&&typeof value==='object'&&'schemaVersion' in value&&[1,2,3,4,5,6,7,8,9,10].includes(Number(value.schemaVersion))){
     const p=value as Project,version=Number(value.schemaVersion);
     // Legacy schemas could never authorize extra tracks or explicit audio routing.
