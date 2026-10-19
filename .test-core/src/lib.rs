@@ -58,3 +58,6 @@ pub mod media_sources;
 
 #[path="../../src-tauri/src/quality.rs"]
 pub mod quality;
+
+#[path="../../src-tauri/src/smart_cut.rs"]
+pub mod smart_cut;

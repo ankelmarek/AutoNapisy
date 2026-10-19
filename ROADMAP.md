@@ -1,5 +1,10 @@
 # Kolejne etapy RolVixa
 
+## W realizacji 0.28 — SmartCut 0.1
+
+Zatwierdzone zaznaczanie zakresu / istniejącego połączenia, Dokładne / Naturalne / Wygładzone, pomiar krótkich okien dźwięku i istniejące czasy słów, porównanie krótkiego montażu MLT, pętla i jeden Undo. Zachowane Ripple, J/L-cut, blokady, źródłowe obwiednie i muzyka Auto. Zakres 0.1 mieści się w jednym wybranym filmie; konflikty są jawne. Schemat nadal v13. Szczegółowa obsługa i ograniczenia w README. Naprawa aktywnej strefy drag/drop przejść i pojedyncze kodowanie AAC w składaniu FFmpeg należą do tej iteracji. Odbiór Windows/WebView2/instalatora w toku; SmartCut 0.2 / Export Studio poza paczką.
+
+
 ## Wykonane w 0.27 — sterowanie torami
 
 Zatwierdzone Solo odsłuchu, kolejność V/A przez nagłówki, trwałe wysokości widoku i dopasowanie całego montażu. Schemat v13 zachowuje stabilne ID; v1–v12 migrują z dawną kolejnością numeryczną. Bez SmartCut / Export Studio. Szczegółowa obsługa i ograniczenia w README. Pełny zielony Windows run 39198885893 i push 39198881666: 229 TS, 87 Rust, 17 integracyjnych, instalacja i rzeczywisty WebView2 1366×700 / Full HD. Zrzuty sprawdzone; PR #14 połączony, instalator 12163411665. Potwierdzone drag/klawiatura/Undo/blokady, Solo z trasowanym audio, pełne wysokości i preferencje, Escape, fit/reopen v13 oraz regresje normalizacji/źródeł/Ripple/napisów/odzyskiwania.
@@ -149,7 +154,7 @@ Openverse łączy się z internetem po wyszukaniu frazy; dostęp realizują kont
 
 Proxy SDR wdrożono w 0.14, a P1 (nagłówek i zapis) w 0.15. Dalszy kierunek: fade in/out i automatyka głośności zgodnie z planem audio poniżej. SmartCut i Export Studio pozostają osobnymi przyszłymi etapami.
 
-## SmartCut: inteligentny podgląd i propozycje cięcia (planowane)
+## SmartCut: inteligentny podgląd i propozycje cięcia (0.1 w realizacji 0.28)
 
 Cel: przyspieszyć precyzyjny montaż bez zastępowania decyzji użytkownika. SmartCut jest asystentem osi czasu, **nie** montażem przez edycję transkrypcji. Żadna analiza ani odsłuch propozycji nie zmienia projektu przed jednoznacznym zatwierdzeniem.
 
@@ -177,7 +182,7 @@ Cel: przyspieszyć precyzyjny montaż bez zastępowania decyzji użytkownika. Sm
 4. Testy jednostkowe granic i synchronizacji oraz integracyjne z prawdziwym FFmpeg/MLT; sprawdzić też ręcznie naturalność łączenia wypowiedzi i responsywność podglądu na typowych nagraniach.
 5. Nie pogarszać działania istniejących narzędzi cięcia. W razie niedostępności analizy przycisk zwykłego, dokładnego cięcia pozostaje dostępny.
 
-Status: **do zaplanowania i implementacji**, bez zmiany priorytetów bieżących prac nad stabilizacją RolVixa.
+Status: **SmartCut 0.1 wdrażany w 0.28**, odbiór Windows w toku. Ocena obrazu 0.2 pozostaje przyszłym etapem.
 
 ## Proxy wideo: inteligentny import i płynny montaż (SDR wdrożone w 0.14)
 

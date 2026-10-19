@@ -16,7 +16,7 @@ export type EditOperation={kind:'delete';id:string}|{kind:'trim';id:string;edge:
 export type EditChange={id:string;track:string;before:number;after:number;oldEnd:number;newEnd:number;removed:boolean;caption?:boolean};
 export type RipplePlan={base:Project;next:Project;plain:Project;operation:EditOperation;active:boolean;conflicts:string[];changes:EditChange[];delta:number;removedTransitions:number};
 const tidy=(p:Project,clips:Clip[]):Project=>({...p,clips,transitions:reconcileTransitions(p,clips)});
-function captionRipple(p:Project,at:number,until:number,delta:number):Project {
+export function captionRipple(p:Project,at:number,until:number,delta:number):Project {
  if(!p.timelineSegments)return p;
  // A removed interval collapses, with each word moved once. An expansion inserts time at 'at'.
  const removed=delta<0;
