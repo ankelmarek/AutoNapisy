@@ -64,7 +64,7 @@ export default function Timeline(p:Props){
  const cut=(id:string,t:number)=>{const c=clips.find(c=>c.id===id);if(!c||clipLocked(p.project,c))return;const next=splitClip(clips,id,t);if(next!==clips)commit(next);};
  const remove=()=>{if(captionSelected){if(p.project.tracks.T?.locked)return;const s=compositionSegments(p.project).find(s=>s.id===captionSelected);if(s)p.onCaptionChange(editCaption(p.project,s,{hidden:true}));setCaptionSelected('');return;}if(p.selectedIds.length>1){deleteSelected();return;}if(chosen&&!chosenLocked){request({kind:'delete',id:selected});select([]);setSelected('');}};
  const start=(e:PointerEvent,id:string,kind:'move'|'left'|'right')=>{
-  if(p.locked)return;e.stopPropagation();if(e.button!==0)return;e.preventDefault();pointerSelecting.current=true;(e.currentTarget as HTMLElement).focus({preventScroll:true});pointerSelecting.current=false;
+  if(p.locked)return;e.stopPropagation();if(e.button!==0)return;e.preventDefault();pointerSelecting.current=true;(e.currentTarget as HTMLElement).closest<HTMLElement>('.edit-clip')?.focus({preventScroll:true});pointerSelecting.current=false;
   const additive=e.ctrlKey||e.metaKey||e.shiftKey,ids=kind==='move'&&tool==='select'?(additive?(p.selectedIds.includes(id)?p.selectedIds.filter(x=>x!==id):[...p.selectedIds,id]):p.selectedIds.includes(id)?p.selectedIds:[id]):[id];
   select(ids);setCaptionSelected('');if(!ids.includes(id))return;setSelected(id);p.onSelect(id);
   if(clipLocked(p.project,clips.find(c=>c.id===id)!))return;
