@@ -14,6 +14,7 @@ import type {EffectChoice} from './EffectsLibrary';
 import AudioWaveform from './AudioWaveform';
 import {toggleTrack,clipMuted,videoHidden,clipLocked,type TrackId} from './trackControls';
 import {tracksOf,trackId,routedAudio,MAX_TRACKS,type TrackKind} from './trackModel';
+import {audioBusText,audioRouteText,busVideoTracks} from './audioLayout';
 import {addTrack,removeTrack,timelineLayout,laneAt,clipTop,clipLane,clipHeight} from './tracks';
 import {clipAt,clipEnd,compositionSegments,editDuration,moveClip,projectClips,splitClip,trimClip,clipMedia,changeTrack,type Clip} from './editing';
 const stamp=(s:number)=>`${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toFixed(2).padStart(5,'0')}`;
@@ -37,18 +38,18 @@ export default function Timeline(p:Props){
  const [scroll,setScroll]=useState(0),[viewport,setViewport]=useState(window.innerWidth);
  useEffect(()=>{const resize=()=>setViewport(window.innerWidth);window.addEventListener('resize',resize);return()=>window.removeEventListener('resize',resize);},[]);
  const visibleCaptions=useMemo(()=>compositionSegments(captionDraft??{...p.project,clips:shown}).filter(s=>s.end*zoom>=scroll && s.start*zoom<=scroll+viewport),[p.project,shown,zoom,scroll,viewport,captionDraft]);
- const drag=useRef<{id:string;kind:'move'|'left'|'right';x:number;y:number;audioDrag:boolean;base:Clip[];value:Clip[];moved:boolean;operation?:EditOperation}|null>(null);
+ const drag=useRef<{id:string;kind:'move'|'left'|'right';x:number;y:number;base:Clip[];value:Clip[];moved:boolean;operation?:EditOperation}|null>(null);
  const point=(e:PointerEvent)=>Math.max(0,(e.clientX-(canvas.current?.getBoundingClientRect().left??0))/zoom);
  const scrubbing=useRef(false);
  const commit=(next:Clip[])=>{p.onChange(next);setDraft(null);};
  const cut=(id:string,t:number)=>{const c=clips.find(c=>c.id===id);if(!c||clipLocked(p.project,c))return;const next=splitClip(clips,id,t);if(next!==clips)commit(next);};
  const remove=()=>{if(captionSelected){if(p.project.tracks.T?.locked)return;const s=compositionSegments(p.project).find(s=>s.id===captionSelected);if(s)p.onCaptionChange(editCaption(p.project,s,{hidden:true}));setCaptionSelected('');return;}if(chosen&&!chosenLocked){request({kind:'delete',id:selected});setSelected('');}};
- const start=(e:PointerEvent,id:string,kind:'move'|'left'|'right',mirror=false)=>{
+ const start=(e:PointerEvent,id:string,kind:'move'|'left'|'right')=>{
   if(p.locked)return;e.stopPropagation();if(e.button!==0)return;setSelected(id);setCaptionSelected('');p.onSelect(id);
   if(clipLocked(p.project,clips.find(c=>c.id===id)!))return;
   p.onBeginAudio();
   if(tool==='razor'&&kind==='move'){cut(id,point(e));return;}
-  e.currentTarget.setPointerCapture(e.pointerId);drag.current={id,kind,x:e.clientX,y:e.clientY,audioDrag:mirror||clips.find(c=>c.id===id)?.kind==='audio',base:clips,value:clips,moved:false};
+  e.currentTarget.setPointerCapture(e.pointerId);drag.current={id,kind,x:e.clientX,y:e.clientY,base:clips,value:clips,moved:false};
  };
  const move=(e:PointerEvent)=>{
   const d=drag.current;if(!d||p.locked)return;
@@ -58,7 +59,6 @@ export default function Timeline(p:Props){
    let next=c;const target=laneAt(lanes,e.clientY-(canvas.current?.getBoundingClientRect().top??0));
    if(Math.abs(e.clientY-d.y)>20&&target){
     if(c.kind==='audio'&&target.kind==='audio')next={...c,track:target.index};
-    else if(c.kind!=='audio'&&d.audioDrag){if(target.kind==='audio')next={...c,audioRoute:target.id};else if(target.id===trackId('video',c.track??0))next={...c,audioRoute:'embedded'};}
     else if(c.kind!=='audio'&&target.kind==='video')next={...c,track:target.index,audioRoute:c.audioRoute??(routedAudio(c)===null?'embedded':trackId('audio',routedAudio(c)!))};
    }
    const movedTrack=d.base.map(x=>x.id===d.id?next:x);d.value=moveClip(movedTrack,d.id,c.start+delta,snap?10/zoom:0);
@@ -104,17 +104,17 @@ export default function Timeline(p:Props){
   <div className="timeline-body">
   <div className="track-heads" aria-label="Sterowanie ścieżkami" style={{height:canvasHeight}}>
    <div className="track-head-ruler"><Icon name="video" size={14}/></div>
-   {lanes.map(({id:rawId,top,height,index,kind})=>{const id=rawId as TrackId;
+   {lanes.map(({id:rawId,top,height,index,kind,rowCount})=>{const id=rawId as TrackId;
     const state=p.project.tracks[id],isVideo=id.startsWith('V'),r=rippleTrack(p.project,id);
     return <div key={id} className="track-head" style={{top,height}}><b>{id}</b><div>
      <button disabled={p.locked} aria-label={`Blokada ${id}`} aria-pressed={!!state?.locked} title={`${state?.locked?'Odblokuj':'Zablokuj'} ${id}`} onClick={()=>change({...p.project,tracks:{...p.project.tracks,[id]:{...state,locked:!state?.locked}}})}><Icon name={state?.locked?'lock':'lockOpen'} size={12}/><span className="sr-only">Blokada</span></button>
      <button className="track-settings-button" disabled={p.locked} aria-label={`Ustawienia ścieżki ${id}`} aria-expanded={trackMenu?.id===id} title={`Ustawienia ścieżki ${id}: ${rippleReason(r)}`} data-ripple-enabled={trackParticipates(r)} onClick={e=>{const rect=e.currentTarget.getBoundingClientRect();setTrackMenu(trackMenu?.id===id?null:{id,x:Math.min(rect.left,window.innerWidth-300),y:Math.max(8,Math.min(rect.bottom+4,window.innerHeight-210))});}}><Icon name="settings" size={12}/></button>
-     {id!=='T'&&<button disabled={p.locked} aria-label={`Wycisz ${id}`} aria-pressed={!!state?.muted} title={isVideo?`Wycisz dźwięk filmów na ${id}`:`Wycisz wszystkie dźwięki na ${id}`} onClick={()=>p.onCaptionChange(toggleTrack(p.project,id,'muted'))}><Icon name={state?.muted?'speakerOff':'speaker'} size={14}/></button>}
+     {id!=='T'&&<button disabled={p.locked} aria-label={`Wycisz ${id}`} aria-pressed={!!state?.muted} title={isVideo?`Wycisz dźwięk filmów na ${id}`:`Wycisz ${audioBusText(clips,index)}`} onClick={()=>p.onCaptionChange(toggleTrack(p.project,id,'muted'))}><Icon name={state?.muted?'speakerOff':'speaker'} size={14}/></button>}
      {(isVideo||id==='T')&&<button disabled={p.locked} aria-label={`Ukryj ${id}`} aria-pressed={!!state?.hidden} title={state?.hidden?`Pokaż ${id}`:`Ukryj ${id} w podglądzie i eksporcie`} onClick={()=>p.onCaptionChange(toggleTrack(p.project,id,'hidden'))}><Icon name={state?.hidden?'eyeOff':'eye'} size={14}/></button>}
      {id!=='T'&&<button className="track-collapse" disabled={p.locked} aria-label={`Zwiń ${id}`} aria-pressed={compact.has(id)} title={`Zwiń / rozwiń ${id}`} onClick={()=>setCompact(old=>{const next=new Set(old);next.has(id)?next.delete(id):next.add(id);return next;})}><Icon name="chevronDown" size={11}/></button>}
      {kind==='audio'&&!compact.has(id)&&<button className="track-height" disabled={p.locked} aria-label={`Wysokość ${id}`} title={`Zmień wysokość ${id}`} onClick={()=>setTall(old=>{const next=new Set(old);next.has(id)?next.delete(id):next.add(id);return next;})}><Icon name="audio" size={11}/></button>}
      {id!=='T'&&index>=2&&<button className="track-remove" disabled={p.locked||state?.locked} aria-label={`Usuń ścieżkę ${id}`} title={`Usuń ścieżkę ${id}`} onClick={()=>{try{const contains=clips.some(c=>(c.kind==='audio'?'audio':'video')===kind&&(c.track??0)===index);if(contains&&!window.confirm(`Usunąć ścieżkę ${id} wraz z jej klipami? Możesz cofnąć tę operację.`))return;change(removeTrack(p.project,id,contains));}catch(e){p.onError(String(e));}}}><Icon name="x" size={11}/></button>}
-    </div></div>;
+    </div>{kind==='audio'&&<small className="track-audio-info" title={audioBusText(clips,index)}>{rowCount>1?`Rzędy: ${rowCount} · wspólny mute` : busVideoTracks(clips,index).length?`+ audio ${busVideoTracks(clips,index).join(', ')}`:''}</small>}</div>;
    })}
   </div>
   <div className="timeline-scroll" ref={scroller}
@@ -123,14 +123,16 @@ export default function Timeline(p:Props){
    onPointerUpCapture={e=>{if(pan.current){e.stopPropagation();pan.current=null;}}} onPointerCancelCapture={()=>pan.current=null} onScroll={e=>setScroll(e.currentTarget.scrollLeft)}>
    <div ref={canvas} className={`edit-canvas ${tool}`} style={{width,height:canvasHeight}} onDragOver={e=>{if(p.locked||!e.dataTransfer.types.includes('application/x-rolvixa-media'))return;const rect=e.currentTarget.getBoundingClientRect(),target=laneAt(lanes,e.clientY-rect.top);if(!target){setMediaDrop(null);return;}e.preventDefault();e.dataTransfer.dropEffect='copy';setMediaDrop({at:Math.max(0,(e.clientX-rect.left)/zoom),id:target.id});}} onDragLeave={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node))setMediaDrop(null);}} onDrop={e=>{if(p.locked||!e.dataTransfer.types.includes('application/x-rolvixa-media'))return;e.preventDefault();const rect=e.currentTarget.getBoundingClientRect(),target=laneAt(lanes,e.clientY-rect.top);if(target)try{const raw=e.dataTransfer.getData(SOURCE_RANGE_TYPE),drop=raw?decodeSourceDrop(raw):{id:e.dataTransfer.getData('application/x-rolvixa-media'),range:undefined};p.onMediaDrop(drop.id,Math.max(0,(e.clientX-rect.left)/zoom),target.index,drop.range,target.kind as TrackKind);}catch{}setMediaDrop(null);}} onPointerDown={e=>{if(!p.locked){scrubbing.current=true;e.currentTarget.setPointerCapture(e.pointerId);p.onSeek(point(e));}}} onPointerMove={e=>{if(scrubbing.current&&!p.locked)p.onSeek(point(e));}} onPointerUp={()=>{scrubbing.current=false;}} onPointerCancel={()=>{scrubbing.current=false;}}>
     <div className="edit-ruler">{Array.from({length:Math.ceil(viewport/zoom/tick)+3},(_,n)=>Math.max(0,Math.floor(scroll/zoom/tick)-1)+n).filter(i=>i*tick*zoom<=width).map(i=><span key={i} style={{left:i*tick*zoom}}>{stamp(i*tick)}</span>)}</div>
-    {lanes.filter(t=>t.kind!=='captions').map(t=><div key={t.id} data-lane-id={t.id} className="multi-lane" style={{top:t.top,height:t.height}}/>)}
-    {timelineClips(p.project,shown).flatMap(c=>c.kind==='audio'||c.audioDetached||(routedAudio(c)===null&&compact.has(trackId('video',c.track??0)))?[{c,mirror:false}]:[{c,mirror:false},{c,mirror:true}]).map(({c,mirror},i)=><div key={c.id+(mirror?'-sound':'')} role="button" tabIndex={p.locked?-1:0} aria-label={`${mirror?'Dźwięk połączony':c.kind==='audio'?'Audio':'Ujęcie'} ${i+1}`} aria-pressed={c.id===selected} data-clip-id={c.id} data-kind={c.kind??'video'} data-detached={!!c.audioDetached} className={`edit-clip ${clipLane(lanes,c,mirror)?.collapsed?'compact-clip':''} ${clipLocked(p.project,c)?'clip-is-locked':''} ${mirror||c.kind==='audio'?'audio-clip':''} ${c.id===selected?'selected':''} ${(mirror||c.kind==='audio')?clipMuted(p.project,c)?'track-is-muted':'':videoHidden(p.project,c)?'track-is-hidden':''}`} style={{top:clipTop(lanes,c,mirror),height:clipHeight(lanes,c,mirror),left:c.start*zoom,width:(c.sourceOut-c.sourceIn)*zoom}} onFocus={()=>{setSelected(c.id);setCaptionSelected('');p.onSelect(c.id);}} onContextMenu={e=>{e.preventDefault();if(p.locked)return;setSelected(c.id);p.onSelect(c.id);setClipMenu({id:c.id,x:Math.min(e.clientX,window.innerWidth-235),y:Math.max(8,Math.min(e.clientY,window.innerHeight-Math.min(window.innerHeight*.7,tracksOf(p.project,'audio').length*32+48)-8))});}} onKeyDown={e=>{if(p.locked)return;if(e.key==='Delete'){e.preventDefault();e.stopPropagation();request({kind:'delete',id:c.id});}if(e.key==='Enter')p.onSeek(c.start);}} onPointerDown={e=>start(e,c.id,'move',mirror)} onPointerMove={move} onPointerUp={end} onPointerCancel={()=>{drag.current=null;setDraft(null);}} title={`${clipMedia(p.project,c)?.name}\nŹródło ${stamp(c.sourceIn)} – ${stamp(c.sourceOut)}\nOś ${stamp(c.start)} – ${stamp(clipEnd(c))}`}>
-     <div className="trim-handle left" role="separator" aria-label={`Lewy brzeg ujęcia ${i+1}`} onPointerDown={e=>start(e,c.id,'left',mirror)}/>
-     <span>{mirror&&<Icon name="link" size={10}/>} {clipMedia(p.project,c)?.name}</span><small>{stamp(c.sourceIn)} → {stamp(c.sourceOut)}</small>
-     {(mirror||c.kind==='audio')&&<AudioWaveform path={clipMedia(p.project,c)?.path} duration={clipMedia(p.project,c)?.duration??0} sourceIn={c.sourceIn} sourceOut={c.sourceOut}/>}
-     {(mirror||c.kind==='audio')&&<AudioAutomation clip={c} zoom={zoom} name={clipMedia(p.project,c)?.name??'audio'} disabled={p.locked||clipLocked(p.project,c)} onBegin={p.onBeginAudio}
-       onCommit={next=>p.onChange(clips.map(x=>x.id===c.id?{...x,volume:next.volume,audio:next.audio}:x),'volume')}/>}
-     <div className="trim-handle right" role="separator" aria-label={`Prawy brzeg ujęcia ${i+1}`} onPointerDown={e=>start(e,c.id,'right',mirror)}/>
+    {lanes.filter(t=>t.kind!=='captions').map(t=><div key={t.id} data-lane-id={t.id} data-audio-rows={t.rowCount} className="multi-lane" style={{top:t.top,height:t.height}}/>)}
+    {timelineClips(p.project,shown).map((c,i)=><div key={c.id} role="button" tabIndex={p.locked?-1:0} aria-label={`${c.kind==='audio'?'Audio':'Ujęcie'} ${i+1}`} aria-pressed={c.id===selected} data-clip-id={c.id} data-kind={c.kind??'video'} data-detached={!!c.audioDetached} className={`edit-clip ${clipLane(lanes,c)?.collapsed?'compact-clip':''} ${clipLocked(p.project,c)?'clip-is-locked':''} ${c.kind==='audio'?'audio-clip':!c.audioDetached?'video-with-audio':''} ${c.id===selected?'selected':''} ${c.kind==='audio'?(clipMuted(p.project,c)?'track-is-muted':''):(videoHidden(p.project,c)?'picture-is-hidden':'')}`} style={{top:clipTop(lanes,c),height:clipHeight(lanes,c),left:c.start*zoom,width:(c.sourceOut-c.sourceIn)*zoom}} onFocus={()=>{setSelected(c.id);setCaptionSelected('');p.onSelect(c.id);}} onContextMenu={e=>{e.preventDefault();if(p.locked)return;setSelected(c.id);p.onSelect(c.id);setClipMenu({id:c.id,x:Math.min(e.clientX,window.innerWidth-235),y:Math.max(8,Math.min(e.clientY,window.innerHeight-Math.min(window.innerHeight*.7,tracksOf(p.project,'audio').length*32+48)-8))});}} onKeyDown={e=>{if(p.locked)return;if(e.key==='Delete'){e.preventDefault();e.stopPropagation();request({kind:'delete',id:c.id});}if(e.key==='Enter')p.onSeek(c.start);}} onPointerDown={e=>start(e,c.id,'move')} onPointerMove={move} onPointerUp={end} onPointerCancel={()=>{drag.current=null;setDraft(null);}} title={`${clipMedia(p.project,c)?.name}\nŹródło ${stamp(c.sourceIn)} – ${stamp(c.sourceOut)}\nOś ${stamp(c.start)} – ${stamp(clipEnd(c))}${c.kind!=='audio'?'\n'+audioRouteText(c):''}`}>
+     <div className="trim-handle left" role="separator" aria-label={`Lewy brzeg ujęcia ${i+1}`} onPointerDown={e=>start(e,c.id,'left')}/>
+     <div className="clip-picture"><span>{clipMedia(p.project,c)?.name}</span><small>{stamp(c.sourceIn)} → {stamp(c.sourceOut)}</small></div>
+     {c.kind!=='audio'&&!c.audioDetached&&<span className="clip-route" title={audioRouteText(c)} aria-label={audioRouteText(c)}><Icon name="link" size={10}/>{routedAudio(c)===null?trackId('video',c.track??0):trackId('audio',routedAudio(c)!)}</span>}
+     {(c.kind==='audio'||!c.audioDetached)&&<div className={`${c.kind==='audio'?'independent-audio':'linked-audio'} ${c.kind!=='audio'&&clipMuted(p.project,c)?'track-is-muted':''}`} role="group" aria-label={`${c.kind==='audio'?'Niezależne audio':'Dźwięk połączony'}: ${clipMedia(p.project,c)?.name}`} title={c.kind==='audio'?undefined:audioRouteText(c)}>
+      <AudioWaveform path={clipMedia(p.project,c)?.path} duration={clipMedia(p.project,c)?.duration??0} sourceIn={c.sourceIn} sourceOut={c.sourceOut}/>
+      <AudioAutomation clip={c} zoom={zoom} name={clipMedia(p.project,c)?.name??'audio'} disabled={p.locked||clipLocked(p.project,c)} onBegin={p.onBeginAudio} onCommit={next=>p.onChange(clips.map(x=>x.id===c.id?{...x,volume:next.volume,audio:next.audio}:x),'volume')}/>
+     </div>}
+     <div className="trim-handle right" role="separator" aria-label={`Prawy brzeg ujęcia ${i+1}`} onPointerDown={e=>start(e,c.id,'right')}/>
     </div>)}
 
     {visibleCaptions.map(s=><div className={`caption-timeline-clip ${captionSelected===s.id?'selected':''} ${p.project.tracks.T?.hidden?'track-is-hidden':''}`} key={s.id} style={{left:s.start*zoom,width:Math.max(3,(s.end-s.start)*zoom)}} title={s.text} role="button" tabIndex={p.locked?-1:0} aria-label={`Napis: ${s.text}`} onPointerDown={e=>{e.stopPropagation();if(p.locked||p.project.tracks.T?.locked)return;setCaptionSelected(s.id);setSelected('');e.currentTarget.focus();p.onSeek(s.start);}} onDoubleClick={e=>{e.stopPropagation();if(!p.locked&&!p.project.tracks.T?.locked)p.onCaptionSelect(s.id);}} onKeyDown={e=>{if(e.key==='Enter')p.onCaptionSelect(s.id);}}>

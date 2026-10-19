@@ -1,7 +1,20 @@
-# RolVixa 0.25 — polska mowa → polskie napisy
+# RolVixa 0.26 — polska mowa → polskie napisy
 
 **Instalator 0.25:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39163940646/artifacts/12149598498), rozpakuj i uruchom `RolVixa_0.25.0_x64-setup.exe`. Pobranie z Actions wymaga zalogowania na GitHub.
 RolVixa (wcześniej AutoNapisy) to lokalna aplikacja Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Rozpoznaje polską mowę przez whisper.cpp, bez tłumaczenia. Transkrypcja i montaż działają na komputerze. Opcjonalna biblioteka muzyki łączy się z Openverse po wpisaniu frazy wyszukiwania; nie wysyła nagrań użytkownika.
+
+## Wersja 0.26 — czytelne audio (odbiór w toku)
+
+- Film i połączony dźwięk są **jednym klipem na V**. Waveform, głośność, punkty i fade’y znajdują się w dolnej części tego samego klipu. Przesuwanie/trim/żyletka nadal dotyczą całego połączonego ujęcia. Po odłączeniu dźwięk staje się osobnym klipem na A.
+- **A1/A2 i dalsze A** pokazują wyłącznie niezależne lub odłączone audio. Pojedynczy klip wypełnia całą wysokość toru. Dźwięk filmu routowany do A nie tworzy drugiej połowy toru.
+- Rzeczywiście nakładające się niezależne audio ma **oddzielne rzędy**, zachowane także po zwinięciu toru. Informacja „Rzędy: … · wspólny mute” wskazuje wspólny bus. Układ nie zmienia pozycji, gain, obwiedni ani dźwięku starych projektów.
+- Zaznacz nakładające się audio: **Film / audio → Nakładanie audio** proponuje wolny odblokowany tor lub **Dodaj A3 i przenieś** (ewentualnie dalszy wolny A). Przeniesienie wraz z dodaniem to jeden Ctrl+Z. Jest jawne i przejmuje stan wyciszenia docelowego busa. Bez automatycznego przesuwania starych klipów.
+- Oznaczenie **Audio → A1** przy filmie i opis przy nagłówku A przypominają, że wyciszenie busa obejmuje także ten film. Trasę zmienia się w **Film / audio → Trasowanie dźwięku**; widok nie zmienia audioRoute. Oczko V nadal ukrywa obraz bez wyciszenia dźwięku.
+- Dodawanie audio bez wskazanego toru wybiera pierwsze wolne A według całego zakresu klipu, z pominięciem blokad i dźwięku filmów. Jawne upuszczenie na zajęty A pozostaje możliwe: kolizja jest widoczna w rzędach i opisana w panelu.
+
+Schemat pozostaje **v12**, bez migracji. Silniki MLT/FFmpeg, obwiednie źródłowe, Ripple i J/L-cut pozostają bez zmiany. Wysokości i zwijanie należą do widoku, nie projektu/Undo. Limit nadal 16 V / 16 A i 100 klipów. Przy wielu jednoczesnych dźwiękach tor rośnie i wymaga przewijania; nie ukrywa klipów za innymi. Nie ma przeciągania samego paska połączonego dźwięku między A — użyj jawnego trasowania w panelu. SmartCut / Export Studio poza tą wersją.
+
+Nowe pliki: `src/audioLayout.ts`, `tests/audioLayout.test.ts`, `tests/audio026BrowserFixture.test.ts`, `scripts/test-audio026.mjs`. Zmiany obejmują geometrię i renderowanie osi, panel właściwości, bibliotekę/drop, dotychczasowe testy dynamicznych torów i WebView2, manifesty wersji i workflow. Użyto istniejących Tabler Icons (MIT); instrukcja uruchomienia i narzędzia pozostają jak poniżej.
 
 ## Wersja 0.25 — prostsze Ripple (ukończona)
 
