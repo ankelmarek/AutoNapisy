@@ -1,10 +1,10 @@
 # Kolejne etapy RolVixa
 
-## Wersja 0.29 — zaznaczenie i transkrypcja mowy (odbiór w toku)
+## Wykonane w 0.29 — zaznaczenie i transkrypcja mowy
 
 Ctrl+kółko ze stałym czasem pod kursorem; fit obok skali z istniejącą pustą lupką Tabler. Ctrl/Shift+klik, prostokąt i Ctrl+A zaznaczają klipy na różnych torach; grupa zachowuje odstępy i powiązane odłączone audio, blokady/kolizje oraz jeden Undo. Napisy można przesuwać bez trimowania; offset jest zapisany w v14 z migracją v1–v13. Dwuklik nadal edytuje tekst.
 
-Domyślny zakres „Cały montaż” i opcja „Tylko zaznaczone klipy”. Filtrowanie w backendzie obejmuje niewyciszone wideo i jego powiązane audio, pomija muzykę dodaną osobno. Zachowane trasy/mute, źródłowe gain/fade/crossfade, J/L-cut i czasy montażu po pominięciu luk. Wynik wybranego zakresu zachowuje napisy poza nim. Rzeczywisty test PCM obu silników i nowy scenariusz WebView2; pełny odbiór Windows wymagany przed publikacją instalatora. SmartCut 0.2 i Export Studio pozostają osobne.
+Domyślny zakres „Cały montaż” i opcja „Tylko zaznaczone klipy”. Filtrowanie w backendzie obejmuje niewyciszone wideo i jego powiązane audio, pomija muzykę dodaną osobno. Zachowane trasy/mute, źródłowe gain/fade/crossfade, J/L-cut i czasy montażu po pominięciu luk. Wynik wybranego zakresu zachowuje napisy poza nim. Rzeczywisty test PCM obu silników i nowy scenariusz WebView2. Pełny zielony Windows run 39244370925: 274 TS, 96 Rust, 20 integracyjnych, instalacja i WebView2; zrzuty sprawdzone. PR #16 połączony, instalator 12182772670. SmartCut 0.2 i Export Studio pozostają osobne.
 
 ## Wykonane w 0.28 — SmartCut 0.1
 
@@ -401,4 +401,4 @@ SmartCut / Export Studio nadal oddzielnymi etapami. Solo, dowolną kolejność V
 
 ## Stabilizacja testów po 0.28
 
-- [ ] Audio026: wyczekiwać rzeczywistego zakończenia ponownego Open tej samej nazwy przed następnym otwieraniem; wyścig ujawniony w równoległym push 39220204501. Pełny odbiór PR 39220210425 przeszedł.
+- [x] Audio026 (0.29): odrębny tytuł checkpointu i oczekiwanie na jego załadowanie oraz odblokowanie zapobiega odczytowi starych rzędów jako zakończenia Open. Wyścig pochodził z push 39220204501; pełny nowy odbiór Windows 39244370925 potwierdził poprawkę.
