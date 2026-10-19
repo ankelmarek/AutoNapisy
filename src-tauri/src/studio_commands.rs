@@ -32,13 +32,16 @@ impl StudioState {
         self.queue.shutdown();
     }
 }
-fn tools(app: &tauri::AppHandle) -> Result<(PathBuf, PathBuf), String> {
+pub(crate) fn tools(app: &tauri::AppHandle) -> Result<(PathBuf, PathBuf), String> {
     let state = app.state::<ToolState>();
     let t = state.0.lock().map_err(|_| "Błąd narzędzi")?;
     let ff = transcription::validate_tool("ffmpeg", t.ffmpeg.as_deref().ok_or("Wskaż FFmpeg")?)?;
     Ok((ff, app.state::<crate::mlt_commands::MltState>().path()?))
 }
-fn authorize(json: &str, app: &tauri::AppHandle) -> Result<crate::project::Project, String> {
+pub(crate) fn authorize(
+    json: &str,
+    app: &tauri::AppHandle,
+) -> Result<crate::project::Project, String> {
     let mut p = crate::mlt_commands::authorized(json, &app.state::<Access>())?;
     let mut allowed = app
         .state::<Access>()

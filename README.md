@@ -1,6 +1,20 @@
-# RolVixa 0.31 — polska mowa → polskie napisy
+# RolVixa 0.32 — polska mowa → polskie napisy
 
 **Instalator 0.31:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39279960579/artifacts/12200981818), rozpakuj i uruchom `RolVixa_0.31.0_x64-setup.exe`. Pobranie z Actions wymaga zalogowania na GitHub.
+
+## Wersja 0.32 — Export Studio 0.2 (odbiór w toku)
+
+W Export Studio wybierz **Porównaj jakość A/B…**, zakres 3–5 s i **Przygotuj próbki A/B**. Krótszy montaż można porównać w całości. Powstają 2–3 rzeczywiście zakodowane MP4 w wybranej rozdzielczości, z tym samym kadrem, korekcją, napisami i pełnym miksem. Jeden odtwarzacz przełącza warianty z zachowaniem pozycji, ma pętlę i standardowe kontrolki. **Użyj ustawień wybranego wariantu** przenosi ustawienia do eksportu; montaż pozostaje niezmieniony. Zakresy i porównania są sesyjne, poza JSON/Undo.
+
+Próbki pokazują zmierzony rozmiar, czas składania i kodowania. Szacunki całego filmu wynikają z jednej próbki i mają szeroki zakres: ruch, szczegóły innych scen, przygotowanie przejść oraz obciążenie komputera mogą je znacznie zmienić. To nie prognoza gwarantowana. Bez przygotowanej próbki pozostaje oznaczona heurystyka CRF.
+
+**Tryb jakości → Maksymalny rozmiar MP4**: podaj 0,25–32000 dziesiętnych MB (1 MB = 1 000 000 B). Budżet uwzględnia AAC i rezerwę kontenera; zbyt mały limit blokuje zadanie, niski bitrate daje ostrzeżenie. Obraz jest kodowany w dwóch przebiegach x264, bez zmiany źródeł. Gotowy MP4 jest sprawdzany: przy przekroczeniu limitu podejmowana jest jedna ponowna próba z niższym bitrate, a kolejna porażka kończy zadanie bez publikacji wyniku. Limit obejmuje wyłącznie MP4; osobny SRT nie wchodzi do budżetu. Tryb oznacza maksymalny rozmiar, a nie konieczność wykorzystania całego limitu. CRF pozostaje osobnym trybem.
+
+Próbka limitu MB używa bitrate'u obliczonego z długości **całego montażu**; nie zużywa całego budżetu na kilka sekund. Warianty CRF i limitu korzystają z jednego enkodera finalnego. Czasy źródeł/obwiedni, master gain, napisy i 30 FPS pozostają zgodne. Projekty nadal v14. Rejestr własnych profili zapisuje wersję 2, odczytuje także wersję 1 (bez limitu); aktualizacja następuje dopiero przy zapisie profilu. Nowsze/nieczytelne rejestry nadal wymagają jawnego odrzucenia.
+
+Porównanie można anulować; zamknięcie okna kończy proces i usuwa jego pliki tymczasowe. Do podglądu autoryzowane są wyłącznie gotowe pliki wygenerowanej sesji. Stare lub anulowane żądanie nie może opublikować spóźnionego wyniku. Bieżąca sesja: do trzech MP4 po 128 MiB, kompozycja próbki do 2 GiB, plansze do dotychczasowych 512 MiB. Statystyki dwóch przebiegów mają limity 128/256 MiB. Wymuszone zabicie aplikacji może pozostawić tempy. Brak nowych kodeków, GPU, 50/60 FPS i automatycznej oceny jakości.
+
+Odbiór Windows 0.32 i instalator w toku; powyższy link prowadzi do ostatniej przyjętej wersji 0.31.
 
 ## Wersja 0.31 — Export Studio
 

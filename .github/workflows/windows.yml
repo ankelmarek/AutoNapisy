@@ -172,7 +172,7 @@ jobs:
         env:
           ROLVIXA_MLT: ${{ github.workspace }}/src-tauri/.bundled/vendor/mlt/melt.exe
           AUTONAPISY_FFMPEG: ${{ github.workspace }}/src-tauri/.bundled/vendor/ffmpeg.exe
-        run: cargo test --locked --manifest-path .test-core/Cargo.toml --test framing --test proxy_video --test audio_envelope --test source_range --test transition_gallery --test dynamic_tracks --test source_replace --test quality_audio --test ripple_mix --test smart_cut --test smart_cut_visual --test export_studio --test speech_selection -- --ignored --nocapture
+        run: cargo test --locked --manifest-path .test-core/Cargo.toml --test framing --test proxy_video --test audio_envelope --test source_range --test transition_gallery --test dynamic_tracks --test source_replace --test quality_audio --test ripple_mix --test smart_cut --test smart_cut_visual --test export_studio --test smart_export --test speech_selection -- --ignored --nocapture
       - run: npm run tauri -- build --target x86_64-pc-windows-msvc --config src-tauri/tauri.bundled.conf.json
       - name: Test actual installation and bundled tools
         id: installation
@@ -190,6 +190,8 @@ jobs:
           path: |
             docs/editor029-*.png
             .tools/native-editor029.png
+            docs/export032-*.png
+            .tools/native-export032.png
             docs/studio031-*.png
             .tools/native-studio031.png
             docs/smartcut030-*.png

@@ -67,3 +67,6 @@ pub mod smart_cut_visual;
 
 #[path="../../src-tauri/src/export_studio.rs"]
 pub mod export_studio;
+
+#[path="../../src-tauri/src/smart_export.rs"]
+pub mod smart_export;

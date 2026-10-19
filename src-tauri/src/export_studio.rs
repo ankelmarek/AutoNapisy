@@ -2,7 +2,7 @@
 use crate::{
     project::{self, Project},
     rendering::{self, Metadata},
-    transcription::{self, ExportInfo, Job},
+    transcription::{self, Job},
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -27,6 +27,8 @@ pub struct Options {
     pub audio_kbps: u32,
     pub fit: String,
     pub captions: String,
+    #[serde(default)]
+    pub target_mb: Option<f64>,
 }
 impl Default for Options {
     fn default() -> Self {
@@ -38,6 +40,7 @@ impl Default for Options {
             audio_kbps: 192,
             fit: "fit".into(),
             captions: "burn".into(),
+            target_mb: None,
         }
     }
 }
@@ -55,6 +58,9 @@ impl Options {
             || ![96, 128, 192, 256, 320].contains(&self.audio_kbps)
             || !["fit", "crop"].contains(&self.fit.as_str())
             || !["burn", "srt", "none"].contains(&self.captions.as_str())
+            || self
+                .target_mb
+                .is_some_and(|n| !n.is_finite() || !(0.25..=32000.).contains(&n))
         {
             return Err("Nieprawidłowy profil eksportu".into());
         }
@@ -106,7 +112,7 @@ impl Profiles {
         let r: Registry = serde_json::from_slice(&b).map_err(|_| {
             "Nieczytelne profile. Wyczyść je jawnie albo przywróć kopię.".to_owned()
         })?;
-        if r.version != 1 {
+        if ![1, 2].contains(&r.version) {
             return Err("Profile pochodzą z nowszej wersji. Nie zmieniono pliku.".into());
         }
         validate_profiles(&r.profiles)?;
@@ -157,7 +163,7 @@ impl Profiles {
         }
         validate_profiles(&rows)?;
         let data = serde_json::to_vec_pretty(&Registry {
-            version: 1,
+            version: 2,
             profiles: rows.clone(),
         })
         .map_err(|e| e.to_string())?;
@@ -250,7 +256,7 @@ pub fn metadata(job: &Arc<Job>, ff: &Path, p: &Project, dir: &Path) -> Result<Me
     Ok(m)
 }
 /// Lossless intermediate avoids encoding the composition as H.264 twice. Timebase remains 30 FPS.
-fn assemble(
+pub(crate) fn assemble(
     job: &Arc<Job>,
     ff: &Path,
     melt: &Path,
@@ -283,7 +289,18 @@ fn assemble(
     .iter()
     .map(Into::into)
     .collect();
-    transcription::run_process_bounded(job, melt, &args, dir, &out, 32 * 1024 * 1024 * 1024)?;
+    transcription::run_process_bounded(
+        job,
+        melt,
+        &args,
+        dir,
+        &out,
+        if range.is_some() {
+            2 * 1024 * 1024 * 1024
+        } else {
+            32 * 1024 * 1024 * 1024
+        },
+    )?;
     Ok(out)
 }
 pub fn preview(
@@ -375,6 +392,87 @@ pub struct Entry {
     uploads: Mutex<Uploads>,
 }
 impl Entry {
+    pub fn prepare(
+        project: Project,
+        options: Options,
+        folder: &Path,
+        ff: PathBuf,
+        melt: PathBuf,
+        job: Arc<Job>,
+    ) -> Result<Self, String> {
+        options.validate()?;
+        let basis = source_basis(&project, &ff, &melt)?;
+        let dir = tempfile::Builder::new()
+            .prefix("rolvixa-studio-")
+            .tempdir_in(folder)
+            .map_err(|e| e.to_string())?;
+        let id = job.status.lock().unwrap().id;
+        let meta = metadata(&job, &ff, &project, dir.path())?;
+        for c in project.clips.as_deref().unwrap_or(&[]) {
+            let info = crate::media_sources::inspect(
+                &job,
+                &ff,
+                Path::new(project.clip_path(c).ok_or("Brak źródła")?),
+            )?;
+            if c.source_out > info.duration + 0.05
+                || (c.kind == "video" && info.video_streams == 0)
+                || (c.kind == "audio" && info.audio_streams == 0)
+            {
+                return Err("Ujęcie wymaga niedostępnych klatek lub strumienia źródła".into());
+            }
+        }
+        let count = if options.captions == "burn" {
+            project.segments.len()
+        } else {
+            0
+        };
+        if count > rendering::MAX_FRAMES {
+            return Err("Maksymalnie 3000 plansz napisów".into());
+        }
+        crate::smart_export::budget(&options, &meta)?;
+        let target = choose_target(folder, &project.name, &HashSet::new())?;
+        job.status.lock().unwrap().message = "Przygotowywanie plansz…".into();
+        let entry = Entry {
+            id,
+            project,
+            options,
+            meta,
+            target,
+            ff,
+            melt,
+            basis,
+            dir,
+            job: Mutex::new(job),
+            uploads: Mutex::new(Uploads {
+                received: vec![false; count],
+                bytes: 0,
+                ready: false,
+            }),
+        };
+        Ok(entry)
+    }
+    pub fn select_sample_frames(&self, start: f64, end: f64) -> Vec<usize> {
+        let mut u = self.uploads.lock().unwrap();
+        let mut indices = Vec::new();
+        for (i, received) in u.received.iter_mut().enumerate() {
+            let s = &self.project.segments[i];
+            if s.end > start && s.start < end {
+                indices.push(i);
+            } else {
+                *received = true;
+            }
+        }
+        indices
+    }
+    pub fn finish_uploads(&self) -> Result<(), String> {
+        self.job.lock().unwrap().check()?;
+        let mut u = self.uploads.lock().unwrap();
+        if !u.received.iter().all(|v| *v) || u.ready {
+            return Err("Plansze nie są gotowe lub zadanie już dodano".into());
+        }
+        u.ready = true;
+        Ok(())
+    }
     pub fn item(&self) -> Item {
         let ready = self.uploads.lock().unwrap().ready;
         let job = self.job.lock().unwrap();
@@ -459,64 +557,18 @@ impl Queue {
         ff: PathBuf,
         melt: PathBuf,
     ) -> Result<Arc<Entry>, String> {
-        options.validate()?;
-        let basis = source_basis(&project, &ff, &melt)?;
-        let dir = tempfile::Builder::new()
-            .prefix("rolvixa-studio-")
-            .tempdir_in(folder)
-            .map_err(|e| e.to_string())?;
         let id = self.sequence.fetch_add(1, Ordering::SeqCst) + 1;
-        let job = Arc::new(Job::new(id));
-        let meta = metadata(&job, &ff, &project, dir.path())?;
-        for c in project.clips.as_deref().unwrap_or(&[]) {
-            let info = crate::media_sources::inspect(
-                &job,
-                &ff,
-                Path::new(project.clip_path(c).ok_or("Brak źródła")?),
-            )?;
-            if c.source_out > info.duration + 0.05
-                || (c.kind == "video" && info.video_streams == 0)
-                || (c.kind == "audio" && info.audio_streams == 0)
-            {
-                return Err("Ujęcie wymaga niedostępnych klatek lub strumienia źródła".into());
-            }
-        }
-        let count = if options.captions == "burn" {
-            project.segments.len()
-        } else {
-            0
-        };
-        if count > rendering::MAX_FRAMES {
-            return Err("Maksymalnie 3000 plansz napisów".into());
-        }
-        // Probing sources must not hold the queue lock: status/cancellation stay responsive.
+        let mut entry = Entry::prepare(project, options, folder, ff, melt, Arc::new(Job::new(id)))?;
         let mut entries = self.entries.lock().unwrap();
         if entries.len() >= MAX_JOBS {
             return Err("Kolejka ma maksymalnie 10 zadań. Usuń zakończone pozycje.".into());
         }
-        let target = choose_target(
+        entry.target = choose_target(
             folder,
-            &project.name,
+            &entry.project.name,
             &entries.iter().map(|e| e.target.clone()).collect(),
         )?;
-        job.status.lock().unwrap().message = "Przygotowywanie plansz…".into();
-        let entry = Arc::new(Entry {
-            id,
-            project,
-            options,
-            meta,
-            target,
-            ff,
-            melt,
-            basis,
-            dir,
-            job: Mutex::new(job),
-            uploads: Mutex::new(Uploads {
-                received: vec![false; count],
-                bytes: 0,
-                ready: false,
-            }),
-        });
+        let entry = Arc::new(entry);
         entries.push(entry.clone());
         Ok(entry)
     }
@@ -524,13 +576,7 @@ impl Queue {
         let e = self.get(id)?;
         let job = e.job.lock().unwrap().clone();
         job.check()?;
-        {
-            let mut u = e.uploads.lock().unwrap();
-            if !u.received.iter().all(|v| *v) || u.ready {
-                return Err("Plansze nie są gotowe lub zadanie już dodano".into());
-            }
-            u.ready = true;
-        }
+        e.finish_uploads()?;
         {
             let mut s = job.status.lock().unwrap();
             s.state = "queued".into();
@@ -694,111 +740,14 @@ fn render(e: &Entry, job: &Arc<Job>) -> Result<(), String> {
         s.progress = None;
     }
     let assembled = assemble(job, &e.ff, &e.melt, &e.project, &e.meta, dir.path(), None)?;
-    let (w, h) = e.options.dimensions(&e.meta);
-    let burn = e.options.captions == "burn" && !e.project.segments.is_empty();
-    let mut args: Vec<OsString> = ["-v", "error", "-nostdin", "-y", "-i"]
-        .iter()
-        .map(Into::into)
-        .chain(std::iter::once(assembled.into_os_string()))
-        .collect();
-    let filter = if burn {
-        for i in 0..e.project.segments.len() {
-            fs::copy(
-                e.dir.path().join(rendering::frame_name(i)),
-                dir.path().join(rendering::frame_name(i)),
-            )
-            .map_err(|e| e.to_string())?;
-        }
-        rendering::empty_png(
-            dir.path(),
-            &Metadata {
-                width: w,
-                height: h,
-                ..e.meta.clone()
-            },
-        )?;
-        fs::write(
-            dir.path().join("timeline.ffconcat"),
-            rendering::concat_text(&rendering::timeline(&e.project, e.meta.duration)),
-        )
-        .map_err(|e| e.to_string())?;
-        args.extend(
-            [
-                "-protocol_whitelist",
-                "file,pipe",
-                "-f",
-                "concat",
-                "-safe",
-                "0",
-                "-i",
-                "timeline.ffconcat",
-            ]
-            .iter()
-            .map(OsString::from),
-        );
-        format!("[0:v]{}[base];[1:v]format=rgba[subs];[base][subs]overlay=0:0:eof_action=repeat:repeatlast=1,format=yuv420p[v]",e.options.filter(w,h))
-    } else {
-        format!("[0:v]{},format=yuv420p[v]", e.options.filter(w, h))
-    };
-    args.extend(
-        [
-            "-filter_complex",
-            &filter,
-            "-map",
-            "[v]",
-            "-map",
-            "0:a:0?",
-            "-c:v",
-            "libx264",
-            "-crf",
-            &e.options.crf.to_string(),
-            "-preset",
-            &e.options.speed,
-            "-r",
-            "30",
-            "-c:a",
-            "aac",
-            "-b:a",
-            &format!("{}k", e.options.audio_kbps),
-            "-ar",
-            "48000",
-            "-ac",
-            "2",
-            "-map_metadata",
-            "-1",
-            "-metadata:s:v:0",
-            "rotate=0",
-            "-movflags",
-            "+faststart",
-            "-progress",
-            "pipe:2",
-            "-nostats",
-            "-t",
-            &e.meta.duration.to_string(),
-            "result.mp4",
-        ]
-        .iter()
-        .map(OsString::from),
-    );
-    {
-        let mut s = job.status.lock().unwrap();
-        s.message = "Kodowanie H.264 / AAC".into();
-        s.progress = Some(0);
-        s.export_info = Some(ExportInfo {
-            width: w,
-            height: h,
-            duration: e.meta.duration,
-            frames: 0,
-            received: 0,
-            output_path: e.target.to_string_lossy().into(),
-        });
-    }
-    transcription::run_process_bounded(
+    crate::smart_export::encode(
+        e,
         job,
-        &e.ff,
-        &args,
+        &e.options,
+        &assembled,
         dir.path(),
-        &dir.path().join("result.mp4"),
+        0.,
+        e.meta.duration,
         32 * 1024 * 1024 * 1024,
     )?;
     job.check()?;
@@ -909,6 +858,25 @@ mod tests {
         assert_eq!(store.list().unwrap().len(), 2);
         store.update(None, Some("profile-2")).unwrap();
         assert_eq!(store.list().unwrap()[0].name, "Pierwszy");
+    }
+    #[test]
+    fn v1_profiles_migrate_on_write_without_changing_crf_or_project_data() {
+        let d = tempfile::tempdir().unwrap();
+        let store = Profiles(d.path().into());
+        let mut options = serde_json::to_value(Options::default()).unwrap();
+        options.as_object_mut().unwrap().remove("targetMb");
+        let old = serde_json::json!({"version":1,"profiles":[{"id":"legacy-profile","name":"Próba Łódź","options":options}]});
+        fs::write(d.path().join("profiles.json"), old.to_string()).unwrap();
+        let rows = store.list().unwrap();
+        assert_eq!(rows[0].options.target_mb, None);
+        assert_eq!(rows[0].options.crf, 18);
+        let unchanged = fs::read_to_string(d.path().join("profiles.json")).unwrap();
+        assert_eq!(unchanged, old.to_string());
+        store.update(None, None).unwrap();
+        let data: serde_json::Value =
+            serde_json::from_slice(&fs::read(d.path().join("profiles.json")).unwrap()).unwrap();
+        assert_eq!(data["version"], 2);
+        assert_eq!(data["profiles"][0]["options"]["crf"], 18);
     }
     #[test]
     fn corrupt_future_and_locked_profiles_are_preserved() {
