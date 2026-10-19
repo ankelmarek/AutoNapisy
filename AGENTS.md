@@ -133,3 +133,12 @@ Transkrypcja domyślnie cały montaż + opcja zaznaczonych V. Rust voice_project
 W 0.29 tryb grupy w UI wymaga więcej niż jednego jawnie zaznaczonego klipu; zwykły ruch pojedynczego odłączonego V pozostaje niezależny i obsługuje zmianę toru. W trybie transkrypcji zaznaczenia długie powiązane A przycinamy do czasu wybranych V (wraz z wejściem przejścia), a przedziały tego samego producenta łączymy bez podwajania sygnału. Cały montaż zachowuje pełne słyszalne wyprzedzenia/zakończenia J/L-cut. Scratch ID voice:n służą wyłącznie roboczemu projektowi audio; nie zapisywać ich do projektu użytkownika. Zachowane napisy poza zakresem częściowej transkrypcji są materializowane w globalnym T z wcześniejszymi poprawkami.
 
 Robocza kolejność DOM podczas gestu musi pozostać zgodna z bazową kolejnością klipów. moveClip i planEdit mogą sortować wynik; przeniesienie istniejącego węzła keyed w DOM potrafi zwolnić pointer capture w WebView2 i przerwać zmianę toru. Sortować widok dopiero po pointer-up; scenariusz editor029 sprawdza hasPointerCapture po pierwszym ruchu, pojedynczy odłączony V na V2 i powrót Undo oraz fokus po uchwycie trim.
+
+
+## Wykonane w 0.30 — SmartCut 0.2
+
+Para klatek przy cięciu pochodzi z oryginalnej kompozycji MLT (warstwy, kolejność, oczko, korekcja i kadrowanie), bez napisów. Do czterech klatek / 320 px / 30 FPS; porównanie RGB względem ruchu sąsiadów jest heurystyką, nie rozpoznawaniem osoby ani punktacją jakości. Dokładne cięcie pozostaje dostępne przy niedostępności pomiaru. Sesje obrazu mają osobną anulowalną kolejkę, tombstone przed startem, kontrolę źródeł i fingerprint plików/narzędzi. Nie publikować spóźnionych wyników.
+
+Przebitka jest jawnym wyborem istniejącego filmu, 0,2–4 s po obu stronach rzeczywistego styku. Pusty górny widoczny/odblokowany tor albo nowy; zachować limit 16 i kolejność stabilnych ID. Dźwięk przebitki volume=0, audioRoute=embedded — nie podmieniać wypowiedzi i muzyki. Zachować widoczne źródłowe napisy z edycjami przez materializację T; chronić blokadę T. Bez styku (luka Ripple Off) nie dodawać przebitki. Całość to jeden Undo, zwykłe klipy v14 bez migracji. Regulacja i anulowanie nie zmieniają projektu. Export Studio osobno.
+
+Pełny zielony Windows run 39254150340: 293 TS, 99 Rust, 21 rzeczywistych integracyjnych, produkcyjny build, instalacja oraz WebView2 1366×700 / Full HD. Zrzuty porównania i zdekodowanego podglądu sprawdzone. PR #17 połączony; instalator 12187284748.

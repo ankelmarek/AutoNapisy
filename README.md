@@ -1,6 +1,6 @@
 # RolVixa 0.30 — polska mowa → polskie napisy
 
-**Ostatni odebrany instalator 0.29:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39244370925/artifacts/12182772670). Kompilacja i odbiór 0.30 opisane poniżej po zakończeniu weryfikacji. Pobranie z Actions wymaga zalogowania na GitHub.
+**Instalator 0.30:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39254150340/artifacts/12187284748), rozpakuj i uruchom `RolVixa_0.30.0_x64-setup.exe`. Pobranie z Actions wymaga zalogowania na GitHub.
 
 ## Wersja 0.30 — SmartCut 0.2: obraz i przebitka
 
@@ -12,6 +12,8 @@
 
 Ograniczenia: heurystyka obrazu, bez semantycznego śledzenia osoby, automatycznego wyboru przebitek i optymalizowania cięcia według punktacji. Przebitka jest prostą, niemą nakładką wybraną z istniejącej biblioteki; jej kadrowanie można zmienić później zwykłymi kontrolkami. Ocena naturalności wypowiedzi i wydajności na własnych nagraniach pozostaje zadaniem użytkownika; testowe wzorce obrazu/dźwięku nie są pomiarem jakości językowej. Export Studio pozostaje osobnym etapem.
 RolVixa (wcześniej AutoNapisy) to lokalna aplikacja Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Rozpoznaje polską mowę przez whisper.cpp, bez tłumaczenia. Transkrypcja i montaż działają na komputerze. Opcjonalna biblioteka muzyki łączy się z Openverse po wpisaniu frazy wyszukiwania; nie wysyła nagrań użytkownika.
+
+Weryfikacja 0.30: Pełny zielony Windows run 39254150340: 293 TS, 99 Rust, 21 rzeczywistych integracyjnych, produkcyjny build, instalacja oraz WebView2 1366×700 / Full HD. Zrzuty porównania i zdekodowanego podglądu sprawdzone. PR #17 połączony; instalator 12187284748. Lokalnie: 293 TS, 96 core Rust, 16 rzeczywistych integracyjnych oraz build frontendu.
 
 ## Wersja 0.29 — grupy, przesuwanie napisów i zakres transkrypcji
 

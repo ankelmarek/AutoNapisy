@@ -1,12 +1,12 @@
 # Kolejne etapy RolVixa
 
-## 0.30 — SmartCut 0.2: obraz przy cięciu i jawna przebitka
+## Wykonane w 0.30 — SmartCut 0.2: obraz przy cięciu i jawna przebitka
 
 - [x] Ostatnia/pierwsza klatka z oryginalnej kompozycji MLT, porównanie z sąsiednim ruchem; wskazówka bez fikcyjnej punktacji jakości.
 - [x] Regulacja kandydatury o klatkę, ponowne porównanie, rzeczywisty podgląd w pętli i dokładne cięcie przy niedostępności analizy.
 - [x] Jawny wybór przebitki z biblioteki: zakres źródła, 0,2–4 s po obu stronach styku, górna warstwa, bez dodawania jej dźwięku.
 - [x] Zachowanie napisów wypowiedzi, blokad, limitów torów oraz jeden Undo obejmujący wycięcie i nakładkę. Schemat v14 bez migracji.
-- [ ] Odbiór Windows: testy natywnego IPC/WebView2 1366 / Full HD, instalacja i instalator.
+- [x] Odbiór Windows: Pełny zielony Windows run 39254150340: 293 TS, 99 Rust, 21 rzeczywistych integracyjnych, produkcyjny build, instalacja oraz WebView2 1366×700 / Full HD. Zrzuty porównania i zdekodowanego podglądu sprawdzone. PR #17 połączony; instalator 12187284748.
 
 Pomiar do czterech klatek / 320 px nie jest rozpoznawaniem osoby ani automatyczną oceną montażu. Przebitka i regulacja pozostają decyzją użytkownika. Export Studio osobno.
 
@@ -198,7 +198,7 @@ Cel: przyspieszyć precyzyjny montaż bez zastępowania decyzji użytkownika. Sm
 4. Testy jednostkowe granic i synchronizacji oraz integracyjne z prawdziwym FFmpeg/MLT; sprawdzić też ręcznie naturalność łączenia wypowiedzi i responsywność podglądu na typowych nagraniach.
 5. Nie pogarszać działania istniejących narzędzi cięcia. W razie niedostępności analizy przycisk zwykłego, dokładnego cięcia pozostaje dostępny.
 
-Status: **SmartCut 0.1 wdrożono w 0.28 / PR #15**. Pełny zielony Windows run 39220210425: 252 TS, 90 Rust, 19 rzeczywistych integracyjnych, produkcyjny build, instalacja oraz WebView2 1366×700 / Full HD. Zrzuty SmartCut i natywnego zdekodowanego podglądu sprawdzone. PR #15 połączony; instalator 12172325679. Ocena obrazu 0.2 pozostaje przyszłym etapem.
+Status: **SmartCut 0.1 wdrożono w 0.28 / PR #15**. Pełny zielony Windows run 39220210425: 252 TS, 90 Rust, 19 rzeczywistych integracyjnych, produkcyjny build, instalacja oraz WebView2 1366×700 / Full HD. Zrzuty SmartCut i natywnego zdekodowanego podglądu sprawdzone. PR #15 połączony; instalator 12172325679. Ocena obrazu 0.2 wdrożona w 0.30, opisana na początku tego planu.
 
 ## Proxy wideo: inteligentny import i płynny montaż (SDR wdrożone w 0.14)
 
