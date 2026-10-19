@@ -94,7 +94,10 @@ export default function Timeline(p:Props){
    d.operation={kind:'trim',id:d.id,edge:d.kind,delta};
    try{const plan=planEdit(p.project,d.operation);d.value=plan.conflicts.length?projectClips(plan.plain):projectClips(plan.next);}catch{d.value=d.base;}
   }
-  setDraft(d.value);
+  // Moving a keyed node in the DOM releases pointer capture in WebView2. Pure edit
+  // helpers may sort their result; keep the painted order stable until pointer-up.
+  const order=new Map(d.base.map((c,i)=>[c.id,i]));
+  setDraft([...d.value].sort((a,b)=>(order.get(a.id)??Infinity)-(order.get(b.id)??Infinity)));
  };
  const end=(e:PointerEvent)=>{if(cutSelection.current){const d=cutSelection.current;cutSelection.current=null;const from=Math.min(d.from,d.to),to=Math.max(d.from,d.to);if(to-from>=2/30-1e-6)p.onSmartCut({kind:'range',id:d.id,from,to});return;}const d=drag.current;if(!d)return;drag.current=null;if(d.moved){if(d.error){setDraft(null);p.onError(d.error);return;}if(d.operation)request(d.operation);else commit(d.value);}else p.onSeek(point(e));};
  useEffect(()=>{if(drag.current && drag.current.base!==clips){drag.current=null;setDraft(null);}},[clips]);
