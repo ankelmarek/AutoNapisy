@@ -1,3 +1,4 @@
+import {testAudio026} from './test-audio026.mjs';
 import {testQuality024} from './test-quality024-native.mjs';
 import {testSourceAuthorization023,testMissingRelink023} from './test-sources023-native.mjs';
 import {testSources023} from './test-sources023.mjs';
@@ -94,14 +95,14 @@ try{
  await page.waitForFunction(()=>{const a=document.querySelector('.audio-library audio');return a&&!a.paused&&a.currentTime>.05;});
  await sound.getByRole('button',{name:/Zatrzymaj:/}).click();
  // HTML5 drag uses the same project asset registration and A2 target as imported audio.
- await sound.dragTo(page.locator('.edit-canvas'),{targetPosition:{x:31,y:220}});
+ const a2Top=await page.locator('[data-lane-id="A2"]').evaluate(el=>Number.parseFloat(el.style.top));await page.locator('.timeline-body').evaluate(el=>el.scrollTop=120);await sound.dragTo(page.locator('.edit-canvas'),{targetPosition:{x:31,y:a2Top+12}});
  await page.waitForSelector('.edit-clip.audio-clip');
  await page.locator('.project-menu summary').click();await page.locator('.project-menu-popup').getByRole('button',{name:'Zapisz',exact:true}).click();await page.waitForFunction(()=>document.querySelector('.header-save').dataset.saveStatus==='saved');
  await page.waitForFunction(()=>!document.querySelector('select[aria-label="Format obrazu"]').disabled);
 
  // Real linked-audio automation: gesture -> native JSON -> MLT preview.
  const linkedAudio=page.getByRole('slider',{name:'Głośność: Film pionowy Łódź.mp4',exact:true}).first().locator('..');
- const linkedBox=await linkedAudio.boundingBox();await page.keyboard.down('Alt');await page.mouse.click(linkedBox.x+60,linkedBox.y+7);await page.keyboard.up('Alt');
+ await linkedAudio.scrollIntoViewIfNeeded();const linkedBox=await linkedAudio.boundingBox();await page.keyboard.down('Alt');await page.mouse.click(linkedBox.x+60,linkedBox.y+7);await page.keyboard.up('Alt');
  const linkedPoint=linkedAudio.locator('.audio-volume-point').first();await linkedPoint.focus();await page.keyboard.press('Shift+ArrowDown');await page.keyboard.press('Shift+ArrowDown');
  const nativeFade=linkedAudio.locator('.fade-in');await nativeFade.focus();for(let i=0;i<5;i++)await page.keyboard.press('Shift+ArrowRight');
  await page.locator('.header-save').click();await page.waitForFunction(()=>document.querySelector('.header-save').dataset.saveStatus==='saved');
@@ -180,7 +181,7 @@ try{
  await page.getByRole('button',{name:'Odłącz audio → A1',exact:true}).click();
  await page.waitForFunction(()=>document.querySelector('video.mlt-video')?.readyState>=2);
  await page.locator('.header-save').click();await page.waitForFunction(()=>document.querySelector('.header-save').dataset.saveStatus==='saved');
- const detached18=JSON.parse(fs.readFileSync(projectPath,'utf8'));assert.equal(detached18.schemaVersion,12);assert.equal(detached18.clips.length,beforeDetach18.clips.length+1);assert(detached18.clips.find(c=>c.id==='first').audioDetached);assert(detached18.clips.some(c=>c.kind==='audio'&&c.syncGroup));assert.equal(await page.locator('.edit-clip[data-clip-id="first"].audio-clip').count(),0);
+ const detached18=JSON.parse(fs.readFileSync(projectPath,'utf8'));assert.equal(detached18.schemaVersion,12);assert.equal(detached18.clips.length,beforeDetach18.clips.length+1);assert(detached18.clips.find(c=>c.id==='first').audioDetached);assert(detached18.clips.some(c=>c.kind==='audio'&&c.syncGroup));assert.equal(await page.locator('.edit-clip[data-clip-id="first"] .linked-audio').count(),0);
  await page.keyboard.press('Control+z');await page.locator('.header-save').click();await page.waitForFunction(()=>document.querySelector('.header-save').dataset.saveStatus==='saved');assert.deepEqual(JSON.parse(fs.readFileSync(projectPath,'utf8')).clips,beforeDetach18.clips);
  await page.getByRole('button',{name:'Tryb Ripple',exact:true}).click();await page.locator('.edit-clip[data-clip-id="first"]:not(.audio-clip)').click({position:{x:22,y:12}});
  await page.getByRole('spinbutton',{name:'Wyjście źródła',exact:true}).fill('3');await page.getByRole('spinbutton',{name:'Wyjście źródła',exact:true}).press('Enter');await page.locator('.header-save').click();await page.waitForFunction(()=>document.querySelector('.header-save').dataset.saveStatus==='saved');assert.equal(await page.getByRole('dialog',{name:'Podgląd Ripple',exact:true}).count(),0);assert.equal(JSON.parse(fs.readFileSync(projectPath,'utf8')).clips.find(c=>c.id==='first').sourceOut,3);await page.keyboard.press('Control+z');await page.getByRole('button',{name:'Tryb Ripple',exact:true}).click();
@@ -209,6 +210,7 @@ try{
  const srtPath19=projectPath.replace(/\.json$/i,'.srt');for(let n=0;n<100&&!fs.existsSync(srtPath19);n++)await page.waitForTimeout(100);assert(fs.existsSync(srtPath19),'Native SRT export did not write the selected file');const srtBytes19=fs.readFileSync(srtPath19,'utf8');assert(srtBytes19.includes('Zażółć gęślą'));assert(srtBytes19.includes('00:00:01,250 --> 00:00:02,500'));await page.waitForFunction(()=>!document.querySelector('.header-project-name').disabled);
  assert.equal((await page.locator('.header-export').innerText()).trim(),'Eksportuj');await page.screenshot({path:'.tools/native-ux019.png'});console.log('Real 0.19 SRT: empty source transcript, montage captions, keyboard activation, Unicode and actual atomically saved file: OK');
  await testTracks022(page,async()=>{await page.locator('.header-save').click();await page.waitForFunction(()=>document.querySelector('.header-save')?.dataset.saveStatus==='saved');},()=>JSON.parse(fs.readFileSync(projectPath,'utf8')),'.tools/native-tracks022.png');
+ await testAudio026(page,{load:async p=>{fs.writeFileSync(projectPath,JSON.stringify(p));await page.keyboard.press('Control+o');},save:async()=>{await page.locator('.header-save').click();},read:()=>JSON.parse(fs.readFileSync(projectPath,'utf8')),screenshot:'.tools/native-audio026.png'});
  await testSourceAuthorization023(page,projectPath,process.env.ROLVIXA_TEST_REPLACEMENT);
  await testSources023(page,async()=>{await page.locator('.header-save').click();await page.waitForFunction(()=>document.querySelector('.header-save')?.dataset.saveStatus==='saved');},()=>JSON.parse(fs.readFileSync(projectPath,'utf8')),async variant=>{fs.copyFileSync(path.join(path.dirname(projectPath),`replacement-${variant}.mp4`),process.env.ROLVIXA_TEST_REPLACEMENT);},'.tools/native-sources023.png');
  await testMissingRelink023(page,projectPath);

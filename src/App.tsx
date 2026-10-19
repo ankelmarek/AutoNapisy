@@ -44,6 +44,7 @@ import {invalidateMedia} from './mediaRevision';
 import MediaLibrary from "./MediaLibrary";
 import Icon from "./Icons";
 import rolvixaIcon from "./assets/rolvixa-icon.png";
+import {overlappingAudio} from './audioLayout';
 import {libraryItems,insertLibraryItem,registerMedia} from "./library";
 import { useProjectHistory } from "./useHistory";
 import FrameEditor from './FrameEditor';
@@ -169,6 +170,7 @@ export default function App() {
   const picture=visuals(project,Math.min(time,Math.max(0,duration-1e-7)));
   const selectCaption=(id:string)=>{setSelectedCaption(id);setInspectorTab('captions');requestAnimationFrame(()=>{captionInput.current?.focus();captionInput.current?.scrollIntoView({block:'nearest'});});};
   const changeProject=(p:Project)=>{try{assertUnlockedEdit(latestProject.current,p);setProject(p);}catch(e){setMessage(String(e));}};
+  const adviseAddedAudio=(next:Project)=>{const clips=projectClips(next),added=clips.at(-1);if(added?.kind==='audio'&&overlappingAudio(clips,added).length){setSelectedClip(added.id);setSelectedTransition('');setInspectorTab('video');setMessage(`Audio nakłada się na A${(added.track??0)+1}. Możesz przenieść je na wolną ścieżkę w panelu właściwości.`);}};
   const gap = !visuals(project,Math.min(time,Math.max(0,duration-1e-7))).length;
   const undo = () => {playback.pause();history.undo();};
   const redo = () => {playback.pause();history.redo();};
@@ -459,7 +461,7 @@ export default function App() {
               <button id="captions-tab" role="tab" aria-selected={leftTab==='captions'} aria-controls="captions-panel" onClick={()=>setLeftTab('captions')}><Icon name="captions" size={16}/>Napisy</button><button id="audio-tab" role="tab" aria-selected={leftTab==='audio'} aria-controls="audio-panel" onClick={()=>setLeftTab('audio')}><Icon name="audio" size={15}/>Audio</button><button id="effects-tab" role="tab" aria-controls="effects-panel" aria-selected={leftTab==='effects'} onClick={()=>setLeftTab('effects')}><Icon name="effects" size={15}/>Efekty</button>
             </div>
           </div>
-          {leftTab==='audio'&&<AudioLibrary project={project} locked={locked} timelinePlaying={playing} onImport={()=>importMedia('audio')} onRegister={registerAudio} onPause={playback.pause} onAdd={id=>{try{playback.pause();changeProject(insertLibraryItem(latestProject.current,id,time));setMessage('Dodano audio na oś czasu.');}catch(e){setMessage(String(e));}}}/>}
+          {leftTab==='audio'&&<AudioLibrary project={project} locked={locked} timelinePlaying={playing} onImport={()=>importMedia('audio')} onRegister={registerAudio} onPause={playback.pause} onAdd={id=>{try{playback.pause();const next=insertLibraryItem(latestProject.current,id,time);changeProject(next);setMessage('Dodano audio na oś czasu.');adviseAddedAudio(next);}catch(e){setMessage(String(e));}}}/>}
           {leftTab==='effects'&&<EffectsLibrary chosen={effectChoice} onChoose={setEffectChoice}/>}
           {leftTab==='files'&&<MediaLibrary project={project} sources={sources} locked={locked} onReplace={chooseReplacement} onRemove={id=>void run(async()=>{
               const current=latestProject.current,item=libraryItems(current).find(m=>m.id===id);if(locked||!item)return;
@@ -467,7 +469,7 @@ export default function App() {
               if(!window.confirm(`Usunąć „${item.name}” z biblioteki projektu?${warning} Plik na dysku pozostanie zachowany.`))return;
               const next=removeUnusedSource(current,id);playback.pause();setSourceViewerId('');setHighlightSource('');changeProject(next);setMessage('Usunięto nieużywane źródło z projektu. Ctrl+Z przywraca je do biblioteki.');
             })} highlightId={highlightSource} onView={viewSource} onImport={importVideo} proxies={proxies} onClearCache={()=>{if(window.confirm('Usunąć wszystkie kopie proxy z cache? Oryginalne nagrania i projekt zostaną zachowane.'))void playback.suspend().then(()=>new Promise(r=>setTimeout(r,200))).then(()=>proxies.clear()).then(()=>playback.retry()).catch(e=>setMessage(String(e)));}}
-            onAdd={id=>{try{playback.pause();const next=insertLibraryItem(project,id,time);changeProject(next);setMessage('Dodano plik z biblioteki na oś czasu.');}catch(e){setMessage(String(e));}}}/>}
+            onAdd={id=>{try{playback.pause();const next=insertLibraryItem(project,id,time);changeProject(next);setMessage('Dodano plik z biblioteki na oś czasu.');adviseAddedAudio(next);}catch(e){setMessage(String(e));}}}/>}
           <div className="captions-tab-content" role="tabpanel" id="captions-panel" aria-labelledby="captions-tab" hidden={leftTab!=='captions'}>
           <div className="transcription-controls" role="group" aria-label="Tworzenie i eksport napisów">
             <button
@@ -781,7 +783,7 @@ export default function App() {
         </section>
       <Timeline project={project} time={time} locked={locked||settings||homeVisible} onError={setMessage} onSeek={t=>{setSourceViewerId('');seek(t);}}
         onChange={(clips,mode)=>{if(mode!=='volume')playback.pause();changeProject({...latestProject.current,clips,transitions:reconcileTransitions(latestProject.current,clips)});}} onPreviewVolume={playback.previewVolume} onBeginAudio={playback.pause} onSelect={id=>{setSelectedClip(id);setSelectedTransition('');setInspectorTab('video');}} onCaptionSelect={selectCaption}
-        onMediaDrop={(id,at,track,range,kind)=>{try{playback.pause();setSourceViewerId('');changeProject(insertLibraryItem(latestProject.current,id,at,track,range,kind));setMessage('Dodano plik na oś czasu.');}catch(e){setMessage(String(e));}}}
+        onMediaDrop={(id,at,track,range,kind)=>{try{playback.pause();setSourceViewerId('');const next=insertLibraryItem(latestProject.current,id,at,track,range,kind);changeProject(next);setMessage('Dodano plik na oś czasu.');adviseAddedAudio(next);}catch(e){setMessage(String(e));}}}
         onCaptionChange={p=>changeProject(p)} effectChoice={effectChoice} onTransition={(a,b,choice)=>{try{playback.pause();const next=applyTransition(project,a,b,choice.kind,choice.duration);changeProject(next);setSelectedTransition(next.transitions.find(t=>t.toId===b)!.id);setInspectorTab('video');}catch(e){setMessage(String(e));}}} onTransitionSelect={id=>{setSelectedTransition(id);setInspectorTab('video');}}
         undo={undo} redo={redo} canUndo={history.canUndo} canRedo={history.canRedo}/>
       </EditorWorkspace>

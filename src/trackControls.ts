@@ -10,7 +10,7 @@ export function toggleTrack(p:Project,id:TrackId,control:'muted'|'hidden'):Proje
  return {...p,tracks:{...p.tracks,[id]:{...p.tracks[id],[control]:!p.tracks[id]?.[control]}}};
 }
 
-/** Embedded sound occupies its routed A lane as well as the picture lane. */
+/** Embedded sound shares the routed bus's mute/lock controls, independently of its visual lane. */
 export const clipTracks=(c:Clip):TrackId[]=>c.kind==='audio'?[audioTrack(c)!]:[videoTrack(c),...(!c.audioDetached&&audioTrack(c)?[audioTrack(c)!]:[])];
 export const clipLocked=(p:Project,c:Clip)=>clipTracks(c).some(t=>p.tracks[t]?.locked);
 /** Enforce edit locks at the common project boundary, including inspector and clipboard operations. */

@@ -25,7 +25,7 @@ export function insertLibraryItem(p:Project,id:string,at:number,requestedTrack?:
  if(m.kind==='video'){
   const free=(lane:number)=>clips.every(c=>c.kind==='audio'||(c.track??0)!==lane||clipEnd(c)<=start||c.start>=start+length);
   if(requestedTrack!==undefined){const next=moveClip([...clips,{id:'drop',sourceIn:chosenRange.sourceIn,sourceOut:chosenRange.sourceOut,start,track}], 'drop',start,.3).find(c=>c.id==='drop')!;start=next.start;}else if(!free(track)){const next=available.find(t=>free(t.index));if(next)track=next.index;else start=Math.max(0,...clips.filter(c=>c.kind!=='audio'&&(c.track??0)===track).map(clipEnd));}
- }else if(requestedTrack===undefined&&clips.some(c=>(c.track??0)===track&&c.start<=start&&clipEnd(c)>start))track=available[1]?.index??track;
+ }else if(requestedTrack===undefined){const unlocked=available.filter(t=>!p.tracks[t.id]?.locked),free=unlocked.find(t=>!clips.some(c=>c.kind==='audio'&&(c.track??0)===t.index&&c.start<start+length-1e-6&&clipEnd(c)>start+1e-6));track=(free??unlocked[0]??available[0]).index;}
  if(start+length>86400)throw new Error('Montaż może trwać najwyżej 24 godziny');
  const clip:Clip={id:crypto.randomUUID(),sourceIn:chosenRange.sourceIn,sourceOut:chosenRange.sourceOut,start,track,kind:m.kind,...(m.kind==='video'?{audioRoute:track<2?`A${track+1}`:'embedded'}:{}),...(id==='primary'?{}:{assetId:id})};
  return {...p,clips:[...clips,clip]};

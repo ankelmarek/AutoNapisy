@@ -1,6 +1,8 @@
 import type {Project} from './model';
 import {projectClips,type Clip} from './editing';
 import {MAX_TRACKS,trackId,tracksOf,routedAudio,type TrackKind} from './trackModel';
+import {audioRows,freeAudioTrack} from './audioLayout';
+import {clipLocked} from './trackControls';
 import {reconcileTransitions} from './effects';
 export function addTrack(p:Project,kind:TrackKind):Project{
  const used=tracksOf(p,kind).map(t=>t.index),index=Array.from({length:MAX_TRACKS},(_,i)=>i).find(i=>!used.includes(i));
@@ -18,20 +20,25 @@ export function removeTrack(p:Project,id:string,removeContents=false):Project{
  const remaining=clips.filter(c=>!affected(c)),tracks={...p.tracks};delete tracks[id];
  return {...p,trackLayout:p.trackLayout.filter(t=>t.id!==id),tracks,clips:remaining,transitions:reconcileTransitions(p,remaining)};
 }
-export type Lane={id:string;index:number;kind:TrackKind|'captions';top:number;height:number;embedded:boolean;collapsed:boolean;split:boolean};
-/** One geometry source for headers, hit testing, clips, joins, audio mirrors and scroll height. */
+export type Lane={id:string;index:number;kind:TrackKind|'captions';top:number;height:number;embedded:boolean;collapsed:boolean;rows:Record<string,number>;rowCount:number};
+/** Geometry is independent of bus routing. Only independent audio clips occupy A lanes. */
 export function timelineLayout(p:Project,clips:Clip[]=projectClips(p),compact:ReadonlySet<string>=new Set(),tall:ReadonlySet<string>=new Set()):Lane[]{
- let top=28;const lanes:Lane[]=[{id:'T',kind:'captions',index:0,top,height:36,embedded:false,collapsed:false,split:false}];top+=36;
+ let top=28;const lanes:Lane[]=[{id:'T',kind:'captions',index:0,top,height:36,embedded:false,collapsed:false,rows:{},rowCount:1}];top+=36;
  for(const t of [...tracksOf(p,'video').reverse(),...tracksOf(p,'audio')]){
-  const embedded=t.kind==='video'&&clips.some(c=>c.kind!=='audio'&&!c.audioDetached&&(c.track??0)===t.index&&routedAudio(c)===null),collapsed=compact.has(t.id),height=collapsed?28:t.kind==='video'?40+(embedded?56:0):tall.has(t.id)?112:56;
-  lanes.push({...t,top,height,embedded,collapsed,split:t.kind==='audio'&&clips.some(c=>c.kind!=='audio'&&!c.audioDetached&&routedAudio(c)===t.index)});top+=height;
+  const embedded=t.kind==='video'&&clips.some(c=>c.kind!=='audio'&&!c.audioDetached&&(c.track??0)===t.index),collapsed=compact.has(t.id),rows=t.kind==='audio'?audioRows(clips,t.index):{},rowCount=Math.max(1,...Object.values(rows).map(row=>row+1));
+  const height=t.kind==='video'?(collapsed?28:embedded?84:40):rowCount*(collapsed?28:tall.has(t.id)?112:56);
+  lanes.push({...t,top,height,embedded,collapsed,rows,rowCount});top+=height;
  }
  return lanes;
 }
 export const laneAt=(lanes:Lane[],y:number)=>lanes.find(t=>t.kind!=='captions'&&y>=t.top&&y<t.top+t.height);
-export function clipLane(lanes:Lane[],c:Clip,mirror=false){const audio=mirror||c.kind==='audio',route=routedAudio(c);return lanes.find(t=>t.id===trackId(audio&&route!==null?'audio':'video',audio&&route!==null?route:c.track??0));}
-export function clipTop(lanes:Lane[],c:Clip,mirror=false):number{
- const lane=clipLane(lanes,c,mirror);if(!lane)return -1000;
- return lane.top+3+(lane.collapsed?0:mirror&&routedAudio(c)===null?40:c.kind==='audio'&&lane.split?lane.height/2:0);
+export function clipLane(lanes:Lane[],c:Clip){return lanes.find(t=>t.id===trackId(c.kind==='audio'?'audio':'video',c.track??0));}
+export function clipTop(lanes:Lane[],c:Clip):number{const lane=clipLane(lanes,c);return !lane?-1000:lane.top+3+(c.kind==='audio'?(lane.rows[c.id]??0):0)*lane.height/lane.rowCount;}
+export function clipHeight(lanes:Lane[],c:Clip){const lane=clipLane(lanes,c);return !lane?0:lane.collapsed?22:c.kind==='audio'?lane.height/lane.rowCount-6:!c.audioDetached?lane.height-6:31;}
+/** Explicitly chosen separation is one project edit. Existing projects are never moved by layout. */
+export function separateAudio(p:Project,id:string):Project{
+ const clips=projectClips(p),c=clips.find(c=>c.id===id);if(!c||c.kind!=='audio')throw Error('Wybierz klip audio.');if(clipLocked(p,c))throw Error('Odblokuj ścieżkę audio.');
+ const target=freeAudioTrack(p,clips,c);if(!target)throw Error('Brak wolnej ścieżki audio (maksymalnie 16).');
+ const next=target.create?addTrack(p,'audio'):p;
+ return {...next,clips:clips.map(x=>x.id===id?{...x,track:target.index}:x)};
 }
-export function clipHeight(lanes:Lane[],c:Clip,mirror=false){const lane=clipLane(lanes,c,mirror);return !lane?0:lane.collapsed?22:mirror&&lane.embedded?lane.height-46:mirror||c.kind==='audio'?lane.height/(lane.split?2:1)-6:31;}

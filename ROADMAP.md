@@ -3,7 +3,7 @@
 
 ## Proponowana korekta UX: prosty Ripple i czytelne audio (issue #11)
 
-**Wysoki priorytet użyteczności przed kolejnymi rozbudowanymi narzędziami.** [Szczegółowy plan i testy w issue #11](https://github.com/ankelmarek/AutoNapisy/issues/11). Pierwszą część ukończono w 0.25, osobny PR #12 połączony po pełnym odbiorze Windows. Druga część pozostaje kolejnym osobnym PR.
+**Wysoki priorytet użyteczności przed kolejnymi rozbudowanymi narzędziami.** [Szczegółowy plan i testy w issue #11](https://github.com/ankelmarek/AutoNapisy/issues/11). Pierwszą część ukończono w 0.25, osobny PR #12 połączony po pełnym odbiorze Windows. Druga część jest realizowana w 0.26 w osobnym PR.
 
 - **PR 1 - Ripple bez okna:** pojedynczy czytelny przełącznik na osi i natychmiastowe bezpieczne przycięcie/usunięcie, jeden krok Ctrl+Z. Schować R·A/R+/R− do zaawansowanych ustawień toru; automatyczna kwalifikacja V od 00:00, V rozpoczynające się później są chronione. Samodzielne audio nie podlega domyślnemu Ripple, nawet przy routingu dźwięku filmu na ten sam bus A. Linked audio zawsze zachowuje synchronizację; przy konflikcie krótki komunikat zamiast modala i świadoma opcja cięcia bez przesuwania.
 - **PR 2 - czytelne A1/A2:** audio połączone z filmem jako zwięzły waveform przy klipie V; audio niezależne lub odłączone na A w pełnej wysokości. Nie dzielić A na pół tylko dlatego, że strumień wideo jest routowany na ten bus. Dla rzeczywiście nakładających się niezależnych audio zapewnić jawny widok lub sugestię nowej ścieżki. Zgodność starych projektów, mute, audioRoute, miksu, J/L-cut, automatyzacji i eksportu jest obowiązkowa.
@@ -371,3 +371,15 @@ Ograniczenia: pomiar obrazu przed napisami i w 320 px / 30 FPS; czarne/ciemne sc
 - [x] Pełny zielony odbiór Windows 39163940646 i równoległy 39163938036: 209 TS, 85 Rust, 17 rzeczywistych integracyjnych, WebView2 1366×700 / Full HD, crash/restart, instalacja i instalator 12149598498. Zrzuty sprawdzone; PR #12 połączony. Schemat nadal v12.
 
 Następnie oddzielny PR: czytelne pełne A i zwięzły waveform połączonego dźwięku przy V. Bez mieszania z tą zmianą reguł Ripple.
+
+
+## 0.26 — czytelne audio (odbiór w toku, druga część issue #11)
+
+- [x] Jedno ujęcie V zawiera połączony waveform i automatykę; niezależne/odłączone A zajmuje pełny rząd.
+- [x] Nakładające się niezależne audio ma czytelne rzędy także w dawnych projektach, bez zmiany pozycji i miksu.
+- [x] Jawna propozycja rozdzielenia na wolny A lub dodanie dalszego A jako jeden Undo, z ochroną blokad i limitem 16.
+- [x] Widoczne trasowanie i zależność mute, obraz ukrywany osobno; schemat nadal v12, bez zmian silników.
+- [x] Testy geometrii, v10/v11/v12, wspólna próbka rzeczywistych testów WebView2 i regresje automatyki/gestów.
+- [ ] Pełny odbiór Windows, instalator, rzeczywisty miks/eksport i WebView2 laptop / Full HD; osobny PR.
+
+SmartCut / Export Studio nadal oddzielnymi etapami. Solo, dowolna kolejność torów i trwałe wysokości pozostają rozszerzeniami.

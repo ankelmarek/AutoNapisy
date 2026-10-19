@@ -1,3 +1,4 @@
+import {testAudio026} from './test-audio026.mjs';
 import {testSources023} from './test-sources023.mjs';
 import {testTracks022} from './test-tracks022.mjs';
 import {settleEditor,testStart021} from './test-start021.mjs';
@@ -177,6 +178,7 @@ try{for(const [width,height]of[[1366,700],[1920,1080]]){
  await page.keyboard.press('Control+s');await page.waitForFunction(()=>document.querySelector('.header-save').dataset.saveStatus==='saved');assert.equal(await page.evaluate(()=>window.__dialogs),dialogsBefore+1);
 
  await testEdit018(page,action,width,height);
+ await testAudio026(page,{load:async p=>{await page.evaluate(p=>window.__saved=p,p);await action('Otwórz');},save:()=>action('Zapisz'),read:()=>page.evaluate(()=>window.__saved),screenshot:`docs/audio026-${width}x${height}.png`});
  await testStart021(page,action,width,height);
  await action('Importuj filmy');await page.waitForSelector('.library-file');await testTracks022(page,async()=>{await action('Zapisz');await page.waitForFunction(()=>document.querySelector('.header-save')?.dataset.saveStatus==='saved');},()=>page.evaluate(()=>structuredClone(window.__saved)),`docs/tracks022-${width}x${height}.png`);
  await testSources023(page,async()=>{await action('Zapisz');await page.waitForFunction(()=>document.querySelector('.header-save')?.dataset.saveStatus==='saved');},()=>page.evaluate(()=>structuredClone(window.__saved)),async variant=>page.evaluate(variant=>{window.__replacement={token:Date.now(),path:'/replacement.webm',name:'Zamiennik Łódź.webm',original:{duration:12,videoStreams:1,audioStreams:1,width:320,height:180,rotation:0,fps:30,audioChannels:2,sampleRate:'48000'},info:{duration:variant==='short'?1:30,videoStreams:1,audioStreams:1,width:320,height:180,rotation:0,fps:30,audioChannels:2,sampleRate:'48000'}};},variant),`docs/sources023-${width}x${height}.png`);
