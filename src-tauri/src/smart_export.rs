@@ -254,9 +254,11 @@ pub fn encode(
         let mut bitrate = cap.video_bps;
         let log = dir.join("rate-0.log");
         let mbtree = dir.join("rate-0.log.mbtree");
+        let log_temp = dir.join("rate-0.log.temp");
+        let mbtree_temp = dir.join("rate-0.log.mbtree.temp");
         for attempt in 0..2 {
             job.check()?;
-            for p in [&log, &mbtree, &output] {
+            for p in [&log, &mbtree, &log_temp, &mbtree_temp, &output] {
                 if p.exists() {
                     fs::remove_file(p).map_err(|e| e.to_string())?;
                 }
@@ -281,7 +283,12 @@ pub fn encode(
             run(
                 first,
                 "Analiza bitrate · przebieg 1/2",
-                &[(&log, 128 * 1024 * 1024), (&mbtree, 256 * 1024 * 1024)],
+                &[
+                    (&log, 128 * 1024 * 1024),
+                    (&mbtree, 256 * 1024 * 1024),
+                    (&log_temp, 128 * 1024 * 1024),
+                    (&mbtree_temp, 256 * 1024 * 1024),
+                ],
             )?;
             let mut second = base;
             second.extend(["-pass", "2"].iter().map(OsString::from));
@@ -294,6 +301,8 @@ pub fn encode(
                     (&output, max_bytes),
                     (&log, 128 * 1024 * 1024),
                     (&mbtree, 256 * 1024 * 1024),
+                    (&log_temp, 128 * 1024 * 1024),
+                    (&mbtree_temp, 256 * 1024 * 1024),
                 ],
             )?;
             let bytes = fs::metadata(&output).map_err(|e| e.to_string())?.len();
