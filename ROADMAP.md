@@ -1,8 +1,8 @@
 # Kolejne etapy RolVixa
 
-## 0.32 — Export Studio 0.2: próbki A/B i limit MB
+## Wykonane w 0.32 — Export Studio 0.2: próbki A/B i limit MB
 
-Zatwierdzone: rzeczywiste 3–5 s w 2–3 wariantach z pełnym kadrem/napisami/miksem, przełączanie w tym samym czasie, zastosowanie ustawień, szacunki oparte na pomiarze. Limit MP4 w dziesiętnych MB: budżet audio/kontenera, dwa przebiegi, sprawdzenie faktycznego pliku i brak publikacji przekroczenia. Wspólny enkoder próbek i całego filmu; schemat projektu nadal v14, profile v1 odczytywane i v2 zapisywane. H.264/AAC CPU 30 FPS. Odbiór Windows w toku; GPU, inne kodeki i nowa baza FPS poza tą paczką.
+Wdrożone: rzeczywiste 3–5 s w 2–3 wariantach z pełnym kadrem/napisami/miksem, przełączanie w tym samym czasie, zastosowanie ustawień, szacunki oparte na pomiarze. Limit MP4 w dziesiętnych MB: budżet audio/kontenera, dwa przebiegi, sprawdzenie faktycznego pliku i brak publikacji przekroczenia. Wspólny enkoder próbek i całego filmu; schemat projektu nadal v14, profile v1 odczytywane i v2 zapisywane. H.264/AAC CPU 30 FPS. Pełny zielony Windows run 39291594851, także push 39291589231: 315 TS, 111 Rust, 23 rzeczywiste integracje, instalacja i WebView2. Natywne A/B z dekodowaniem/odtwarzaniem/przewijaniem, zastosowanie jakości i rzeczywisty eksport w limicie z polskim SRT; 1366×700 / Full HD i trzy zrzuty sprawdzone. PR #19 połączony; instalator 12206647480. Lokalnie 315 TS, 108 Rust core, 18 integracji. GPU, inne kodeki i nowa baza FPS poza tą paczką; issue #1 pozostaje otwarte w pozostałym zakresie.
 
 ## Wykonane w 0.31 — Export Studio: profile i kolejka
 

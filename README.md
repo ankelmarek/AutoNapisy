@@ -1,8 +1,8 @@
 # RolVixa 0.32 — polska mowa → polskie napisy
 
-**Instalator 0.31:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39279960579/artifacts/12200981818), rozpakuj i uruchom `RolVixa_0.31.0_x64-setup.exe`. Pobranie z Actions wymaga zalogowania na GitHub.
+**Instalator 0.32:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39291594851/artifacts/12206647480), rozpakuj i uruchom `RolVixa_0.32.0_x64-setup.exe`. Pobranie z Actions wymaga zalogowania na GitHub.
 
-## Wersja 0.32 — Export Studio 0.2 (odbiór w toku)
+## Wersja 0.32 — Export Studio 0.2
 
 W Export Studio wybierz **Porównaj jakość A/B…**, zakres 3–5 s i **Przygotuj próbki A/B**. Krótszy montaż można porównać w całości. Powstają 2–3 rzeczywiście zakodowane MP4 w wybranej rozdzielczości, z tym samym kadrem, korekcją, napisami i pełnym miksem. Jeden odtwarzacz przełącza warianty z zachowaniem pozycji, ma pętlę i standardowe kontrolki. **Użyj ustawień wybranego wariantu** przenosi ustawienia do eksportu; montaż pozostaje niezmieniony. Zakresy i porównania są sesyjne, poza JSON/Undo.
 
@@ -14,7 +14,9 @@ Próbka limitu MB używa bitrate'u obliczonego z długości **całego montażu**
 
 Porównanie można anulować; zamknięcie okna kończy proces i usuwa jego pliki tymczasowe. Do podglądu autoryzowane są wyłącznie gotowe pliki wygenerowanej sesji. Stare lub anulowane żądanie nie może opublikować spóźnionego wyniku. Bieżąca sesja: do trzech MP4 po 128 MiB, kompozycja próbki do 2 GiB, plansze do dotychczasowych 512 MiB. Statystyki dwóch przebiegów mają limity 128/256 MiB. Wymuszone zabicie aplikacji może pozostawić tempy. Brak nowych kodeków, GPU, 50/60 FPS i automatycznej oceny jakości.
 
-Odbiór Windows 0.32 i instalator w toku; powyższy link prowadzi do ostatniej przyjętej wersji 0.31.
+**Pełny zielony [Windows run 39291594851](https://github.com/ankelmarek/AutoNapisy/actions/runs/39291594851), także push 39291589231:** 315 testów TypeScript, 111 Rust i 23 rzeczywiste integracje, produkcyjny build, instalator, instalacja oraz rzeczywisty WebView2. Potwierdzone dekodowanie/odtwarzanie A/B, przewijanie i przełączenie wariantu w tym samym czasie, zastosowanie jakości, pomiary i eksport dwuprzebiegowy w limicie MB wraz z polskim SRT. Anulowanie przed rozpoczęciem nie publikuje spóźnionego wyniku; montaż pozostaje niezmieniony. Sprawdzone trzy zrzuty: natywny oraz 1366×700 / 1920×1080. Wcześniejsze scenariusze montażu, transkrypcji, normalizacji, zapisu i crash/restart zachowane. [PR #19](https://github.com/ankelmarek/AutoNapisy/pull/19) połączony; drzewo po scaleniu identyczne ze sprawdzonym `667782bf638cdbd218bf860bee377772492a7da4`. ZIP 81 501 867 B; SHA-256 `df8b8253084a1dde004f75192460158f1906638f2613b7d8916c879350ed3b52`.
+
+Lokalnie: 315 TS, 108 Rust core, 18 rzeczywistych integracji i build frontendu. Test integracyjny porównuje piksele próbki z pełnym wynikiem, czasy napisów i rzeczywisty sygnał źródeł/obwiedni/master/muzyki. Limit MB sprawdzany na wymagającym ruchu z referencją CRF przekraczającą limit. Odbiór używa materiałów syntetycznych; jakość wybranego ustawienia na własnych nagraniach oceń przez A/B. Inne kodeki, GPU i nowa baza FPS pozostają dalszą częścią issue #1.
 
 ## Wersja 0.31 — Export Studio
 
