@@ -1,9 +1,11 @@
 # RolVixa 0.27 — polska mowa → polskie napisy
 
-**Instalator 0.26:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39189432808/artifacts/12160120281), rozpakuj i uruchom `RolVixa_0.26.0_x64-setup.exe`. Pobranie z Actions wymaga zalogowania na GitHub.
+**Instalator 0.27:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39198885893/artifacts/12163411665), rozpakuj i uruchom `RolVixa_0.27.0_x64-setup.exe`. Pobranie z Actions wymaga zalogowania na GitHub.
 RolVixa (wcześniej AutoNapisy) to lokalna aplikacja Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Rozpoznaje polską mowę przez whisper.cpp, bez tłumaczenia. Transkrypcja i montaż działają na komputerze. Opcjonalna biblioteka muzyki łączy się z Openverse po wpisaniu frazy wyszukiwania; nie wysyła nagrań użytkownika.
 
-## Wersja 0.27 — sterowanie torami (odbiór w toku)
+## Wersja 0.27 — sterowanie torami (ukończona)
+
+**Osobny [PR #14](https://github.com/ankelmarek/AutoNapisy/pull/14) połączony.** Pełny zielony [Windows run 39198885893](https://github.com/ankelmarek/AutoNapisy/actions/runs/39198885893), także push 39198881666: **229 testów TypeScript, 87 Rust, 17 rzeczywistych integracyjnych**, produkcyjny build, instalacja i WebView2. Nowy scenariusz przeszedł natywnie oraz w 1366×700 / Full HD; sprawdzono zrzuty oraz rzeczywiście zdekodowany podgląd. Potwierdzone przeciąganie/klawiatura, kolejność i blokady/Undo/Redo, odsłuchowe Solo z busami/mute, wysokość myszą/klawiaturą/Escape, lokalne preferencje, zwijanie, dopasowanie i reopen v13. Regresje źródeł, normalizacji, napisów, Ripple/J/L-cut, historii i wymuszonego crash/restart także zielone. Lokalnie: 229 TS, 84 Rust core, pięć rzeczywistych integracji i build frontendu. ZIP: **81 259 124 B**, SHA-256 `0bd6c0a5127f5c0ac8482fee9d8c6ccdc30f1d6fd335c73ff653e169c41ce6ef`. Narzędzia i licencje dołączone; model Whisper wybiera się osobno jak dotychczas.
 
 - **Solo** (ikona audio w nagłówku V/A) izoluje odsłuch. Można włączyć kilka torów; A obejmuje także dźwięk filmów trasowany do tego busa, V tylko filmy na tym V. Istniejący mute oraz odłączenie pozostają respektowane. Przycisk **Solo · pełny miks** przywraca odsłuch. Solo jest sesyjne, resetowane po otwarciu/utworzeniu projektu, poza Undo, pomiarami, transkrypcją i eksportem.
 - **Przeciągnij numer V/A** na nagłówek tego samego typu, w jego górną/dolną połowę. Alternatywnie: fokus numeru i **Alt+↑/↓**. Wideo wyżej na osi zasłania niższe w podglądzie i eksporcie. Numery, trasy audio, klipy, przejścia i synchronizacja pozostają bez zmian. Nie można przekraczać zablokowanego toru; zmiana kolejności jest jednym Undo i zapisuje się w projekcie. T pozostaje na górze.
@@ -12,7 +14,7 @@ RolVixa (wcześniej AutoNapisy) to lokalna aplikacja Windows x64: Tauri 2, React
 
 Schemat **v13** (`schemas/project-v13.schema.json`): kolejność `trackLayout` ma znaczenie (V od dołu do góry, A od góry do dołu), z dotychczasowymi stabilnymi ID/indeksami. Import v1–v12 zachowuje historyczną kolejność numeryczną i miks. Projekty zapisane jako v13 wymagają nowej aplikacji. Produkcyjny MLT, wybór warstwy, FrameEditor oraz render FFmpeg respektują tę samą kolejność. Analiza obrazu unieważnia cache po zmianie kolejności V; zmiana samej kolejności A nie zmienia miksu/normalizacji. Limit nadal 16 V / 16 A, 100 klipów i MLT 30 FPS. SmartCut / Export Studio poza tą paczką.
 
-Nowe pliki: `src/TrackResize.tsx`, `src/timelineView.ts`, `tests/timeline027.test.ts`, `scripts/test-timeline027.mjs`. Testy obejmują migrację, blokady/Undo, Solo/busy/mute, geometrię/preferencje/dopasowanie i rzeczywiste kolory/sześć tonów obu silników po przestawieniu V1 ponad V3 oraz izolowany odsłuch. Pełny odbiór Windows/WebView2 i instalator 0.27 jeszcze niepotwierdzone; link powyżej dotyczy odebranej 0.26.
+Nowe pliki: `src/TrackResize.tsx`, `src/timelineView.ts`, `tests/timeline027.test.ts`, `scripts/test-timeline027.mjs`, `schemas/project-v13.schema.json`. Testy obejmują migrację, blokady/Undo, Solo/busy/mute, geometrię/preferencje/dopasowanie i rzeczywiste kolory/sześć tonów obu silników po przestawieniu V1 ponad V3 oraz izolowany odsłuch. Test okna wykrył i potwierdził poprawkę przepełnienia podziałki przy dopasowaniu: etykiety są ograniczone do szerokości osi. Użyto istniejących Tabler Icons z zachowaną licencją.
 
 ## Wersja 0.26 — czytelne audio (ukończona)
 

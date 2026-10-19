@@ -1,8 +1,8 @@
 # Kolejne etapy RolVixa
 
-## W realizacji 0.27 — sterowanie torami
+## Wykonane w 0.27 — sterowanie torami
 
-Zatwierdzone Solo odsłuchu, kolejność V/A przez nagłówki, trwałe wysokości widoku i dopasowanie całego montażu. Schemat v13 zachowuje stabilne ID; v1–v12 migrują z dawną kolejnością numeryczną. Bez SmartCut / Export Studio. Szczegółowa obsługa i ograniczenia w README. Odbiór Windows/WebView2/instalatora w toku.
+Zatwierdzone Solo odsłuchu, kolejność V/A przez nagłówki, trwałe wysokości widoku i dopasowanie całego montażu. Schemat v13 zachowuje stabilne ID; v1–v12 migrują z dawną kolejnością numeryczną. Bez SmartCut / Export Studio. Szczegółowa obsługa i ograniczenia w README. Pełny zielony Windows run 39198885893 i push 39198881666: 229 TS, 87 Rust, 17 integracyjnych, instalacja i rzeczywisty WebView2 1366×700 / Full HD. Zrzuty sprawdzone; PR #14 połączony, instalator 12163411665. Potwierdzone drag/klawiatura/Undo/blokady, Solo z trasowanym audio, pełne wysokości i preferencje, Escape, fit/reopen v13 oraz regresje normalizacji/źródeł/Ripple/napisów/odzyskiwania.
 
 
 ## Proponowana korekta UX: prosty Ripple i czytelne audio (issue #11)
@@ -21,7 +21,7 @@ Zatwierdzone Solo odsłuchu, kolejność V/A przez nagłówki, trwałe wysokośc
 - [x] Rzeczywisty test trzech obrazów i sześciu tonów, mute/visibility, J-cut, przejścia na V3, proxy i brakujące media w MLT/FFmpeg.
 - [x] Osobny PR #8 połączony; pełny zielony Windows run 39135310340 (push 39135306974 także zielony): 166 TS, 75 Rust, 14 integracyjnych, instalator 12140085502. Rzeczywisty WebView2, drop V3, detach A3, potwierdzenie/usuwanie/Undo, odtwarzanie i piksele po Undo oraz crash/restart v11. Zrzuty laptop / Full HD sprawdzone.
 
-Solo, dowolne przestawianie kolejności torów oraz trwałe wysokości widoku pozostają przyszłymi rozszerzeniami. SmartCut i Export Studio poza tą paczką.
+Solo, przestawianie kolejności torów i trwałe wysokości wdrożono w 0.27. SmartCut i Export Studio poza tą paczką.
 
 ## Wykonane w 0.21 — UX C (ukończone)
 
@@ -261,7 +261,7 @@ Siatkę i znacznik użycia wdrożono w 0.14; fade in/out oraz automatykę przez 
 **Zrealizowane w 0.22 / PR #8, odbiór Windows 39135310340; poniżej zachowana specyfikacja [issue #3](https://github.com/ankelmarek/AutoNapisy/issues/3).** Niektóre montaże wymagają V3 lub A3. **Najpierw wdrażamy Ripple Edit oraz odłączanie audio / J-cut i L-cut na obecnych torach**, a następnie dynamiczne dokładanie V3/A3. Przy implementacji Ripple unikać założenia stałej liczby torów. Ta kolejność jest decyzją użytkownika.
 
 - **Bez sztywnego limitu dwóch:** domyślnie zachować prosty układ V1/V2 i A1/A2, z przyciskiem `+ Dodaj ścieżkę wideo` lub `+ Dodaj ścieżkę audio`. W pierwszej iteracji zapewnić co najmniej V3 i A3, ale model danych zaprojektować tak, aby późniejsze V4/A4 nie wymagały kolejnej przebudowy. Dodanie wideo **nie dodaje automatycznie** ścieżki audio i odwrotnie.
-- **Ergonomia:** dodane tory dopiero na żądanie; V3 nad V2 nad V1, niezależne A1/A2/A3, T ponad obrazem. Pionowy scroll obszaru ścieżek, możliwość zwinięcia/zmiany wysokości audio, przewijanie poziome zsynchronizowane z podziałką. Na każdym torze opcje mute/ukryj (dla wideo), blokada, docelowo Solo oraz osobne R dla Ripple; jednoznaczne podpisy i podpowiedzi.
+- **Ergonomia:** dodane tory dopiero na żądanie; V3 nad V2 nad V1, niezależne A1/A2/A3, T ponad obrazem. Pionowy scroll obszaru ścieżek, możliwość zwinięcia/zmiany wysokości audio, przewijanie poziome zsynchronizowane z podziałką. Na każdym torze opcje mute/ukryj (dla wideo), blokada, Solo odsłuchu (0.27) oraz osobne R dla Ripple; jednoznaczne podpisy i podpowiedzi.
 - **Dźwięk źródłowego klipu:** obecny projekt wizualnie odwzorowuje audio filmu na torze A o tym samym numerze co V. Przy rozbudowie oddzielić logiczną tożsamość toru obrazu od trasowania/miksowania audio. Wideo z dźwiękiem musi nadal grać i pozostawać zsynchronizowane, niezależne pliki audio nie wymagają pary Vn, a po przyszłym „Odłącz audio” dźwięk ma trafić na wskazany tor A bez zdublowania sygnału. Migracja nie może zmienić brzmienia istniejących projektów.
 - **Ripple:** osobne domyślne ustawienia `auto/on/off` na każdym torze, zgodnie z regułą: pierwszy klip od `00:00` może uczestniczyć; pierwszy klip później lub pusty tor ma R domyślnie wyłączone. Manualne R nadpisuje automat. Blokady i powiązania synchronizacji (szczególnie odłączone audio i napisy) mają pierwszeństwo przed niekontrolowanym przesunięciem.
 - **Dane i silnik:** obecna wersja ma typ `track: 0|1` w TS, ograniczenie `track <= 1` w Rust, sztywny `tracksSchema` V1/V2/A1/A2/T oraz wyliczane bezpośrednio w pikselach współrzędne torów w `Timeline.tsx`; MLT przechodzi `for lane in 0..2`. Wymaga to wspólnego, stabilnego opisu torów (ID/typ/kolejność/ustawienia) oraz migracji v9 w przód; nie wystarczy dorysować przycisku „V3”. Implementacja obejmuje kompozycję warstw, miks, import, drag/drop, klipy, przejścia, napisy, podgląd MLT, eksport FFmpeg/MLT i walidację JSON po obu stronach.
@@ -386,4 +386,4 @@ Następnie oddzielny PR: czytelne pełne A i zwięzły waveform połączonego d�
 - [x] Testy geometrii, v10/v11/v12, wspólna próbka rzeczywistych testów WebView2 i regresje automatyki/gestów.
 - [x] Pełny zielony Windows run 39189432808 i push 39189417417: 220 TS, 85 Rust, 17 rzeczywistych integracyjnych, produkcyjna kompilacja, instalacja, WebView2 1366×700 / Full HD, crash/restart i instalator 12160120281. Zrzuty sprawdzone; PR #13 połączony.
 
-SmartCut / Export Studio nadal oddzielnymi etapami. Solo, dowolna kolejność torów i trwałe wysokości pozostają rozszerzeniami.
+SmartCut / Export Studio nadal oddzielnymi etapami. Solo, dowolną kolejność V/A i trwałe wysokości wdrożono w 0.27.
