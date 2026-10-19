@@ -82,7 +82,7 @@ export function compositionSegments(p: Project): EditedSegment[] {
     const patch=p.captionEdits[s.id];if(patch?.hidden)return [];
     const offset=patch?.offset??0,start=Math.max(0,s.start+(patch?.trimStart??0)+offset),end=Math.min(total,s.end-(patch?.trimEnd??0)+offset);if(end<=start||(patch&&end-start<.049999))return [];
     const words=patch&&(patch.text!==undefined||patch.trimStart>0||patch.trimEnd>0)?[]:s.words.map(w=>({...w,start:w.start+offset,end:w.end+offset})).filter(w=>w.start<end&&w.end>start).map(w=>({...w,start:Math.max(start,w.start),end:Math.min(end,w.end)}));
-    return [{...s,start,end,words,text:patch?.text??s.text}];
+    return [{...s,styleId:patch?.styleId??s.styleId,start,end,words,text:patch?.text??s.text}];
   });
 }
 

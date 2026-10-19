@@ -9,14 +9,15 @@ export function synchronizedWords(card:CaptionCard,style:CaptionStyle){
  return words.length>0&&fold(words.map(w=>w.text.trim()).join(' '))===fold(card.text)&&words.every((w,i)=>
   w.text.trim().length>0&&!/\s/.test(w.text.trim())&&Number.isFinite(w.start)&&Number.isFinite(w.end)&&w.start>=card.start-1e-6&&w.end<=card.end+1e-6&&w.end>w.start&&(i===0||w.start>=words[i-1].end-1e-6));
 }
-const smooth=(x:number)=>{const t=Math.max(0,Math.min(1,x));return t*t*(3-2*t);};
+export const captionEase=(x:number)=>{const t=Math.max(0,Math.min(1,x));return t*t*(3-2*t);};
+const smooth=captionEase;
 export function captionMotion(card:CaptionCard,style:CaptionStyle,time:number){
  const t=captionFrameTime(time),a=style.animation;
  if(!a)return {time:t,active:-1,scale:1,opacity:1,fallback:false};
  const reliable=synchronizedWords(card,style),active=reliable?(card.words??[]).findIndex(w=>t>=w.start&&t<w.end):-1;
  let scale=1;
  if(active>=0&&a.preset==='pop-beat'){
-  const u=(t-card.words![active].start)/(.18/a.speed);
+  const u=(t-card.words![active].start)/Math.max(.1,Math.min(.22,.18/a.speed));
   // A single bounded overshoot, never a repeating flash. Intensity zero is neutral.
   scale=1+a.intensity*(u<.55?-.15+.25*smooth(u/.55):u<1?.1*(1-smooth((u-.55)/.45)):0);
  }

@@ -19,7 +19,7 @@ export const styleSchema = z
     boxWidth: z.number().min(40).max(95).default(84),
     cornerRadius: z.number().min(0).max(60).default(10),
     marginPercent: z.number().min(0).max(30).default(8),
-    animation:z.object({preset:z.enum(['karaoke-flow','pop-beat']),version:z.literal(1),accentColor:z.string().regex(/^#[0-9a-fA-F]{6}$/),speed:z.number().finite().min(.5).max(2),intensity:z.number().finite().min(0).max(1)}).strict().optional(),
+    animation:z.object({preset:z.enum(['karaoke-flow','pop-beat','impact','neon','slide-reveal','marker','editorial','type-flow']),version:z.literal(1),accentColor:z.string().regex(/^#[0-9a-fA-F]{6}$/),speed:z.number().finite().min(.5).max(2),intensity:z.number().finite().min(0).max(1)}).strict().optional(),
     effect:z.enum(['box','outline','highlight']).optional(),
     outlineColor:z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
     outlineWidth:z.number().min(0).max(8).optional(),
@@ -59,7 +59,7 @@ const currentProjectSchema = z
     canvas:z.object({width:z.number().int().min(128).max(3840).multipleOf(2),height:z.number().int().min(128).max(3840).multipleOf(2)}).strict().nullable().default(null),
     tracks:tracksSchema.default({}),
     timelineSegments:z.array(segment).nullable().default(null),
-    captionEdits:z.record(z.object({trimStart:time,trimEnd:time,offset:z.number().finite().min(-86400).max(86400).optional(),text:z.string().max(100000).optional(),hidden:z.boolean().optional()}).strict()).default({}),
+    captionEdits:z.record(z.object({trimStart:time,trimEnd:time,offset:z.number().finite().min(-86400).max(86400).optional(),text:z.string().max(100000).optional(),hidden:z.boolean().optional(),styleId:z.string().min(1).max(100).optional()}).strict()).default({}),
     transitions:z.array(z.object({id:z.string().min(1),fromId:z.string().min(1),toId:z.string().min(1),kind:z.enum(transitionKinds),duration:z.number().min(.1).max(2)}).strict()).max(99).default([]),
     assets: z.array(z.object({id:z.string().min(1),path:z.string().min(1),name:z.string(),duration:time,kind:z.enum(["video","audio"]),provenance:provenanceSchema.optional(),segments:z.array(segment)}).strict()).max(100).default([]),
     clips: z.array(z.object({id:z.string().min(1),sourceIn:time,sourceOut:time,start:time,assetId:z.string().optional(),track:z.number().int().min(0).max(MAX_TRACKS-1).optional(),audioRoute:z.string().regex(/^(embedded|A([1-9]|1[0-6]))$/).optional(),kind:z.enum(["video","audio"]).optional(),volume:z.number().min(0).max(1).optional(),audio:audioEnvelopeSchema.optional(),audioDetached:z.boolean().optional(),syncGroup:z.string().min(1).max(100).optional(),crossfade:z.object({fadeIn:fadeSchema.optional(),fadeOut:fadeSchema.optional()}).strict().optional(),transform:transformSchema.optional(),adjustments:z.object({brightness:z.number().min(.25).max(2),contrast:z.number().min(.25).max(2),saturation:z.number().min(0).max(2)}).strict().optional()}).strict()).max(100).nullable(),
@@ -105,6 +105,7 @@ const currentProjectSchema = z
       const a=clips.find(c=>c.id===t.fromId),b=clips.find(c=>c.id===t.toId);
       const invalid=!a||!b||a.kind==='audio'||b.kind==='audio'||(a.track??0)!==(b.track??0)||Math.abs(a.start+a.sourceOut-a.sourceIn-b.start)>1e-6||b.sourceIn<t.duration-1e-6||a.sourceOut-a.sourceIn<t.duration-1e-6||toIds.has(t.toId);toIds.add(t.toId);return invalid;
     }))c.addIssue({code:'custom',message:'Nieprawidłowe połączenie przejścia'});
+    if(Object.values(p.captionEdits).some(e=>e.styleId!==undefined&&!p.styles[e.styleId]))c.addIssue({code:'custom',message:'Nieznany styl edycji napisu'});
     if(Object.keys(p.captionEdits).length>10000)c.addIssue({code:'custom',message:'Zbyt wiele zmian napisów'});
     const timelineDuration=Math.max(0,...(p.clips??[]).map(c=>c.start+c.sourceOut-c.sourceIn),...(p.clips===null?[p.media?.duration??0]:[]));
     if(p.timelineSegments&&(new Set(p.timelineSegments.map(s=>s.id)).size!==p.timelineSegments.length||p.timelineSegments.some(s=>!p.styles[s.styleId]||s.end>86400)))c.addIssue({code:'custom',message:'Nieprawidłowe napisy montażu'});
@@ -124,6 +125,7 @@ const currentProjectSchema = z
       });
   });
 export const projectSchema = z.preprocess((value) => {
+  if(value&&typeof value==='object'&&'schemaVersion' in value&&Number(value.schemaVersion)<=14&&'captionEdits' in value&&value.captionEdits&&Object.values(value.captionEdits).some((e:any)=>e&&e.styleId!==undefined))return value;
   if(value&&typeof value==='object'&&'schemaVersion' in value&&Number(value.schemaVersion)<=14&&'styles' in value&&value.styles&&Object.values(value.styles).some((s:any)=>s&&s.animation!==undefined))return value;
   if(value&&typeof value==='object'&&'schemaVersion' in value&&value.schemaVersion===14)return {...value,schemaVersion:15};
   if(value&&typeof value==='object'&&'schemaVersion' in value&&Number(value.schemaVersion)<=13&&'captionEdits' in value&&value.captionEdits&&Object.values(value.captionEdits).some((e:any)=>e&&'offset' in e))return value;

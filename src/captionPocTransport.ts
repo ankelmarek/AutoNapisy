@@ -1,3 +1,4 @@
+import {presetStyle,type AnimatedPresetId} from './captionPresets';
 import {invoke} from '@tauri-apps/api/core';
 import {captionExport,activeCaption} from './captions';
 import {compositionProject} from './editing';
@@ -5,8 +6,8 @@ import {createAnimatedCaptionRenderer} from './animatedCaptionCanvas';
 import {ensureCaptionFonts} from './captionCanvas';
 import {captionFrameTime} from './captionAnimation';
 import {serializeProject,type Project} from './model';
-export function pocProject(project:Project,preset:'karaoke-flow'|'pop-beat'){
- return {...project,styles:Object.fromEntries(Object.entries(project.styles).map(([id,s])=>[id,{...s,color:'#ffffff',effect:'outline' as const,outlineColor:'#080808',outlineWidth:3,fontFamily:'Bebas Neue',fontSize:60,animation:{preset,version:1 as const,accentColor:'#ffe600',speed:1,intensity:1}}]))};
+export function pocProject(project:Project,preset:AnimatedPresetId){
+ return {...project,styles:Object.fromEntries(Object.entries(project.styles).map(([id,s])=>[id,presetStyle(s,preset)]))};
 }
 export async function streamCaptionPoc(project:Project,start:number,duration:number,signal:AbortSignal,onProgress:(n:number)=>void){
  await ensureCaptionFonts(project);const snapshot=captionExport(compositionProject(project));let id:number|null=null;

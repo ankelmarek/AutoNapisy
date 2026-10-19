@@ -63,8 +63,9 @@ import {useSafeZones,SafeZoneControls,SafeZoneOverlay} from './SafeZones';
 import { clipAt, editDuration, projectClips, compositionSegments, compositionProject, clipMedia, appendMedia } from "./editing";
 import { rendering, type ExportStatus } from "./rendering";
 import bebasLicense from "./assets/BebasNeue-OFL.txt?raw";
-import CaptionOverlay, { CaptionBox } from "./CaptionOverlay";
-import { captionExport, yellowPreset, referenceText } from "./captions";
+import CaptionOverlay from "./CaptionOverlay";
+import CaptionStyleInspector from "./CaptionStyleInspector";
+import { captionExport } from "./captions";
 import {assertUnlockedEdit,clipLocked,auditionProject} from './trackControls';
 export default function App() {
   const history = useProjectHistory();
@@ -158,7 +159,7 @@ export default function App() {
   const [sources,setSources]=useState<Record<string,string>>({});
   const [leftTab,setLeftTab]=useState<"files"|"captions"|"effects"|"audio">("files");
   const [selectedIds,setSelectedIds]=useState<string[]>([]),[transcriptionScope,setTranscriptionScope]=useState<'all'|'selected'>('all');
-  const [inspectorTab,setInspectorTab]=useState<'video'|'captions'>('video'),[selectedClip,setSelectedClip]=useState(''),[selectedCaption,setSelectedCaption]=useState(''),[selectedTransition,setSelectedTransition]=useState('');
+  const [inspectorTab,setInspectorTab]=useState<'video'|'captions'>('video'),[selectedClip,setSelectedClip]=useState(''),[selectedCaption,setSelectedCaption]=useState(''),[markedCaption,setMarkedCaption]=useState(''),[selectedTransition,setSelectedTransition]=useState('');
   const [effectChoice,setEffectChoice]=useState<EffectChoice>({kind:'fade',duration:.4});
   const captionInput=useRef<HTMLTextAreaElement>(null);
   const [sourceViewerId,setSourceViewerId]=useState('');
@@ -182,7 +183,7 @@ export default function App() {
   const selected=projectClips(project).find(c=>c.id===selectedClip)??clipAt(projectClips(project),time,project);
   const caption=displayedSegments.find(s=>s.id===selectedCaption);
   const picture=visuals(project,Math.min(time,Math.max(0,duration-1e-7)));
-  const selectCaption=(id:string)=>{setSelectedCaption(id);setInspectorTab('captions');requestAnimationFrame(()=>{captionInput.current?.focus();captionInput.current?.scrollIntoView({block:'nearest'});});};
+  const selectCaption=(id:string)=>{setMarkedCaption(id);setSelectedCaption(id);setInspectorTab('captions');requestAnimationFrame(()=>{captionInput.current?.focus();captionInput.current?.scrollIntoView({block:'nearest'});});};
   const changeProject=(p:Project)=>{try{assertUnlockedEdit(latestProject.current,p);setProject(p);}catch(e){setMessage(String(e));}};
   const adviseAddedAudio=(next:Project)=>{const clips=projectClips(next),added=clips.at(-1);if(added?.kind==='audio'&&overlappingAudio(clips,added).length){setSelectedClip(added.id);setSelectedTransition('');setInspectorTab('video');setMessage(`Audio nakłada się na A${(added.track??0)+1}. Możesz przenieść je na wolną ścieżkę w panelu właściwości.`);}};
   const gap = !visuals(project,Math.min(time,Math.max(0,duration-1e-7))).length;
@@ -387,14 +388,6 @@ export default function App() {
       if(e.key==='Home'){e.preventDefault();seek(0);}else if(e.key==='End'){e.preventDefault();seek(duration);}else if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();seek(time+(e.key==='ArrowLeft'?-1:1)*(e.shiftKey?1:1/30));}
     };window.addEventListener('keydown',handler);return()=>window.removeEventListener('keydown',handler);
   },[locked,homeVisible,project,time,playing,saveState,sourceViewerItem?.id]);
-  const style = project.styles.default;
-  const updateStyle = (patch: Partial<typeof style>) => {
-    setProject((p) => ({
-      ...p,
-      styles: { ...p.styles, default: { ...p.styles.default, ...patch } },
-    }));
-    
-  };
   return (
     <div className="app" data-startup-ready={recoveryReady&&(!!recoveryInfo||homeMode!=='startup')}>
       {homeVisible&&<StartScreen recent={recent} busy={busy||saving} error={startError} canReturn={homeMode==='manual'} onNew={()=>void createNew()} onOpen={()=>void open()} onRecent={id=>void open(id)} onDismiss={()=>setStartError('')} onReturn={()=>setHomeMode('closed')}/>}
@@ -606,182 +599,13 @@ export default function App() {
             {inspectorTab==='video'&&<VideoProperties project={project} clip={selected} locked={locked||!!selected&&clipLocked(project,selected)} transitionId={selectedTransition} onChange={changeProject}/>}
             <div hidden={inspectorTab!=='captions'}>
             {caption&&<div className="caption-editor"><h3>Edycja zaznaczonego napisu</h3><textarea ref={captionInput} aria-label="Tekst zaznaczonego napisu" value={caption.text} disabled={locked} onChange={e=>changeProject(editCaption(project,caption,{text:e.target.value}))}/><div><label>Początek<input aria-label="Początek napisu" type="number" step={.01} value={Number(caption.start.toFixed(3))} disabled={locked} onChange={e=>{if(Number.isFinite(e.target.valueAsNumber))changeProject(resizeCaption(project,caption,'left',e.target.valueAsNumber-caption.start));}}/></label><label>Koniec<input aria-label="Koniec napisu" type="number" step={.01} value={Number(caption.end.toFixed(3))} disabled={locked} onChange={e=>{if(Number.isFinite(e.target.valueAsNumber))changeProject(resizeCaption(project,caption,'right',e.target.valueAsNumber-caption.end));}}/></label></div></div>}
-            <div className="caption-presets">{[
-              {name:'Żółta plansza',effect:'box',color:'#080808',background:'#ffe600',outlineColor:'#000000',outlineWidth:0},
-              {name:'Biały obrys',effect:'outline',color:'#ffffff',background:'#000000',outlineColor:'#080808',outlineWidth:3},
-              {name:'Zielone podświetlenie',effect:'highlight',color:'#10140c',background:'#b4ff58',outlineColor:'#000000',outlineWidth:0},
-              {name:'Fioletowe podświetlenie',effect:'highlight',color:'#ffffff',background:'#742cff',outlineColor:'#12092a',outlineWidth:1},
-            ].map(preset=><button key={preset.name} disabled={locked} onClick={()=>updateStyle({effect:preset.effect as 'box'|'outline'|'highlight',color:preset.color,background:preset.background,outlineColor:preset.outlineColor,outlineWidth:preset.outlineWidth})}>{preset.name}</button>)}</div>
-            <fieldset className="style-fields" disabled={locked}>
-              <p className="eyebrow">STYL DOMYŚLNY</p>
-              <label>Wygląd<select aria-label="Wygląd napisów" value={style.effect??'box'} onChange={e=>updateStyle({effect:e.target.value as 'box'|'outline'|'highlight'})}><option value="box">Plansza</option><option value="outline">Obrys</option><option value="highlight">Podświetlenie</option></select></label>
-              <label>Grubość obrysu <b>{style.outlineWidth??0}</b><input aria-label="Grubość obrysu" type="range" min={0} max={8} step={.5} value={style.outlineWidth??0} onChange={e=>updateStyle({outlineWidth:Number(e.target.value)})}/></label>
-              <label>Kolor obrysu<input aria-label="Kolor obrysu" type="color" value={style.outlineColor??'#080808'} onChange={e=>updateStyle({outlineColor:e.target.value})}/></label>
-              <button
-                className="preset-button"
-                onClick={() => updateStyle({ ...yellowPreset,effect:'box',outlineWidth:0 })}
-              >
-                Żółta plansza · Bebas Neue
-              </button>
-              <label>
-                Krój pisma
-                <select
-                  value={style.fontFamily}
-                  onChange={(e) => updateStyle({ fontFamily: e.target.value })}
-                >
-                  {["Bebas Neue", "Arial", "Segoe UI", "Georgia"].map((f) => (
-                    <option key={f}>{f}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Rozmiar <b>{style.fontSize}</b>
-                <input
-                  type="range"
-                  min="12"
-                  max="100"
-                  value={style.fontSize}
-                  onChange={(e) =>
-                    updateStyle({ fontSize: Number(e.target.value) })
-                  }
-                />
-              </label>
-              <label>
-                Kolor tekstu
-                <input
-                  type="color"
-                  value={style.color}
-                  onChange={(e) => updateStyle({ color: e.target.value })}
-                />
-              </label>
-              <label>
-                Tło napisów
-                <input
-                  type="color"
-                  value={style.background}
-                  onChange={(e) => updateStyle({ background: e.target.value })}
-                />
-              </label>
-              <label>
-                Pozycja
-                <select
-                  value={style.position}
-                  onChange={(e) =>
-                    updateStyle({
-                      position: e.target.value as typeof style.position,
-                    })
-                  }
-                >
-                  <option value="bottom">Na dole</option>
-                  <option value="center">Pośrodku</option>
-                  <option value="top">Na górze</option>
-                </select>
-              </label>
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={style.uppercase}
-                  onChange={(e) => updateStyle({ uppercase: e.target.checked })}
-                />
-                WIELKIE LITERY
-              </label>
-              <label>
-                Maksymalnie linii
-                <select
-                  value={style.maxLines}
-                  onChange={(e) =>
-                    updateStyle({ maxLines: Number(e.target.value) })
-                  }
-                >
-                  <option value={1}>1 linia</option>
-                  <option value={2}>2 linie</option>
-                  <option value={3}>3 linie</option>
-                </select>
-              </label>
-              <label>
-                Znaki na linię <b>{style.charsPerLine}</b>
-                <input
-                  type="range"
-                  min="12"
-                  max="48"
-                  value={style.charsPerLine}
-                  onChange={(e) =>
-                    updateStyle({ charsPerLine: Number(e.target.value) })
-                  }
-                />
-              </label>
-              <label>
-                Słowa na planszę <b>{style.wordsPerCard}</b>
-                <input
-                  type="range"
-                  min="3"
-                  max="16"
-                  value={style.wordsPerCard}
-                  onChange={(e) =>
-                    updateStyle({ wordsPerCard: Number(e.target.value) })
-                  }
-                />
-              </label>
-              <label>
-                Szerokość planszy <b>{style.boxWidth}%</b>
-                <input
-                  type="range"
-                  min="40"
-                  max="95"
-                  value={style.boxWidth}
-                  onChange={(e) =>
-                    updateStyle({ boxWidth: Number(e.target.value) })
-                  }
-                />
-              </label>
-              <label>
-                Zaokrąglenie <b>{style.cornerRadius}</b>
-                <input
-                  type="range"
-                  min="0"
-                  max="60"
-                  value={style.cornerRadius}
-                  onChange={(e) =>
-                    updateStyle({ cornerRadius: Number(e.target.value) })
-                  }
-                />
-              </label>
-              <label>
-                Odstęp od krawędzi <b>{style.marginPercent}%</b>
-                <input
-                  type="range"
-                  min="0"
-                  max="30"
-                  value={style.marginPercent}
-                  onChange={(e) =>
-                    updateStyle({ marginPercent: Number(e.target.value) })
-                  }
-                />
-              </label>
-              <div className="caption-sample">
-                <CaptionBox
-                  text={referenceText}
-                  style={style}
-                  width={240}
-                  height={135}
-                />
-              </div>
-              <p className="hint">
-                Enter w tekście segmentu ustawia ręczne łamanie. Krótkie plansze
-                wykorzystują czasy słów; bez nich cały segment jest dopasowywany
-                do zadanej liczby linii.
-              </p>
-              <p className="hint">
-                Styl jest zapisywany w projekcie. Eksport SRT zapisuje treść i
-                czasy; nie zachowuje stylizacji. Eksport MP4 wypala wygląd
-                napisów w obrazie.
-              </p>
-            </fieldset>
+            <CaptionStyleInspector project={project} selectedId={markedCaption||selectedCaption} visible={inspectorTab==='captions'&&!homeVisible&&!settings&&!studioSnapshot} locked={locked} onChange={changeProject}/>
+
             </div>
           </div>
         </section>
       <Timeline selectedIds={selectedIds} onSelectionChange={setSelectedIds} onSmartCut={request=>{if(locked)return;playback.pause();setSourceViewerId('');setSmartcut({project:latestProject.current,request});}} solo={solo} onSolo={id=>setSolo(old=>{const next=new Set(old);next.has(id)?next.delete(id):next.add(id);return next;})} onClearSolo={()=>setSolo(new Set())} project={project} time={time} locked={locked||settings||homeVisible} onError={setMessage} onSeek={t=>{setSourceViewerId('');seek(t);}}
-        onChange={(clips,mode)=>{if(mode!=='volume')playback.pause();changeProject({...latestProject.current,clips,transitions:reconcileTransitions(latestProject.current,clips)});}} onPreviewVolume={playback.previewVolume} onBeginAudio={playback.pause} onSelect={id=>{setSelectedClip(id);setSelectedTransition('');setInspectorTab('video');}} onCaptionSelect={selectCaption}
+        onChange={(clips,mode)=>{if(mode!=='volume')playback.pause();changeProject({...latestProject.current,clips,transitions:reconcileTransitions(latestProject.current,clips)});}} onPreviewVolume={playback.previewVolume} onBeginAudio={playback.pause} onSelect={id=>{setSelectedClip(id);setSelectedTransition('');setInspectorTab('video');}} onCaptionSelect={selectCaption} onCaptionMark={setMarkedCaption}
         onMediaDrop={(id,at,track,range,kind)=>{try{playback.pause();setSourceViewerId('');const next=insertLibraryItem(latestProject.current,id,at,track,range,kind);changeProject(next);setMessage('Dodano plik na oś czasu.');adviseAddedAudio(next);}catch(e){setMessage(String(e));}}}
         onCaptionChange={p=>changeProject(p)} effectChoice={effectChoice} onTransition={(a,b,choice)=>{try{playback.pause();const next=applyTransition(project,a,b,choice.kind,choice.duration);changeProject(next);setSelectedTransition(next.transitions.find(t=>t.toId===b)!.id);setInspectorTab('video');}catch(e){setMessage(String(e));}}} onTransitionSelect={id=>{setSelectedTransition(id);setInspectorTab('video');}}
         undo={undo} redo={redo} canUndo={history.canUndo} canRedo={history.canRedo}/>
