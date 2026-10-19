@@ -7,7 +7,7 @@ export function speechIntervals(p:Project,selected?:readonly string[]):Interval[
  const clips=projectClips(p),videos=clips.filter(c=>c.kind!=='audio'&&(!selected||selected.includes(c.id))&&!p.tracks[videoTrack(c)]?.muted),ranges:Interval[]=[];
  for(const v of videos){
   const incoming=p.transitions.find(t=>t.toId===v.id),candidates=v.audioDetached?clips.filter(a=>a.kind==='audio'&&!!v.syncGroup&&a.syncGroup===v.syncGroup&&(a.assetId??'')===(v.assetId??'')):[{...v,start:v.start-(incoming?.duration??0),sourceIn:v.sourceIn-(incoming?.duration??0)}];
-  for(const c of candidates)if(!clipMuted(p,c)&&(c.volume??1)>0){const start=Math.max(0,c.start),end=Math.min(editDuration(p),clipEnd(c));if(end>start)ranges.push({start,end});}
+  for(const c of candidates)if(!clipMuted(p,c)&&(c.volume??1)>0){const start=Math.max(0,c.start,...(selected?[v.start-(incoming?.duration??0)]:[])),end=Math.min(editDuration(p),clipEnd(c),...(selected?[clipEnd(v)]:[]));if(end-start>=.05-1e-7)ranges.push({start,end});}
  }
  const merged:Interval[]=[];for(const r of ranges.sort((a,b)=>a.start-b.start)){const last=merged.at(-1);if(last&&r.start<=last.end+1e-7)last.end=Math.max(last.end,r.end);else merged.push({...r});}return merged;
 }

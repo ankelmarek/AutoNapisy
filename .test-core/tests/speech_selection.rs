@@ -75,7 +75,7 @@ fn recognition_pcm_excludes_music_muted_video_and_handles_selection_detached_sou
         (
             "detached",
             Some(vec!["detached-picture".into()]),
-            vec![(7.5, 3.)],
+            vec![(8., 2.)],
         ),
     ] {
         let speech = voice_project(&p, selection.as_deref()).unwrap();

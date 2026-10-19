@@ -577,9 +577,23 @@ pub fn voice_project(
                     && !p.tracks.audio_muted(a)
                     && a.volume > 0.
             }) {
-                if !sound.iter().any(|s| s.id == a.id) {
-                    sound.push(a.clone());
+                let mut a = a.clone();
+                if selected.is_some() {
+                    let incoming = p
+                        .transitions
+                        .iter()
+                        .find(|t| t.to_id == v.id)
+                        .map_or(0., |t| t.duration);
+                    let start = a.start.max(v.start - incoming);
+                    let end = a.end().min(v.end());
+                    if end - start < 0.05 - 1e-7 {
+                        continue;
+                    }
+                    a.source_out -= a.end() - end;
+                    a.source_in += start - a.start;
+                    a.start = start;
                 }
+                sound.push(a);
             }
         } else if !p.tracks.audio_muted(v) && v.volume > 0. {
             let incoming = p.transitions.iter().find(|t| t.to_id == v.id);
@@ -609,6 +623,24 @@ pub fn voice_project(
     }
     if sound.is_empty() {
         return Err("Brak niewyciszonego dźwięku powiązanego z wybranymi filmami. Osobna muzyka nie jest transkrybowana.".into());
+    }
+    // A detached source may span several split pictures. Union each producer's selected
+    // intervals, avoiding both speech from unselected pictures and duplicate signal.
+    sound.sort_by(|a, b| a.id.cmp(&b.id).then(a.start.total_cmp(&b.start)));
+    let mut merged: Vec<Clip> = vec![];
+    for a in sound {
+        if let Some(last) = merged
+            .last_mut()
+            .filter(|last| last.id == a.id && a.start <= last.end() + 1e-7)
+        {
+            last.source_out = last.source_out.max(a.source_out);
+        } else {
+            merged.push(a);
+        }
+    }
+    let mut sound = merged;
+    for (i, a) in sound.iter_mut().enumerate() {
+        a.id = format!("voice:{i}");
     }
     // Controls have already been applied above, including the original V mute and A route.
     for a in &mut sound {
@@ -930,7 +962,7 @@ mod speech_selection_tests {
         let p = sample();
         let s = voice_project(&p, None).unwrap();
         assert_eq!(s.clips.as_ref().unwrap().len(), 1);
-        assert_eq!(s.clips.as_ref().unwrap()[0].id, "v");
+        assert_eq!(s.clips.as_ref().unwrap()[0].source_in, 1.);
         assert!(voice_project(&p, Some(&[])).is_err());
         assert!(voice_project(&p, Some(&["music".into()])).is_err());
         assert!(voice_project(&p, Some(&["unknown".into()])).is_err());
@@ -966,10 +998,10 @@ mod speech_selection_tests {
         clips.push(a);
         let q = voice_project(&p, Some(&["v".into()])).unwrap();
         let a = &q.clips.unwrap()[0];
-        assert_eq!(a.id, "linked");
+        assert_eq!(a.id, "voice:0");
         assert_eq!(
             (a.start, a.source_in, a.source_out, a.volume),
-            (1.5, 0.5, 5., 0.4)
+            (2., 1., 5., 0.4)
         );
         p.tracks.a2.muted = true;
         assert!(voice_project(&p, None).is_err());
@@ -1005,6 +1037,42 @@ mod speech_selection_tests {
         );
         assert!(q.transitions.is_empty());
         assert!((crate::audio_envelope::gain(a, 1.75) - 0.5).abs() < 1e-6);
+    }
+    #[test]
+    fn selected_split_pictures_crop_long_linked_audio_union_without_duplicates() {
+        let mut p = sample();
+        let clips = p.clips.as_mut().unwrap();
+        clips[0].audio_detached = true;
+        clips[0].sync_group = Some("pair".into());
+        let mut second = clips[0].clone();
+        second.id = "tail".into();
+        second.start = 8.;
+        second.source_in = 7.;
+        second.source_out = 9.;
+        second.track = 1;
+        clips[1].sync_group = Some("pair".into());
+        clips[1].start = 1.5;
+        clips[1].source_in = 0.5;
+        clips[1].source_out = 10.;
+        clips.push(second);
+        let selected = vec!["v".into(), "tail".into()];
+        let q = voice_project(&p, Some(&selected)).unwrap();
+        let c = q.clips.unwrap();
+        assert_eq!(c.len(), 2);
+        assert_eq!((c[0].start, c[0].source_in, c[0].source_out), (2., 1., 5.));
+        assert_eq!((c[1].start, c[1].source_in, c[1].source_out), (8., 7., 9.));
+        let full = voice_project(&p, None).unwrap().clips.unwrap();
+        assert_eq!(full.len(), 1);
+        assert_eq!(
+            (full[0].start, full[0].source_in, full[0].source_out),
+            (1.5, 0.5, 10.)
+        );
+        let tail = &mut p.clips.as_mut().unwrap()[2];
+        tail.start = 4.;
+        tail.source_in = 3.;
+        let q = voice_project(&p, Some(&selected)).unwrap().clips.unwrap();
+        assert_eq!(q.len(), 1);
+        assert_eq!((q[0].start, q[0].source_in, q[0].source_out), (2., 1., 9.));
     }
     #[test]
     fn caption_offsets_roundtrip_and_reject_old_schema_and_out_of_range() {
