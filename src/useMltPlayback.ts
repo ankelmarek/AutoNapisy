@@ -6,7 +6,8 @@ import {clipMedia,editDuration,projectClips} from './editing';
 type Started={id:number;start:number;duration:number};
 type Chunk={data:string;offset:number;done:boolean;error:string|null;aspect?:number|null};
 const MIME='video/mp4; codecs="avc1.42E01F, mp4a.40.2"';
-export function useMltPlayback(project:Project,proxyRevision='',enabled=true){
+export function useMltPlayback(project:Project,proxyRevision='',enabled=true,loop=false){
+ const loopRef=useRef(loop);loopRef.current=loop;
  const video=useRef<HTMLVideoElement>(null),latest=useRef(project);latest.current=project;
  const [time,setTime]=useState(0),[playing,setPlaying]=useState(false),[loading,setLoading]=useState(false),[error,setError]=useState(''),[revision,setRevision]=useState(0),[aspect,setAspect]=useState(16/9);
  const cursor=useRef(0),wanted=useRef(false),base=useRef(0),session=useRef(0);
@@ -28,7 +29,7 @@ export function useMltPlayback(project:Project,proxyRevision='',enabled=true){
     }catch(e){fail(e);}})();},{once:true});
    }catch(e){fail(e);}};
   timer=window.setTimeout(()=>void start(),180);
-  const ready=()=>{if(!alive)return;setLoading(false);if(wanted.current)void v.play().catch(fail);};const ended=()=>{if(!alive)return;cursor.current=editDuration(latest.current);setTime(cursor.current);pause();};const waiting=()=>{if(alive&&wanted.current)setLoading(true);};
+  const ready=()=>{if(!alive)return;setLoading(false);if(wanted.current)void v.play().catch(fail);};const ended=()=>{if(!alive)return;if(loopRef.current){cursor.current=0;setTime(0);if(base.current===0&&v.buffered.length&&v.buffered.start(0)<.02){v.currentTime=0;if(wanted.current)void v.play().catch(fail);}else setRevision(n=>n+1);return;}cursor.current=editDuration(latest.current);setTime(cursor.current);pause();};const waiting=()=>{if(alive&&wanted.current)setLoading(true);};
   const decodeError=()=>{if(v.error)fail(Error(`Nie można odtworzyć podglądu MLT (${v.error.code}): ${v.error.message||'błąd dekodowania w WebView2'}`));};
   v.addEventListener('canplay',ready);v.addEventListener('ended',ended);v.addEventListener('waiting',waiting);v.addEventListener('error',decodeError);
   return()=>{alive=false;clearTimeout(timer);v.pause();v.removeEventListener('canplay',ready);v.removeEventListener('ended',ended);v.removeEventListener('waiting',waiting);v.removeEventListener('error',decodeError);if(id)void invoke('cancel_mlt_preview',{id}).catch(()=>{});v.removeAttribute('src');v.load();if(url)URL.revokeObjectURL(url);};

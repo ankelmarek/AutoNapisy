@@ -98,6 +98,7 @@ pub fn assemble(
     bounds.sort_by(f64::total_cmp);
     bounds.dedup_by(|a, b| (*a - *b).abs() < 1e-7);
     let mut concat = String::from("ffconcat version 1.0\n");
+    let mut audio_concat = String::from("ffconcat version 1.0\n");
     for (i, pair) in bounds.windows(2).enumerate() {
         job.check()?;
         let start = pair[0];
@@ -240,14 +241,15 @@ pub fn assemble(
             }
             filter.push_str(&format!("amix=inputs={}:normalize=0:duration=longest,volume={}dB,alimiter=limit=0.95:level=0:latency=1,atrim=duration={duration}[a]",sound.len(),p.master_audio.gain_db));
         }
+        // Video keeps the established MP4 path; separate PCM avoids AAC priming at each cut.
         let name = format!("piece-{i:04}.mp4");
+        let audio_name = format!("piece-{i:04}.wav");
         args.extend(strings(&[
             "-filter_complex",
             &filter,
             "-map",
             "[v]",
-            "-map",
-            "[a]",
+            "-an",
             "-c:v",
             "libx264",
             "-crf",
@@ -258,14 +260,6 @@ pub fn assemble(
             "yuv420p",
             "-video_track_timescale",
             "90000",
-            "-c:a",
-            "aac",
-            "-b:a",
-            "192k",
-            "-ac",
-            "2",
-            "-ar",
-            "48000",
             "-map_metadata",
             "-1",
             "-t",
@@ -276,11 +270,25 @@ pub fn assemble(
             "pipe:2",
             "-nostats",
             &name,
+            "-map",
+            "[a]",
+            "-vn",
+            "-c:a",
+            "pcm_f32le",
+            "-ac",
+            "2",
+            "-ar",
+            "48000",
+            "-t",
+            &duration.to_string(),
+            &audio_name,
         ]));
         run_process(job, ffmpeg, &args, false, dir)?;
         concat.push_str(&format!("file '{name}'\nduration {duration:.9}\n"));
+        audio_concat.push_str(&format!("file '{audio_name}'\nduration {duration:.9}\n"));
     }
     fs::write(dir.join("assembly.ffconcat"), concat).map_err(|e| e.to_string())?;
+    fs::write(dir.join("audio.ffconcat"), audio_concat).map_err(|e| e.to_string())?;
     run_process(
         job,
         ffmpeg,
@@ -298,8 +306,26 @@ pub fn assemble(
             "1",
             "-i",
             "assembly.ffconcat",
-            "-c",
+            "-protocol_whitelist",
+            "file,pipe",
+            "-f",
+            "concat",
+            "-safe",
+            "1",
+            "-i",
+            "audio.ffconcat",
+            "-map",
+            "0:v:0",
+            "-map",
+            "1:a:0",
+            "-c:v",
             "copy",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "192k",
+            "-video_track_timescale",
+            "90000",
             "-map_metadata",
             "-1",
             "assembled.mp4",

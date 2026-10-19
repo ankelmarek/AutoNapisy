@@ -1,3 +1,4 @@
+import {testSmartCut028} from './test-smartcut028.mjs';
 import {testTimeline027} from './test-timeline027.mjs';
 import {testAudio026} from './test-audio026.mjs';
 import {testQuality024} from './test-quality024-native.mjs';
@@ -19,6 +20,8 @@ if(process.argv.includes('--prepare')){
  const source=path.join(path.dirname(projectPath),'Film pionowy Łódź.mp4');
  execFileSync(process.env.AUTONAPISY_FFMPEG,['-v','error','-y','-f','lavfi','-i','testsrc2=s=360x640:r=30:d=8','-f','lavfi','-i','sine=frequency=440:duration=8','-c:v','libx264','-preset','ultrafast','-pix_fmt','yuv420p','-c:a','aac',source]);
  for(const [label,duration] of [['long',20],['short',1]])execFileSync(process.env.AUTONAPISY_FFMPEG,['-v','error','-y','-f','lavfi','-i',`color=c=blue:s=360x640:r=30:d=${duration}`,'-f','lavfi','-i',`sine=frequency=880:duration=${duration}`,'-c:v','libx264','-preset','ultrafast','-pix_fmt','yuv420p','-c:a','aac',path.join(path.dirname(projectPath),`replacement-${label}.mp4`)]);
+ execFileSync(process.env.AUTONAPISY_FFMPEG,['-v','error','-y','-f','lavfi','-i','testsrc2=s=320x180:r=30:d=8','-f','lavfi','-i','sine=frequency=300:sample_rate=48000:duration=8','-af','volume=if(between(t\\,1.85\\,2.25)+between(t\\,4.10\\,4.45)\\,0\\,1):eval=frame','-c:v','libx264','-preset','ultrafast','-pix_fmt','yuv420p','-c:a','aac',path.join(path.dirname(projectPath),'SmartCut głos Łódź.mp4')]);
+ execFileSync(process.env.AUTONAPISY_FFMPEG,['-v','error','-y','-f','lavfi','-i','sine=frequency=900:sample_rate=48000:duration=8','-c:a','pcm_s16le',path.join(path.dirname(projectPath),'SmartCut muzyka Łódź.wav')]);
  fs.writeFileSync(projectPath,JSON.stringify({schemaVersion:6,name:'Prawdziwy podgląd',media:{path:path.toNamespacedPath(source),name:path.basename(source),duration:8},assets:[],clips:[{id:'first',sourceIn:0,sourceOut:4,start:0,kind:'video',volume:1},{id:'second',sourceIn:4,sourceOut:8,start:4,kind:'video',volume:1}],transitions:[],segments:[],styles:{default:{fontFamily:'Arial',fontSize:42,color:'#ffffff',background:'#000000',position:'bottom'}},createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()}));
  process.exit(0);
 }
@@ -213,6 +216,7 @@ try{
  await testTracks022(page,async()=>{await page.locator('.header-save').click();await page.waitForFunction(()=>document.querySelector('.header-save')?.dataset.saveStatus==='saved');},()=>JSON.parse(fs.readFileSync(projectPath,'utf8')),'.tools/native-tracks022.png');
  await testAudio026(page,{load:async p=>{fs.writeFileSync(projectPath,JSON.stringify(p));await page.keyboard.press('Control+o');},save:async()=>{await page.locator('.header-save').click();},read:()=>JSON.parse(fs.readFileSync(projectPath,'utf8')),screenshot:'.tools/native-audio026.png'});
  await testTimeline027(page,{load:async p=>{fs.writeFileSync(projectPath,JSON.stringify(p));await page.keyboard.press('Control+o');},save:async()=>{await page.locator('.header-save').click();},read:()=>JSON.parse(fs.readFileSync(projectPath,'utf8')),screenshot:'.tools/native-timeline027.png'});
+ await testSmartCut028(page,{load:async p=>{fs.writeFileSync(projectPath,JSON.stringify(p));await page.keyboard.press('Control+o');},save:async()=>{await page.locator('.header-save').click();},read:()=>JSON.parse(fs.readFileSync(projectPath,'utf8')),screenshot:'.tools/native-smartcut028.png',paths:{voicePath:path.join(path.dirname(projectPath),'SmartCut głos Łódź.mp4'),musicPath:path.join(path.dirname(projectPath),'SmartCut muzyka Łódź.wav')}});
  await testSourceAuthorization023(page,projectPath,process.env.ROLVIXA_TEST_REPLACEMENT);
  await testSources023(page,async()=>{await page.locator('.header-save').click();await page.waitForFunction(()=>document.querySelector('.header-save')?.dataset.saveStatus==='saved');},()=>JSON.parse(fs.readFileSync(projectPath,'utf8')),async variant=>{fs.copyFileSync(path.join(path.dirname(projectPath),`replacement-${variant}.mp4`),process.env.ROLVIXA_TEST_REPLACEMENT);},'.tools/native-sources023.png');
  await testMissingRelink023(page,projectPath);

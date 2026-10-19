@@ -1,3 +1,5 @@
+import SmartCutDialog from './SmartCutDialog';
+import type {SmartCutRequest} from './smartCut';
 import { useEffect, useRef, useState, useMemo, useReducer } from "react";
 import { invoke,convertFileSrc } from "@tauri-apps/api/core";
 import AudioLibrary,{type LibraryAudio} from "./AudioLibrary";
@@ -111,9 +113,10 @@ export default function App() {
   useEffect(()=>{if(recoveryReady&&!recoveryInfo&&homeMode!=='closed'&&!recent.ready)void recent.refresh();},[recoveryReady,recoveryInfo,homeMode]);
   useEffect(()=>{if(homeMode==='startup'&&recoveryReady&&!recoveryInfo&&recent.ready)setHomeMode(recent.showOnStartup?'initial':'closed');},[homeMode,recoveryReady,recoveryInfo,recent.ready]);
   const [replacement,setReplacement]=useState<{id:string;locate:boolean;candidate:Replacement;project:Project}|null>(null),[replacementError,setReplacementError]=useState('');
+  const [smartcut,setSmartcut]=useState<{project:Project;request:SmartCutRequest}|null>(null);
   const [preflight,setPreflight]=useState<{project:Project;issues:PreflightIssue[];autoAnalyze:boolean}|null>(null);
   const [sourceRevision,bumpSourceRevision]=useReducer((n:number)=>n+1,0),[highlightSource,setHighlightSource]=useState('');
-  const locked = !!replacement || !!preflight || busy || transcribing || exporting || !recoveryReady || !!recoveryInfo;
+  const locked = !!smartcut || !!replacement || !!preflight || busy || transcribing || exporting || !recoveryReady || !!recoveryInfo;
   useEffect(()=>{let alive=true;startup.current??=invoke<RecoveryInfo>('recovery_status');void startup.current.then(info=>{if(!alive)return;saver.accept(latestProject.current,'',info.session);if(info.available)setRecoveryInfo(info);if(info.warning){if(info.available)setRecoveryError(info.warning);else setMessage('Odzyskiwanie: '+info.warning);}setRecoveryReady(true);}).catch(e=>{if(alive){setRecoveryError(String(e));setRecoveryReady(true);}});return()=>{alive=false;};},[]);
   useEffect(()=>{
     const needed=saveState.baseline===null?(recovered.current||revision!==pristineRevision.current):dirty;
@@ -160,7 +163,7 @@ export default function App() {
   const [solo,setSolo]=useState<Set<string>>(new Set());
   useEffect(()=>setSolo(new Set()),[saveState.session]);
   const audition=useMemo(()=>auditionProject(project,solo),[project,solo]);
-  const playback = useMltPlayback(audition,proxies.revision+sourceRevision,!sourceViewerItem&&!homeVisible);
+  const playback = useMltPlayback(audition,proxies.revision+sourceRevision,!sourceViewerItem&&!homeVisible&&!smartcut);
   useEffect(()=>{if(playback.error&&proxies.active)void proxies.fallback();},[playback.error,proxies.revision]);
   const {time,playing,seek} = playback;
   const toggle=playback.toggle;
@@ -784,12 +787,13 @@ export default function App() {
             </div>
           </div>
         </section>
-      <Timeline solo={solo} onSolo={id=>setSolo(old=>{const next=new Set(old);next.has(id)?next.delete(id):next.add(id);return next;})} onClearSolo={()=>setSolo(new Set())} project={project} time={time} locked={locked||settings||homeVisible} onError={setMessage} onSeek={t=>{setSourceViewerId('');seek(t);}}
+      <Timeline onSmartCut={request=>{if(locked)return;playback.pause();setSourceViewerId('');setSmartcut({project:latestProject.current,request});}} solo={solo} onSolo={id=>setSolo(old=>{const next=new Set(old);next.has(id)?next.delete(id):next.add(id);return next;})} onClearSolo={()=>setSolo(new Set())} project={project} time={time} locked={locked||settings||homeVisible} onError={setMessage} onSeek={t=>{setSourceViewerId('');seek(t);}}
         onChange={(clips,mode)=>{if(mode!=='volume')playback.pause();changeProject({...latestProject.current,clips,transitions:reconcileTransitions(latestProject.current,clips)});}} onPreviewVolume={playback.previewVolume} onBeginAudio={playback.pause} onSelect={id=>{setSelectedClip(id);setSelectedTransition('');setInspectorTab('video');}} onCaptionSelect={selectCaption}
         onMediaDrop={(id,at,track,range,kind)=>{try{playback.pause();setSourceViewerId('');const next=insertLibraryItem(latestProject.current,id,at,track,range,kind);changeProject(next);setMessage('Dodano plik na oś czasu.');adviseAddedAudio(next);}catch(e){setMessage(String(e));}}}
         onCaptionChange={p=>changeProject(p)} effectChoice={effectChoice} onTransition={(a,b,choice)=>{try{playback.pause();const next=applyTransition(project,a,b,choice.kind,choice.duration);changeProject(next);setSelectedTransition(next.transitions.find(t=>t.toId===b)!.id);setInspectorTab('video');}catch(e){setMessage(String(e));}}} onTransitionSelect={id=>{setSelectedTransition(id);setInspectorTab('video');}}
         undo={undo} redo={redo} canUndo={history.canUndo} canRedo={history.canRedo}/>
       </EditorWorkspace>
+      {smartcut&&<SmartCutDialog project={smartcut.project} initial={smartcut.request} proxyRevision={proxies.revision+sourceRevision} onClose={()=>setSmartcut(null)} onApply={plan=>{if(latestProject.current!==smartcut.project||plan.base!==smartcut.project)throw Error('Projekt zmienił się. Otwórz SmartCut ponownie.');if(plan.conflicts.length)throw Error(plan.conflicts[0]);assertUnlockedEdit(latestProject.current,plan.next);changeProject(plan.next);setSmartcut(null);setSelectedClip('');seek(plan.join);setMessage('Zastosowano SmartCut. Cofnij całość jednym Ctrl+Z.');}}/>}
       <footer role="status">
         <span>{busy ? "Przetwarzanie…" : message}</span>
         <span className={`recovery-status ${recovery.error||recoveryError?'failed':''}`} title={recovery.error||recoveryError||'Kopia odzyskiwania jest oddzielona od ręcznego zapisu'} role="status">{recovery.error||recoveryError?'Błąd kopii odzyskiwania':recovery.writing?'Zapisywanie kopii…':recovery.capturedAt?'Kopia odzyskiwania · '+new Date(recovery.capturedAt).toLocaleTimeString('pl-PL'):''}</span>

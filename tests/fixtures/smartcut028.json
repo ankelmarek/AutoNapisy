@@ -1,0 +1,819 @@
+{
+  "input": {
+    "schemaVersion": 13,
+    "masterAudio": {
+      "gainDb": 0
+    },
+    "trackLayout": [
+      {
+        "id": "V1",
+        "kind": "video",
+        "index": 0
+      },
+      {
+        "id": "V2",
+        "kind": "video",
+        "index": 1
+      },
+      {
+        "id": "A1",
+        "kind": "audio",
+        "index": 0
+      },
+      {
+        "id": "A2",
+        "kind": "audio",
+        "index": 1
+      }
+    ],
+    "rippleEnabled": true,
+    "canvas": {
+      "width": 320,
+      "height": 180
+    },
+    "tracks": {
+      "T": {
+        "ripple": "on"
+      }
+    },
+    "timelineSegments": [
+      {
+        "id": "words028",
+        "styleId": "default",
+        "start": 0.2,
+        "end": 7.2,
+        "text": "Pierwsza wypowiedź usuń to dalsza wypowiedź",
+        "words": [
+          {
+            "text": "Pierwsza",
+            "start": 0.2,
+            "end": 1
+          },
+          {
+            "text": "wypowiedź",
+            "start": 1,
+            "end": 1.7
+          },
+          {
+            "text": "usuń",
+            "start": 2.5,
+            "end": 3.2
+          },
+          {
+            "text": "to",
+            "start": 3.2,
+            "end": 3.9
+          },
+          {
+            "text": "dalsza",
+            "start": 4.6,
+            "end": 5.5
+          },
+          {
+            "text": "wypowiedź",
+            "start": 5.5,
+            "end": 7.2
+          }
+        ]
+      }
+    ],
+    "captionEdits": {},
+    "transitions": [],
+    "assets": [
+      {
+        "id": "music028",
+        "kind": "audio",
+        "path": "SmartCut muzyka Łódź.wav",
+        "name": "SmartCut muzyka Łódź.wav",
+        "duration": 8,
+        "segments": []
+      }
+    ],
+    "clips": [
+      {
+        "id": "voice028",
+        "kind": "video",
+        "track": 0,
+        "audioRoute": "A1",
+        "start": 0,
+        "sourceIn": 0,
+        "sourceOut": 8,
+        "volume": 0.7,
+        "audio": {
+          "points": [
+            {
+              "id": "point028",
+              "time": 1,
+              "gain": 0.8
+            }
+          ],
+          "fadeIn": {
+            "anchor": 0,
+            "duration": 0.5
+          },
+          "fadeOut": {
+            "anchor": 8,
+            "duration": 0.5
+          }
+        }
+      },
+      {
+        "id": "music028",
+        "kind": "audio",
+        "track": 0,
+        "assetId": "music028",
+        "start": 0,
+        "sourceIn": 0,
+        "sourceOut": 8,
+        "volume": 0.25
+      }
+    ],
+    "name": "SmartCut 0.28 — Łódź",
+    "media": {
+      "path": "SmartCut głos Łódź.mp4",
+      "name": "SmartCut głos Łódź.mp4",
+      "duration": 8
+    },
+    "segments": [],
+    "styles": {
+      "default": {
+        "fontFamily": "Bebas Neue",
+        "fontSize": 56,
+        "color": "#080808",
+        "background": "#ffe600",
+        "position": "bottom",
+        "uppercase": true,
+        "maxLines": 2,
+        "charsPerLine": 24,
+        "wordsPerCard": 8,
+        "boxWidth": 84,
+        "cornerRadius": 28,
+        "marginPercent": 8
+      }
+    },
+    "createdAt": "2026-10-19T00:00:00Z",
+    "updatedAt": "2026-10-19T00:00:00Z"
+  },
+  "request": {
+    "kind": "range",
+    "id": "voice028",
+    "from": 2,
+    "to": 4
+  },
+  "options": {
+    "ripple": true,
+    "captions": true,
+    "token": "fixture028"
+  },
+  "exact": {
+    "schemaVersion": 13,
+    "masterAudio": {
+      "gainDb": 0
+    },
+    "trackLayout": [
+      {
+        "id": "V1",
+        "kind": "video",
+        "index": 0
+      },
+      {
+        "id": "V2",
+        "kind": "video",
+        "index": 1
+      },
+      {
+        "id": "A1",
+        "kind": "audio",
+        "index": 0
+      },
+      {
+        "id": "A2",
+        "kind": "audio",
+        "index": 1
+      }
+    ],
+    "rippleEnabled": true,
+    "canvas": {
+      "width": 320,
+      "height": 180
+    },
+    "tracks": {
+      "T": {
+        "ripple": "on"
+      }
+    },
+    "timelineSegments": [
+      {
+        "id": "words028",
+        "text": "Pierwsza wypowiedź dalsza wypowiedź",
+        "start": 0.2,
+        "end": 5.2,
+        "words": [
+          {
+            "text": "Pierwsza",
+            "start": 0.2,
+            "end": 1
+          },
+          {
+            "text": "wypowiedź",
+            "start": 1,
+            "end": 1.7
+          },
+          {
+            "text": "dalsza",
+            "start": 2.5999999999999996,
+            "end": 3.5
+          },
+          {
+            "text": "wypowiedź",
+            "start": 3.5,
+            "end": 5.2
+          }
+        ],
+        "styleId": "default"
+      }
+    ],
+    "captionEdits": {},
+    "transitions": [],
+    "assets": [
+      {
+        "id": "music028",
+        "path": "SmartCut muzyka Łódź.wav",
+        "name": "SmartCut muzyka Łódź.wav",
+        "duration": 8,
+        "kind": "audio",
+        "segments": []
+      }
+    ],
+    "clips": [
+      {
+        "id": "voice028",
+        "sourceIn": 0,
+        "sourceOut": 2,
+        "start": 0,
+        "track": 0,
+        "audioRoute": "A1",
+        "kind": "video",
+        "volume": 0.7,
+        "audio": {
+          "points": [
+            {
+              "id": "point028",
+              "time": 1,
+              "gain": 0.8
+            }
+          ],
+          "fadeIn": {
+            "anchor": 0,
+            "duration": 0.5
+          },
+          "fadeOut": {
+            "anchor": 8,
+            "duration": 0.5
+          }
+        }
+      },
+      {
+        "id": "sc:fixture028:0:tail",
+        "sourceIn": 4,
+        "sourceOut": 8,
+        "start": 2,
+        "track": 0,
+        "audioRoute": "A1",
+        "kind": "video",
+        "volume": 0.7,
+        "audio": {
+          "points": [
+            {
+              "id": "point028",
+              "time": 1,
+              "gain": 0.8
+            }
+          ],
+          "fadeIn": {
+            "anchor": 0,
+            "duration": 0.5
+          },
+          "fadeOut": {
+            "anchor": 8,
+            "duration": 0.5
+          }
+        }
+      },
+      {
+        "id": "music028",
+        "sourceIn": 0,
+        "sourceOut": 8,
+        "start": 0,
+        "assetId": "music028",
+        "track": 0,
+        "kind": "audio",
+        "volume": 0.25
+      }
+    ],
+    "name": "SmartCut 0.28 — Łódź",
+    "media": {
+      "path": "SmartCut głos Łódź.mp4",
+      "name": "SmartCut głos Łódź.mp4",
+      "duration": 8
+    },
+    "segments": [],
+    "styles": {
+      "default": {
+        "fontFamily": "Bebas Neue",
+        "fontSize": 56,
+        "color": "#080808",
+        "background": "#ffe600",
+        "position": "bottom",
+        "uppercase": true,
+        "maxLines": 2,
+        "charsPerLine": 24,
+        "wordsPerCard": 8,
+        "boxWidth": 84,
+        "cornerRadius": 28,
+        "marginPercent": 8
+      }
+    },
+    "createdAt": "2026-10-19T00:00:00Z",
+    "updatedAt": "2026-10-19T00:00:00Z"
+  },
+  "smooth": {
+    "schemaVersion": 13,
+    "masterAudio": {
+      "gainDb": 0
+    },
+    "trackLayout": [
+      {
+        "id": "V1",
+        "kind": "video",
+        "index": 0
+      },
+      {
+        "id": "V2",
+        "kind": "video",
+        "index": 1
+      },
+      {
+        "id": "A1",
+        "kind": "audio",
+        "index": 0
+      },
+      {
+        "id": "A2",
+        "kind": "audio",
+        "index": 1
+      }
+    ],
+    "rippleEnabled": true,
+    "canvas": {
+      "width": 320,
+      "height": 180
+    },
+    "tracks": {
+      "T": {
+        "ripple": "on"
+      }
+    },
+    "timelineSegments": [
+      {
+        "id": "words028",
+        "text": "Pierwsza wypowiedź dalsza wypowiedź",
+        "start": 0.2,
+        "end": 5.2,
+        "words": [
+          {
+            "text": "Pierwsza",
+            "start": 0.2,
+            "end": 1
+          },
+          {
+            "text": "wypowiedź",
+            "start": 1,
+            "end": 1.7
+          },
+          {
+            "text": "dalsza",
+            "start": 2.5999999999999996,
+            "end": 3.5
+          },
+          {
+            "text": "wypowiedź",
+            "start": 3.5,
+            "end": 5.2
+          }
+        ],
+        "styleId": "default"
+      }
+    ],
+    "captionEdits": {},
+    "transitions": [],
+    "assets": [
+      {
+        "id": "music028",
+        "path": "SmartCut muzyka Łódź.wav",
+        "name": "SmartCut muzyka Łódź.wav",
+        "duration": 8,
+        "kind": "audio",
+        "segments": []
+      }
+    ],
+    "clips": [
+      {
+        "id": "voice028",
+        "sourceIn": 0,
+        "sourceOut": 2,
+        "start": 0,
+        "track": 0,
+        "audioRoute": "embedded",
+        "kind": "video",
+        "volume": 0.7,
+        "audio": {
+          "points": [
+            {
+              "id": "point028",
+              "time": 1,
+              "gain": 0.8
+            }
+          ],
+          "fadeIn": {
+            "anchor": 0,
+            "duration": 0.5
+          },
+          "fadeOut": {
+            "anchor": 8,
+            "duration": 0.5
+          }
+        },
+        "audioDetached": true,
+        "syncGroup": "sc:fixture028:0:voice-group"
+      },
+      {
+        "id": "sc:fixture028:0:tail",
+        "sourceIn": 4,
+        "sourceOut": 8,
+        "start": 2,
+        "track": 0,
+        "audioRoute": "embedded",
+        "kind": "video",
+        "volume": 0.7,
+        "audio": {
+          "points": [
+            {
+              "id": "point028",
+              "time": 1,
+              "gain": 0.8
+            }
+          ],
+          "fadeIn": {
+            "anchor": 0,
+            "duration": 0.5
+          },
+          "fadeOut": {
+            "anchor": 8,
+            "duration": 0.5
+          }
+        },
+        "audioDetached": true,
+        "syncGroup": "sc:fixture028:1:voice-group"
+      },
+      {
+        "id": "music028",
+        "sourceIn": 0,
+        "sourceOut": 8,
+        "start": 0,
+        "assetId": "music028",
+        "track": 0,
+        "kind": "audio",
+        "volume": 0.25
+      },
+      {
+        "id": "sc:fixture028:0:voice",
+        "sourceIn": 0,
+        "sourceOut": 2.066666666666667,
+        "start": 0,
+        "track": 0,
+        "kind": "audio",
+        "volume": 0.7,
+        "audio": {
+          "points": [
+            {
+              "id": "point028",
+              "time": 1,
+              "gain": 0.8
+            }
+          ],
+          "fadeIn": {
+            "anchor": 0,
+            "duration": 0.5
+          },
+          "fadeOut": {
+            "anchor": 8,
+            "duration": 0.5
+          }
+        },
+        "syncGroup": "sc:fixture028:0:voice-group",
+        "crossfade": {
+          "fadeOut": {
+            "anchor": 2.066666666666667,
+            "duration": 0.13333333333333333
+          }
+        }
+      },
+      {
+        "id": "sc:fixture028:1:voice",
+        "sourceIn": 3.933333333333333,
+        "sourceOut": 8,
+        "start": 1.9333333333333333,
+        "track": 0,
+        "kind": "audio",
+        "volume": 0.7,
+        "audio": {
+          "points": [
+            {
+              "id": "point028",
+              "time": 1,
+              "gain": 0.8
+            }
+          ],
+          "fadeIn": {
+            "anchor": 0,
+            "duration": 0.5
+          },
+          "fadeOut": {
+            "anchor": 8,
+            "duration": 0.5
+          }
+        },
+        "syncGroup": "sc:fixture028:1:voice-group",
+        "crossfade": {
+          "fadeIn": {
+            "anchor": 3.933333333333333,
+            "duration": 0.13333333333333333
+          }
+        }
+      }
+    ],
+    "name": "SmartCut 0.28 — Łódź",
+    "media": {
+      "path": "SmartCut głos Łódź.mp4",
+      "name": "SmartCut głos Łódź.mp4",
+      "duration": 8
+    },
+    "segments": [],
+    "styles": {
+      "default": {
+        "fontFamily": "Bebas Neue",
+        "fontSize": 56,
+        "color": "#080808",
+        "background": "#ffe600",
+        "position": "bottom",
+        "uppercase": true,
+        "maxLines": 2,
+        "charsPerLine": 24,
+        "wordsPerCard": 8,
+        "boxWidth": 84,
+        "cornerRadius": 28,
+        "marginPercent": 8
+      }
+    },
+    "createdAt": "2026-10-19T00:00:00Z",
+    "updatedAt": "2026-10-19T00:00:00Z"
+  },
+  "window": {
+    "schemaVersion": 13,
+    "masterAudio": {
+      "gainDb": 0
+    },
+    "trackLayout": [
+      {
+        "id": "V1",
+        "kind": "video",
+        "index": 0
+      },
+      {
+        "id": "V2",
+        "kind": "video",
+        "index": 1
+      },
+      {
+        "id": "A1",
+        "kind": "audio",
+        "index": 0
+      },
+      {
+        "id": "A2",
+        "kind": "audio",
+        "index": 1
+      }
+    ],
+    "rippleEnabled": true,
+    "canvas": {
+      "width": 320,
+      "height": 180
+    },
+    "tracks": {
+      "T": {
+        "ripple": "on"
+      }
+    },
+    "timelineSegments": [
+      {
+        "id": "timeline:words028",
+        "text": "Pierwsza wypowiedź dalsza wypowiedź",
+        "styleId": "default",
+        "start": 0.2,
+        "end": 4,
+        "words": [
+          {
+            "text": "Pierwsza",
+            "start": 0.2,
+            "end": 1
+          },
+          {
+            "text": "wypowiedź",
+            "start": 1,
+            "end": 1.7
+          },
+          {
+            "text": "dalsza",
+            "start": 2.5999999999999996,
+            "end": 3.5
+          }
+        ]
+      }
+    ],
+    "captionEdits": {},
+    "transitions": [],
+    "assets": [
+      {
+        "id": "music028",
+        "path": "SmartCut muzyka Łódź.wav",
+        "name": "SmartCut muzyka Łódź.wav",
+        "duration": 8,
+        "kind": "audio",
+        "segments": []
+      }
+    ],
+    "clips": [
+      {
+        "id": "voice028",
+        "sourceIn": 0,
+        "sourceOut": 2,
+        "start": 0,
+        "track": 0,
+        "audioRoute": "embedded",
+        "kind": "video",
+        "volume": 0.7,
+        "audio": {
+          "points": [
+            {
+              "id": "point028",
+              "time": 1,
+              "gain": 0.8
+            }
+          ],
+          "fadeIn": {
+            "anchor": 0,
+            "duration": 0.5
+          },
+          "fadeOut": {
+            "anchor": 8,
+            "duration": 0.5
+          }
+        },
+        "audioDetached": true,
+        "syncGroup": "sc:fixture028:0:voice-group"
+      },
+      {
+        "id": "sc:fixture028:0:tail",
+        "sourceIn": 4,
+        "sourceOut": 6,
+        "start": 2,
+        "track": 0,
+        "audioRoute": "embedded",
+        "kind": "video",
+        "volume": 0.7,
+        "audio": {
+          "points": [
+            {
+              "id": "point028",
+              "time": 1,
+              "gain": 0.8
+            }
+          ],
+          "fadeIn": {
+            "anchor": 0,
+            "duration": 0.5
+          },
+          "fadeOut": {
+            "anchor": 8,
+            "duration": 0.5
+          }
+        },
+        "audioDetached": true,
+        "syncGroup": "sc:fixture028:1:voice-group"
+      },
+      {
+        "id": "music028",
+        "sourceIn": 0,
+        "sourceOut": 4,
+        "start": 0,
+        "assetId": "music028",
+        "track": 0,
+        "kind": "audio",
+        "volume": 0.25
+      },
+      {
+        "id": "sc:fixture028:0:voice",
+        "sourceIn": 0,
+        "sourceOut": 2.066666666666667,
+        "start": 0,
+        "track": 0,
+        "kind": "audio",
+        "volume": 0.7,
+        "audio": {
+          "points": [
+            {
+              "id": "point028",
+              "time": 1,
+              "gain": 0.8
+            }
+          ],
+          "fadeIn": {
+            "anchor": 0,
+            "duration": 0.5
+          },
+          "fadeOut": {
+            "anchor": 8,
+            "duration": 0.5
+          }
+        },
+        "syncGroup": "sc:fixture028:0:voice-group",
+        "crossfade": {
+          "fadeOut": {
+            "anchor": 2.066666666666667,
+            "duration": 0.13333333333333333
+          }
+        }
+      },
+      {
+        "id": "sc:fixture028:1:voice",
+        "sourceIn": 3.9333333333333327,
+        "sourceOut": 6,
+        "start": 1.9333333333333333,
+        "track": 0,
+        "kind": "audio",
+        "volume": 0.7,
+        "audio": {
+          "points": [
+            {
+              "id": "point028",
+              "time": 1,
+              "gain": 0.8
+            }
+          ],
+          "fadeIn": {
+            "anchor": 0,
+            "duration": 0.5
+          },
+          "fadeOut": {
+            "anchor": 8,
+            "duration": 0.5
+          }
+        },
+        "syncGroup": "sc:fixture028:1:voice-group",
+        "crossfade": {
+          "fadeIn": {
+            "anchor": 3.933333333333333,
+            "duration": 0.13333333333333333
+          }
+        }
+      }
+    ],
+    "name": "SmartCut 0.28 — Łódź",
+    "media": {
+      "path": "SmartCut głos Łódź.mp4",
+      "name": "SmartCut głos Łódź.mp4",
+      "duration": 8
+    },
+    "segments": [],
+    "styles": {
+      "default": {
+        "fontFamily": "Bebas Neue",
+        "fontSize": 56,
+        "color": "#080808",
+        "background": "#ffe600",
+        "position": "bottom",
+        "uppercase": true,
+        "maxLines": 2,
+        "charsPerLine": 24,
+        "wordsPerCard": 8,
+        "boxWidth": 84,
+        "cornerRadius": 28,
+        "marginPercent": 8
+      }
+    },
+    "createdAt": "2026-10-19T00:00:00Z",
+    "updatedAt": "2026-10-19T00:00:00Z"
+  }
+}

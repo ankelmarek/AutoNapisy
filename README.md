@@ -1,7 +1,21 @@
-# RolVixa 0.27 — polska mowa → polskie napisy
+# RolVixa 0.28 — polska mowa → polskie napisy
 
 **Instalator 0.27:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39198885893/artifacts/12163411665), rozpakuj i uruchom `RolVixa_0.27.0_x64-setup.exe`. Pobranie z Actions wymaga zalogowania na GitHub.
 RolVixa (wcześniej AutoNapisy) to lokalna aplikacja Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Rozpoznaje polską mowę przez whisper.cpp, bez tłumaczenia. Transkrypcja i montaż działają na komputerze. Opcjonalna biblioteka muzyki łączy się z Openverse po wpisaniu frazy wyszukiwania; nie wysyła nagrań użytkownika.
+
+## Wersja 0.28 — SmartCut 0.1 (odbiór Windows w toku)
+
+1. Włącz **SmartCut** na osi i przeciągnij po filmie zakres do usunięcia. Zakres musi mieścić się w jednym klipie i mieć co najmniej dwie klatki. Alternatywnie kliknij film prawym przyciskiem: **SmartCut · wytnij zakres** albo **popraw połączenie** sąsiadujących filmów na tym samym V.
+2. W oknie porównania popraw granice strzałkami po jednej klatce lub wpisz sekundy. **Dokładne** zachowuje te granice. **Naturalne** wymaga zmierzonych pauz oraz istniejących czasów słów; brak danych pozostawia Dokładne, bez zgadywania. Korekta wynosi najwyżej 0,6 s. Pomiar dotyczy dźwięku wybranego filmu, także odłączonego, a nie niezależnej muzyki.
+3. **Wygładzone** dodaje do naturalnych granic rzeczywisty liniowy crossfade audio 4 klatek (0,133 s), przy ostrym cięciu obrazu. Wymaga zapasu źródła i zgodnych granic dźwięku; połączone audio staje się widocznymi klipami A. Dotychczasowe źródłowe punkty, fade’y i głośność pozostają zachowane.
+4. **Przed · początek / koniec** pokazują rzeczywiste krótkie fragmenty oryginalnego montażu; **Wariant po cięciu** pokazuje propozycję. Odtwarzaj przyciskiem lub spacją, przewijaj i włączaj pętlę. Podgląd obejmuje pełny miks; sesyjne Solo nie wpływa na porównanie. Analiza czyta maksymalnie dwa krótkie okna dźwięku przy granicach; podgląd MLT obejmuje kilka sekund, z ewentualnym rozszerzeniem do całego istniejącego przejścia.
+5. Sprawdź listę zmian, rzeczywiste czasy i przesunięcia. Ripple zachowuje ustawienia torów, pozostałe luki, blokady i J/L-cut; niezależna muzyka Auto pozostaje na miejscu. Przesuwanie globalnych napisów T jest jawną opcją. **Zastosuj cięcie** tworzy jeden krok **Ctrl+Z/Redo**, obejmujący również napisy i odłączenie audio. **Anuluj** nie zmienia projektu. Zmienione źródła lub nieaktualny pomiar wymagają ponownej analizy.
+
+Ograniczenia 0.1: zakres w jednym filmie; złożone wieloczęściowe grupy synchronizacji, przecięcie istniejącego przejścia i nieprzedstawialne edycje napisów są zgłaszane jako konflikty. Przesuwanie istniejącego złączenia z J/L-cut wymaga osobnego dopasowania dźwięku. Pauza to heurystyka energii (≥120 ms), nie ocena sensu wypowiedzi; efekt należy odsłuchać. Bez MLT nie ma porównania wideo, ale Dokładne pozostaje dostępne. MLT ma siatkę 30 FPS, więc krótka obwiednia podlega dokładności klatkowej; AAC może nieznacznie zmienić sygnał. Nie ma jeszcze oceny obrazu, propozycji przebitek ani automatycznego montażu całej transkrypcji (SmartCut 0.2).
+
+Poprawiono również **przeciąganie przejść**: strefa styku przyjmuje upuszczenie do 20 px od granicy, również nad uchwytem trim; pokazuje podświetlenie i pozwala zastąpić istniejące przejście. Źródłowe napisy respektują przestawioną kolejność i widoczność V. Awaryjne składanie FFmpeg zachowuje PCM w osobnych plikach roboczych pomiędzy fragmentami i koduje AAC dopiero po ich połączeniu, eliminując przerwy od wielokrotnego paddingu AAC. Schemat pozostaje v13, bez nowych zależności ani usług sieciowych.
+
+Nowe pliki: `src/smartCut.ts`, `src/SmartCutDialog.tsx`, `src/transitionDrop.ts`, `src-tauri/src/smart_cut.rs`, `src-tauri/src/smart_cut_commands.rs`, `tests/smartCut.test.ts`, `tests/smartCut028BrowserFixture.test.ts`, `tests/fixtures/smartcut028.json`, `.test-core/tests/smart_cut.rs`, `scripts/smartcut-fixture028.mjs`, `scripts/test-smartcut028.mjs`. Wspólna próbka porównuje rzeczywisty wynik planera TS z obrazem, tonami i napisami renderowanymi przez MLT/FFmpeg. Link instalatora na górze nadal dotyczy ostatniej odebranej wersji 0.27 do zakończenia testów Windows 0.28.
 
 ## Wersja 0.27 — sterowanie torami (ukończona)
 

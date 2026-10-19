@@ -64,10 +64,10 @@ export function compositionSegments(p: Project): EditedSegment[] {
   const clips=presentationClips(p);
   const total=editDuration(p);
   const timeline=p.timelineSegments?.filter(s=>s.start<total).map(s=>({...s,end:Math.min(s.end,total),words:s.words.filter(w=>w.start<total).map(w=>({...w,end:Math.min(w.end,total)})),id:'timeline:'+s.id,sourceId:s.id,clipId:''}));
-  return (timeline??ordered(clips).filter(c=>c.kind!=='audio').flatMap(c=>{
+  return (timeline??ordered(clips).filter(c=>c.kind!=='audio'&&!p.tracks[trackId('video',c.track??0)]?.hidden).flatMap(c=>{
     const incoming=p.transitions.find(t=>t.toId===c.id),outgoing=p.transitions.find(t=>t.fromId===c.id),next=outgoing?projectClips(p).find(x=>x.id===outgoing.toId):undefined;
     let ranges=[{start:c.start+(incoming?incoming.duration/2:0),end:next?next.start-outgoing!.duration/2:clipEnd(c)}];
-    for(const upper of clips.filter(u=>u.kind!=='audio'&&(u.track??0)>(c.track??0)))ranges=ranges.flatMap(r=>{
+    for(const upper of clips.filter(u=>u.kind!=='audio'&&!p.tracks[trackId('video',u.track??0)]?.hidden&&videoRank(p,u.track??0)>videoRank(p,c.track??0)))ranges=ranges.flatMap(r=>{
       if(upper.start>=r.end||clipEnd(upper)<=r.start)return [r];
       return [...(upper.start>r.start?[{start:r.start,end:upper.start}]:[]),...(clipEnd(upper)<r.end?[{start:clipEnd(upper),end:r.end}]:[])];
     });

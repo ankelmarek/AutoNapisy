@@ -1,4 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+mod smart_cut;
+mod smart_cut_commands;
 mod analysis_commands;
 mod audio_commands;
 mod audio_library;
@@ -195,6 +197,7 @@ fn diagnostics(
 fn main() {
     let app = tauri::Builder::default()
         .manage(Access::default())
+        .manage(smart_cut_commands::SmartCutState::default())
         .manage(source_commands::SourceState::default())
         .manage(quality_commands::QualityState::default())
         .manage(project_commands::ProjectState::default())
@@ -221,6 +224,9 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             import_video,
+            smart_cut_commands::analyze_smartcut,
+            smart_cut_commands::cancel_smartcut,
+            smart_cut_commands::validate_smartcut,
             quality_commands::start_quality_analysis,
             quality_commands::quality_analysis_status,
             quality_commands::cancel_quality_analysis,
@@ -280,6 +286,7 @@ fn main() {
         .expect("Nie można uruchomić RolVixa");
     app.run(|handle, event| {
         if let tauri::RunEvent::ExitRequested { .. } = event {
+            handle.state::<smart_cut_commands::SmartCutState>().shutdown();
             handle.state::<quality_commands::QualityState>().shutdown();
             handle.state::<source_commands::SourceState>().shutdown();
             handle.state::<proxy_commands::ProxyState>().shutdown();
