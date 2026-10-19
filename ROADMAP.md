@@ -1,5 +1,28 @@
 # Kolejne etapy RolVixa
 
+## PRIORYTET NR 1 — RolVixa 0.33: animowane napisy / Animated Captions (DO WDROŻENIA)
+
+**Decyzja użytkownika z 19.10.2026:** bezpośrednio po ukończonym 0.32 rozpoczynamy prace nad **efektownymi animowanymi napisami**. To **pierwszy następny etap**, przed kolejnymi nowymi funkcjami audio, kadrowania, AI Assist i kodeków. Szczegółowy projekt i kryteria odbioru w **[GitHub issue #20 — 0.33 Animated Captions](https://github.com/ankelmarek/AutoNapisy/issues/20)**. Nie oznaczać jako ukończone przed pełnym odbiorem Windows, podglądu i eksportu.
+
+**Cel użytkownika:** nie kilka zwykłych kombinacji koloru/czcionki, lecz **8 naprawdę różnych, atrakcyjnych presetów**, łatwo wybieranych z galerii w zakładce Napisy, z czytelną animacją podczas mowy i identycznym wynikiem w gotowym MP4.
+
+| Styl | Efekt | Dla jakich filmów |
+| --- | --- | --- |
+| **Karaoke Flow** | Biały tekst, bieżące słowo podświetlane żywym żółtym kolorem w rytmie realnej mowy | Rolki i wywiady |
+| **Pop Beat** | Krótki sprężysty pop/bounce wypowiadanego słowa, wyraźny akcent | Dynamiczne rolki |
+| **Impact** | Duże, mocne hasła po 1–3 słowa, energiczny ale nie migający zoom-in | Najważniejsze komunikaty |
+| **Neon Pulse** | Subtelnie pulsujący akcent cyjan/fiolet, lekki glow, bez strobowania | Nowoczesne wideo |
+| **Slide Reveal** | Płynne odsłanianie tekstu od dołu | Reportaże i relacje |
+| **Marker** | Kolorowy zakreślacz rosnący pod bieżącym słowem/frazą | Liczby, nazwy i informacje |
+| **Editorial Clean** | Minimalistyczna elegancka typografia, krótki fade i delikatny ruch | Oficjalne materiały i rozmowy |
+| **Type Flow** | Słowa pojawiają się kolejno, ale nie przesuwają już widocznego tekstu | Storytelling |
+
+**Interfejs:** kompaktowa galeria 2-kolumnowych kafelków z rzeczywistymi animowanymi demo (tylko jedno aktywne), nazwą i wyraźnym stanem zaznaczenia; zastosowanie stylu do całego montażu lub do zaznaczonego fragmentu; regulacja koloru akcentu, szybkości, intensywności, czcionki, rozmiaru, pozycji i kolorystyki. Te zmiany nie zmieniają transkrypcji ani czasu napisów. Obsługa klawiatury i ograniczonego ruchu.
+
+**Warunek bezwzględny:** dziś `CaptionOverlay` pokazuje statyczny tekst, `captionCanvas`/eksport przekazują pojedyncze bitmapy PNG na planszę, a `captionExport` usuwa czasy słów (`words:[]`). **Nie robić animacji jedynie w CSS/WebView2.** Wspólny deterministyczny renderer zależny od czasu montażu i prawdziwych czasów `words`, wyjście do pełnego MP4 30 FPS oraz wszystkich wariantów Export Studio (łącznie z A/B). Strumieniować animowaną warstwę bez generowania tysięcy niezależnych pełnych PNG/base64 w Tauri IPC. Na start POC z Karaoke Flow + Pop Beat i rzeczywistym eksportem. Dla napisów z ręcznie zmienionym tekstem bez pewnych czasów poszczególnych słów przejść jawnie na animację całej planszy — nigdy nie udawać precyzyjnej synchronizacji. Stare projekty mają mieć niezmieniony statyczny wygląd. W przypadku SRT pozostaje tylko tekst i czas, bez animacji.
+
+**Podział 0.33:** `0.33a` wspólny silnik/czasy słów i prawdziwy MP4 dla 2 presetów → `0.33b` pozostałe 6, galeria i personalizacja → `0.33c` Export Studio, preflight, migracje TS/Rust, długie renderowanie, Undo/Redo, wydajność, pełne testy Windows/WebView2 i instalator. Wszystko jako rozdzielone, weryfikowalne PR. Dopiero po odbiorze 0.33 wrócić do następnych dużych propozycji.
+
 ## Wykonane w 0.32 — Export Studio 0.2: próbki A/B i limit MB
 
 Wdrożone: rzeczywiste 3–5 s w 2–3 wariantach z pełnym kadrem/napisami/miksem, przełączanie w tym samym czasie, zastosowanie ustawień, szacunki oparte na pomiarze. Limit MP4 w dziesiętnych MB: budżet audio/kontenera, dwa przebiegi, sprawdzenie faktycznego pliku i brak publikacji przekroczenia. Wspólny enkoder próbek i całego filmu; schemat projektu nadal v14, profile v1 odczytywane i v2 zapisywane. H.264/AAC CPU 30 FPS. Pełny zielony Windows run 39291594851, także push 39291589231: 315 TS, 111 Rust, 23 rzeczywiste integracje, instalacja i WebView2. Natywne A/B z dekodowaniem/odtwarzaniem/przewijaniem, zastosowanie jakości i rzeczywisty eksport w limicie z polskim SRT; 1366×700 / Full HD i trzy zrzuty sprawdzone. PR #19 połączony; instalator 12206647480. Lokalnie 315 TS, 108 Rust core, 18 integracji. GPU, inne kodeki i nowa baza FPS poza tą paczką; issue #1 pozostaje otwarte w pozostałym zakresie.
