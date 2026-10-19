@@ -1,5 +1,5 @@
 import {useRef,useState,useMemo,useEffect,type PointerEvent} from 'react';
-import {moveGroup,movingIds} from './groupEditing';
+import {moveGroup} from './groupEditing';
 import {defaultCutRequest,joinAfter,frameTime,type SmartCutRequest} from './smartCut';
 import TrackResize from './TrackResize';
 import {readTimelineView,writeTimelineView,fitTimelineZoom,wheelTimelineZoom} from './timelineView';
@@ -78,7 +78,7 @@ export default function Timeline(p:Props){
   const d=drag.current;if(!d||p.locked)return;
   if(Math.abs(e.clientX-d.x)<3&&Math.abs(e.clientY-d.y)<10&&!d.moved)return;d.moved=true;
   const c=d.base.find(x=>x.id===d.id)!;let delta=(e.clientX-d.x)/zoom;
-  if(d.kind==='move'&&movingIds(p.project,d.ids).size>1){
+  if(d.kind==='move'&&d.ids.length>1){
    try{d.value=moveGroup({...p.project,clips:d.base},d.ids,delta,snap?10/zoom:0);d.error=undefined;}catch(err){d.error=String(err);d.value=d.base;}
   }else if(d.kind==='move'){
    let next=c;const target=laneAt(lanes,e.clientY-(canvas.current?.getBoundingClientRect().top??0));
