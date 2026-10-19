@@ -1,6 +1,6 @@
 import {describe,it,expect} from 'vitest';
 import {newProject,serializeProject} from '../src/model';
-import {defaultExport,exportProfiles,exportOptionsSchema,exportWarnings,estimatedSize,studioActive} from '../src/exportStudio';
+import {defaultExport,exportProfiles,exportOptionsSchema,exportWarnings,estimatedSize,studioActive} from '../src/exportProfiles';
 describe('Export Studio',()=>{
  it('profile domyślne są poprawne i nie obiecują innego FPS/kodeka',()=>{for(const p of exportProfiles)expect(exportOptionsSchema.safeParse(p.options).success).toBe(true);expect(exportProfiles.find(p=>p.id==='archive')!.options.width).toBeNull();});
  it.each([{width:1081,height:1920},{width:null,height:720},{speed:'cmd.exe'},{crf:0},{audioKbps:777},{captions:'api'},{width:NaN,height:1080}])('odrzuca nieobsługiwane ustawienie %j',patch=>expect(exportOptionsSchema.safeParse({...defaultExport,...patch}).success).toBe(false));

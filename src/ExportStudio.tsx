@@ -7,7 +7,7 @@ import {preflightIssues,type SourceCheck} from './preflight';
 import {ensureCaptionFonts} from './captionCanvas';
 import CaptionOverlay from './CaptionOverlay';
 import Icon from './Icons';
-import {exportProfiles,defaultExport,exportWarnings,exportOptionsSchema,outputSize,estimatedSize,studioActive,type ExportOptions,type ExportProfile} from './exportStudio';
+import {exportProfiles,defaultExport,exportWarnings,exportOptionsSchema,outputSize,estimatedSize,studioActive,type ExportOptions,type ExportProfile} from './exportProfiles';
 import type {ExportQueue} from './useExportQueue';
 export default function ExportStudio({project,time,queue,onClose}:{project:Project;time:number;queue:ExportQueue;onClose:()=>void}){
  const {folder,setFolder}=queue;

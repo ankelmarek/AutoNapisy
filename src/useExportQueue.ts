@@ -4,7 +4,7 @@ import {serializeProject,type Project} from './model';
 import {captionExport} from './captions';
 import {compositionProject} from './editing';
 import {createFrameRenderer,ensureCaptionFonts} from './captionCanvas';
-import {exportOptionsSchema,studioActive,type ExportOptions,type StudioItem} from './exportStudio';
+import {exportOptionsSchema,studioActive,type ExportOptions,type StudioItem} from './exportProfiles';
 export function useExportQueue(){
  const [folder,setFolder]=useState<{id:number;path:string}|null>(null);
  const [items,setItems]=useState<StudioItem[]>([]),[error,setError]=useState(''),[preparing,setPreparing]=useState('');const controller=useRef<AbortController|null>(null);
