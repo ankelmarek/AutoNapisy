@@ -1,6 +1,16 @@
-# RolVixa 0.29 — polska mowa → polskie napisy
+# RolVixa 0.30 — polska mowa → polskie napisy
 
-**Instalator 0.29:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39244370925/artifacts/12182772670), rozpakuj i uruchom `RolVixa_0.29.0_x64-setup.exe`. Pobranie z Actions wymaga zalogowania na GitHub.
+**Ostatni odebrany instalator 0.29:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39244370925/artifacts/12182772670). Kompilacja i odbiór 0.30 opisane poniżej po zakończeniu weryfikacji. Pobranie z Actions wymaga zalogowania na GitHub.
+
+## Wersja 0.30 — SmartCut 0.2: obraz i przebitka
+
+- Otwórz SmartCut z zaznaczonego zakresu lub menu klipu. „Obraz przy cięciu” pokazuje ostatnią klatkę przed stykiem i pierwszą po nim. MLT mierzy do czterech rzeczywistych klatek montażu z oryginałów, z kadrowaniem, korekcją, widocznością i kolejnością warstw, bez napisów, do 320 px / 30 kl./s. Miniatury nie zależą od obsługi kodeka przez WebView2.
+- Wskazówka porównuje zmianę pikseli na cięciu z ruchem w sąsiednich klatkach. Nie rozpoznaje osoby ani nie orzeka, że zamierzona zmiana ujęcia jest błędem. Brak ostrzeżenia nie gwarantuje naturalności. „Granice −1/+1 kl.” przesuwają kandydaturę; ręczne pola i wariant Naturalne pozostają dostępne. Nie przesuwamy granic automatycznie na podstawie obrazu.
+- „Przykryj cięcie przebitką”: wybierz film z biblioteki, początek źródła i długość 0,2–4 s. Obraz trafia po obu stronach styku na pusty górny tor, ewentualnie nowy, z wyłączonym dźwiękiem. Podgląd „Wariant po cięciu” uwzględnia przebitkę; para klatek nadal pokazuje samo cięcie. Wolny tor musi być widoczny i odblokowany; limit 16 V jest zachowany. Przy Ripple Off z luką lub bez dwóch stron styku przebitka nie jest stosowana.
+- Przebitka nie zastępuje napisów wypowiedzi własną transkrypcją. Przy napisach źródłowych zachowujemy aktualny widoczny tekst, trimy i przesunięcia jako napisy montażu T; konwersja wymaga odblokowanego T. Dźwięk, obwiednie i niezależna muzyka pozostają bez zmian.
+- Analiza, regulacja, wybór przebitki i anulowanie nie zmieniają projektu. „Zastosuj cięcie” zatwierdza wycięcie i przebitkę jako jeden Undo/Redo; JSON zachowuje zwykłe klipy bez dodatkowego formatu. Schemat nadal v14. Niedostępność pomiaru obrazu nie blokuje dokładnego cięcia. Zadania są anulowane i sprzątają tempy; IPC autoryzuje źródła, a ukończony pomiar można wykorzystać tylko przy zgodnym projekcie, plikach i narzędziach.
+
+Ograniczenia: heurystyka obrazu, bez semantycznego śledzenia osoby, automatycznego wyboru przebitek i optymalizowania cięcia według punktacji. Przebitka jest prostą, niemą nakładką wybraną z istniejącej biblioteki; jej kadrowanie można zmienić później zwykłymi kontrolkami. Ocena naturalności wypowiedzi i wydajności na własnych nagraniach pozostaje zadaniem użytkownika; testowe wzorce obrazu/dźwięku nie są pomiarem jakości językowej. Export Studio pozostaje osobnym etapem.
 RolVixa (wcześniej AutoNapisy) to lokalna aplikacja Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Rozpoznaje polską mowę przez whisper.cpp, bez tłumaczenia. Transkrypcja i montaż działają na komputerze. Opcjonalna biblioteka muzyki łączy się z Openverse po wpisaniu frazy wyszukiwania; nie wysyła nagrań użytkownika.
 
 ## Wersja 0.29 — grupy, przesuwanie napisów i zakres transkrypcji

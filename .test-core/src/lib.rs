@@ -61,3 +61,6 @@ pub mod quality;
 
 #[path="../../src-tauri/src/smart_cut.rs"]
 pub mod smart_cut;
+
+#[path="../../src-tauri/src/smart_cut_visual.rs"]
+pub mod smart_cut_visual;

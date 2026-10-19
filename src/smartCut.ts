@@ -42,7 +42,7 @@ function remapEdits(before:Project,next:Project,origins:Map<string,string>,confl
  }
  return {...next,captionEdits:edits};
 }
-function changes(before:Project,next:Project):EditChange[]{
+export function cutChanges(before:Project,next:Project):EditChange[]{
  const result:EditChange[]=[];for(const c of projectClips(before)){const n=projectClips(next).find(x=>x.id===c.id);if(!equal(c,n))result.push({id:c.id,track:clipTracks(c).join('/'),before:c.start,after:n?.start??c.start,oldEnd:clipEnd(c),newEnd:n?clipEnd(n):c.start,removed:!n});}
  for(const c of projectClips(next))if(!projectClips(before).some(x=>x.id===c.id))result.push({id:c.id,track:clipTracks(c).join('/'),before:c.start,after:c.start,oldEnd:c.start,newEnd:clipEnd(c),removed:false});
  const captions=compositionSegments(next);for(const c of compositionSegments(before)){const n=captions.find(s=>s.id===c.id);if(!n||!equal(c,n))result.push({id:c.id,track:'T',before:c.start,after:n?.start??c.start,oldEnd:c.end,newEnd:n?.end??c.start,removed:!n,caption:true});}return result;
@@ -99,7 +99,7 @@ export function planSmartCut(p:Project,request:SmartCutRequest,options:CutOption
  if(next.clips!.length>100)conflicts.push('Wynik przekroczyłby limit 100 klipów.');
  try{assertUnlockedEdit(p,next);}catch(e){conflicts.push(String(e));}
  const valid=projectSchema.safeParse(next);if(!valid.success)conflicts.push('Granice powodują konflikt klipów, powiązań lub napisów. Zmień zakres.');
- return {base:p,next,from,to,join:from,track:c.track??0,active,conflicts:[...new Set(conflicts)],notes:[...new Set(notes)],changes:changes(p,next),removedTransitions:p.transitions.length-next.transitions.length};
+ return {base:p,next,from,to,join:from,track:c.track??0,active,conflicts:[...new Set(conflicts)],notes:[...new Set(notes)],changes:cutChanges(p,next),removedTransitions:p.transitions.length-next.transitions.length};
 }
 /** A true short linear audio overlap, using existing native crossfade envelopes. Picture remains a hard cut. */
 export function smoothSmartCut(plan:CutPlan,options:CutOptions):CutPlan{
@@ -122,7 +122,7 @@ export function smoothSmartCut(plan:CutPlan,options:CutOptions):CutPlan{
   p={...p,clips:[...projectClips(p).map(c=>c.id===v.id?{...c,audioDetached:true,audioRoute:'embedded',syncGroup:group}:c),audio]};return audio;
  };
  try{const first=detach(left,a),second=detach(right,b);p={...p,clips:projectClips(p).map(c=>c.id===first.id?{...c,sourceOut:c.sourceOut+half,crossfade:{...c.crossfade,fadeOut:{anchor:c.sourceOut+half,duration}}}:c.id===second.id?{...c,start:c.start-half,sourceIn:c.sourceIn-half,crossfade:{...c.crossfade,fadeIn:{anchor:c.sourceIn-half,duration}}}:c)};assertUnlockedEdit(plan.base,p);if(!projectSchema.safeParse(p).success)throw Error('Crossfade nie mieści się w granicach projektu.');notes.push('Obraz: ostre cięcie. Audio: liniowy crossfade 4 klatek (0,133 s). Połączony dźwięk staje się widocznymi klipami A, z zachowaniem obwiedni.');}catch(e){conflicts.push(String(e));}
- return {...plan,next:p,conflicts:[...new Set(conflicts)],notes,changes:changes(plan.base,p)};
+ return {...plan,next:p,conflicts:[...new Set(conflicts)],notes,changes:cutChanges(plan.base,p)};
 }
 function wordsAt(p:Project,id:string,at:number){
  const c=projectClips(p).find(c=>c.id===id)!;const segments=p.timelineSegments??(c.assetId?p.assets.find(a=>a.id===c.assetId)?.segments??[]:p.segments);
