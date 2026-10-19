@@ -229,13 +229,26 @@ fn actual_queue_profiles_srt_burn_cancel_retry_and_collision() {
     assert_eq!(v["streams"][0]["r_frame_rate"], "30/1");
     assert_eq!(v["streams"][1]["codec_name"], "aac");
     let raced = q
-        .prepare(p.clone(), opts.clone(), d.path(), ff.clone(), melt.clone())
+        .prepare(
+            p.clone(),
+            Options {
+                captions: "srt".into(),
+                ..opts.clone()
+            },
+            d.path(),
+            ff.clone(),
+            melt.clone(),
+        )
         .unwrap();
     fs::write(&raced.target, b"external").unwrap();
     q.ready(raced.id).unwrap();
     wait(&q);
     assert_eq!(raced.item().state, "failed");
     assert_eq!(fs::read(&raced.target).unwrap(), b"external");
+    assert!(
+        !raced.target.with_extension("srt").exists(),
+        "failed MP4 must roll back this attempt's SRT"
+    );
     fs::remove_file(&raced.target).unwrap();
     q.retry(raced.id).unwrap();
     wait(&q);

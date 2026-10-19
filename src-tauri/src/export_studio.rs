@@ -815,8 +815,10 @@ fn render(e: &Entry, job: &Arc<Job>) -> Result<(), String> {
         let temp = dir.path().join("result.srt");
         fs::write(&temp, crate::subtitles::to_srt(&e.project.segments)?)
             .map_err(|e| e.to_string())?;
+        // Capture our file before publication; never adopt a replacement's fingerprint.
+        let stamp = rendering::fingerprint(&temp)?;
         publish(&temp, &srt)?;
-        published_srt = Some(rendering::fingerprint(&srt)?);
+        published_srt = Some(stamp);
     }
     if let Err(err) = publish(&dir.path().join("result.mp4"), &e.target) {
         if let Some(stamp) = published_srt {
