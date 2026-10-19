@@ -1,8 +1,8 @@
 # Kolejne etapy RolVixa
 
-## 0.31 — Export Studio: profile i kolejka
+## Wykonane w 0.31 — Export Studio: profile i kolejka
 
-Zatwierdzony zakres: własne i gotowe profile H.264/AAC 30 FPS, rzeczywisty podgląd fit/crop, kolejka wariantów i zapisanych projektów, anulowanie/ponowienie oraz napisy w obrazie / SRT / bez napisów. Jawne sprawdzenie kadrów paczki, kopie projektów, ochrona źródeł i wyników. Bez migracji v14. Próbki A/B, docelowy rozmiar, inne kodeki/FPS/GPU pozostają dalszą częścią issue #1. Odbiór Windows i instalator w toku.
+Zatwierdzony zakres: własne i gotowe profile H.264/AAC 30 FPS, rzeczywisty podgląd fit/crop, kolejka wariantów i zapisanych projektów, anulowanie/ponowienie oraz napisy w obrazie / SRT / bez napisów. Jawne sprawdzenie kadrów paczki, kopie projektów, ochrona źródeł i wyników. Bez migracji v14. Próbki A/B, docelowy rozmiar, inne kodeki/FPS/GPU pozostają dalszą częścią issue #1. Pełny zielony Windows run 39279960579 oraz push 39279955807: 305 TS, 105 Rust, 22 rzeczywiste integracje, instalacja i WebView2 natywnie / 1366×700 / Full HD. Trzy zrzuty panelu sprawdzone. PR #18 połączony; instalator 12200981818.
 
 ## Wykonane w 0.30 — SmartCut 0.2: obraz przy cięciu i jawna przebitka
 

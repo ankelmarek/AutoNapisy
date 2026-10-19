@@ -1,6 +1,6 @@
 # RolVixa 0.31 — polska mowa → polskie napisy
 
-**Instalator 0.30:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39254150340/artifacts/12187284748), rozpakuj i uruchom `RolVixa_0.30.0_x64-setup.exe`. Pobranie z Actions wymaga zalogowania na GitHub.
+**Instalator 0.31:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39279960579/artifacts/12200981818), rozpakuj i uruchom `RolVixa_0.31.0_x64-setup.exe`. Pobranie z Actions wymaga zalogowania na GitHub.
 
 ## Wersja 0.31 — Export Studio
 
@@ -14,9 +14,9 @@ Napisy: w obrazie, osobny SRT obok MP4 albo bez napisów. Bitmapy z tego samego 
 
 Zapis jest do folderu autoryzowanego natywnym wyborem; IPC nie przyjmuje dowolnej ścieżki wyjścia. Istniejące i zarezerwowane nazwy otrzymują kolejny numer. Publikacja nie nadpisuje istniejących plików także przy konflikcie w trakcie pracy. MP4 i SRT nie są jedną transakcją systemu plików: błąd publikacji MP4 wycofuje niezmieniony SRT tej próby. Pliki źródłowe i projekty JSON nie są nadpisywane.
 
-Własne profile w app_data/export-studio-v1/profiles.json, osobno od projektu i Undo: do 24 wpisów, walidacja, blokada OS i atomowy zapis. Nieczytelny/nowszy rejestr zachowany do jawnego wyczyszczenia. Kolejka jest sesyjna i wymaga działającej aplikacji; przed zamknięciem programu ukończ lub anuluj zadania. Po awarii procesu zadania trzeba dodać ponownie. Tymczasowe plansze do 512 MiB na zadanie, aktywny plik pośredni i wynik do 32 GiB każdy; zapis FFV1 może wymagać znacznie więcej miejsca niż MP4. Brak automatycznego wznowienia po awarii, próbek A/B, docelowego limitu MB, innych kodeków, GPU i nowej bazy FPS w tej wersji. Normalizacja pozostaje istniejącą funkcją pomiaru miksu, nie jest wykonywana automatycznie przy eksporcie.
+Własne profile w app_data/export-studio-v1/profiles.json, osobno od projektu i Undo: do 24 wpisów, walidacja, blokada OS i atomowy zapis. Nieczytelny/nowszy rejestr zachowany do jawnego wyczyszczenia. Kolejka jest sesyjna i wymaga działającej aplikacji; przed zamknięciem programu ukończ lub anuluj zadania. Po awarii procesu zadania trzeba dodać ponownie; osierocone katalogi tymczasowe eksportu mogą pozostać w wybranym folderze. Tymczasowe plansze do 512 MiB na zadanie, aktywny plik pośredni i wynik do 32 GiB każdy; zapis FFV1 może wymagać znacznie więcej miejsca niż MP4. Brak automatycznego wznowienia po awarii, próbek A/B, docelowego limitu MB, innych kodeków, GPU i nowej bazy FPS w tej wersji. Normalizacja pozostaje istniejącą funkcją pomiaru miksu, nie jest wykonywana automatycznie przy eksporcie.
 
-Odbiór Windows 0.31 i instalator: w trakcie weryfikacji. Poniższy link 0.30 pozostaje ostatnim ukończonym wydaniem do zakończenia testów.
+**Pełny zielony [Windows run 39279960579](https://github.com/ankelmarek/AutoNapisy/actions/runs/39279960579), również push 39279955807:** 305 testów TypeScript, 105 Rust i 22 rzeczywiste integracje, produkcyjny build, instalator, instalacja oraz WebView2. Scenariusz Export Studio przeszedł natywnie i w 1366×700 / 1920×1080; trzy zrzuty sprawdzone. Potwierdzone rzeczywiste MP4/SRT, podgląd, profile i ich ponowne wczytanie, kolejka, wybór projektów, zatwierdzanie paczki, autoryzacja i niezmieniony projekt. Integracje sprawdzają także głośność sygnału, burn/SRT/none, cancel/retry, konflikt celu i zmianę źródła. Zachowane wcześniejsze scenariusze montażu, normalizacji, transkrypcji, zapisu i crash/restart. [PR #18](https://github.com/ankelmarek/AutoNapisy/pull/18) połączony. ZIP 81 437 620 B; SHA-256 `e4ee2bba7142eef5e545f8b9dda8287ec2f0a7be3a094172e1fbbb08ab1e84a3`. Lokalnie: 305 TS, 102 Rust core, 17 rzeczywistych integracji i build frontendu.
 
 ## Wersja 0.30 — SmartCut 0.2: obraz i przebitka
 
