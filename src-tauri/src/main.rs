@@ -1,4 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+mod export_studio;
+mod studio_commands;
 mod smart_cut;
 mod smart_cut_visual;
 mod smart_cut_commands;
@@ -198,6 +200,7 @@ fn diagnostics(
 fn main() {
     let app = tauri::Builder::default()
         .manage(Access::default())
+        .manage(studio_commands::StudioState::default())
         .manage(smart_cut_commands::SmartCutState::default())
         .manage(source_commands::SourceState::default())
         .manage(quality_commands::QualityState::default())
@@ -283,12 +286,27 @@ fn main() {
             export_commands::begin_video_export,
             export_commands::upload_export_frame,
             export_commands::finish_export_frames,
-            export_commands::cancel_video_export
+            export_commands::cancel_video_export,
+            studio_commands::studio_folder,
+            studio_commands::studio_projects,
+            studio_commands::studio_profiles,
+            studio_commands::studio_profiles_clear,
+            studio_commands::studio_profile_update,
+            studio_commands::studio_prepare,
+            studio_commands::studio_upload,
+            studio_commands::studio_ready,
+            studio_commands::studio_status,
+            studio_commands::studio_cancel,
+            studio_commands::studio_retry,
+            studio_commands::studio_remove,
+            studio_commands::studio_preview,
+            studio_commands::studio_cancel_preview,
         ])
         .build(tauri::generate_context!())
         .expect("Nie można uruchomić RolVixa");
     app.run(|handle, event| {
         if let tauri::RunEvent::ExitRequested { .. } = event {
+            handle.state::<studio_commands::StudioState>().shutdown();
             handle.state::<smart_cut_commands::SmartCutState>().shutdown();
             handle.state::<quality_commands::QualityState>().shutdown();
             handle.state::<source_commands::SourceState>().shutdown();
