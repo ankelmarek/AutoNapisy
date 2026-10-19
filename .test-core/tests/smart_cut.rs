@@ -2,6 +2,7 @@
 use autonapisy_core_tests::{
     audio_envelope, mlt, montage, project, rendering, smart_cut, transcription::Job,
 };
+use std::io::Write;
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -270,7 +271,7 @@ fn bounded_real_pause_measurements_cancel_and_source_fingerprint() {
         .append(true)
         .open(&music)
         .unwrap()
-        .set_len(fs::metadata(&music).unwrap().len() + 1)
+        .write_all(&[0])
         .unwrap();
     assert_ne!(old, smart_cut::fingerprint(&p, &ff).unwrap());
     let cancelled = Arc::new(Job::new(3));

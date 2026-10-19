@@ -62,7 +62,7 @@ export function planSmartCut(p:Project,request:SmartCutRequest,options:CutOption
   next={...p,clips:clips.map(x=>x.id===c.id?{...x,sourceOut:x.sourceOut+delta}:x.id===b.id?{...x,start:x.start+delta,sourceIn:x.sourceIn+delta}:x)};
  }else{
   if(to-from<2/30-1e-6||from<c.start-1/30||to>clipEnd(c)+1/30)throw Error('Zaznacz co najmniej dwie klatki w jednym klipie.');
-  from=Math.max(c.start,from);to=Math.min(clipEnd(c),to);active=options.ripple&&trackParticipates(rippleTrack(p,clipTracks(c)[0]));
+  from=Math.max(c.start,from);to=Math.min(clipEnd(c),to);if(to-from<2/30-1e-6)throw Error('Zaznacz co najmniej dwie klatki w jednym klipie.');active=options.ripple&&trackParticipates(rippleTrack(p,clipTracks(c)[0]));
   const enabled=new Set(active?trackViews(p).filter(trackParticipates).map(t=>t.id):[]),amount=to-from;
   const participates=(x:Clip)=>x.kind!=='audio'&&(x.track??0)===(c.track??0)||enabled.has(clipTracks(x)[0]);
   const cut=(x:Clip,a:number,b:number,shift:boolean):Clip[]=>{
@@ -106,6 +106,8 @@ export function smoothSmartCut(plan:CutPlan,options:CutOptions):CutPlan{
  const left=clips.find(c=>c.kind!=='audio'&&(c.track??0)===lane&&Math.abs(clipEnd(c)-at)<1e-6),right=clips.find(c=>c.kind!=='audio'&&(c.track??0)===lane&&Math.abs(c.start-at)<1e-6);
  if(!left||!right)return {...plan,conflicts:[...conflicts,'Wygładzenie wymaga dwóch sąsiadujących fragmentów obrazu.']};
  const half=2/30,duration=2*half;
+ const original=projectClips(plan.base),source=original.find(c=>c.kind!=='audio'&&(c.track??0)===lane&&c.start<=plan.from+1e-6&&clipEnd(c)>=plan.to-1e-6),edgeWords=(v:Clip,at:number)=>{const c=original.find(c=>c.id===v.id)??source;return c?wordsAt(plan.base,c.id,at):[];};
+ if(edgeWords(left,plan.from).some(w=>w.start<plan.from+half-1e-6&&w.end>plan.from+1e-6)||edgeWords(right,plan.to).some(w=>w.start<plan.to-1e-6&&w.end>plan.to-half+1e-6))return {...plan,conflicts:[...conflicts,'Crossfade przywróciłby fragment usuwanego słowa. Poszerz margines pauzy albo wybierz Naturalne.']};
  const sound=(v:Clip):Clip|undefined=>v.audioDetached?clips.find(c=>c.kind==='audio'&&c.syncGroup===v.syncGroup&&Math.abs(c.start-v.start)<1e-6&&Math.abs(clipEnd(c)-clipEnd(v))<1e-6):v;
  const a=sound(left),b=sound(right);
  if(!a||!b||clipMuted(p,a)||clipMuted(p,b)||a.crossfade?.fadeOut||b.crossfade?.fadeIn||a.sourceOut+half>(clipMedia(p,a)?.duration??0)+1e-6||b.sourceIn<half-1e-6||b.start<half-1e-6||a.sourceOut-a.sourceIn<duration||b.sourceOut-b.sourceIn<duration)return {...plan,conflicts:[...conflicts,'Brak zgodnych granic J/L, słyszalnego audio lub zapasu źródła do 4-klatkowego crossfade.']};

@@ -50,6 +50,7 @@ export default function Timeline(p:Props){
  const point=(e:PointerEvent)=>Math.max(0,(e.clientX-(canvas.current?.getBoundingClientRect().left??0))/zoom);
  const cutSelection=useRef<{id:string;from:number;to:number}|null>(null);
  const [cutRange,setCutRange]=useState<{id:string;from:number;to:number}|null>(null);
+ useEffect(()=>{cutSelection.current=null;setCutRange(null);},[p.project,p.locked]);
  const scrubbing=useRef(false);
  const commit=(next:Clip[])=>{p.onChange(next);setDraft(null);};
  const cut=(id:string,t:number)=>{const c=clips.find(c=>c.id===id);if(!c||clipLocked(p.project,c))return;const next=splitClip(clips,id,t);if(next!==clips)commit(next);};
