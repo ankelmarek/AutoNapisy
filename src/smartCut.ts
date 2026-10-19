@@ -27,6 +27,8 @@ function remapEdits(before:Project,next:Project,origins:Map<string,string>,confl
  const offset=c.start-c.sourceIn,previous=old.start-old.sourceIn,lo=s.start-offset,hi=s.end-offset;
  const candidates=oldRaw.filter(o=>o.clipId===origin&&o.sourceId===s.sourceId&&o.start-previous<hi-1e-7&&o.end-previous>lo+1e-7);
  if(!candidates.some(o=>before.captionEdits[o.id]))continue;
+ const offsets=[...new Set(candidates.map(o=>before.captionEdits[o.id]?.offset??0))];
+ if(offsets.length>1){conflicts.push('Napisy mają różne przesunięcia. Rozdziel zakres cięcia.');continue;}
  delete edits[s.id];
  const bounds=[lo,hi,...candidates.flatMap(o=>{const e=before.captionEdits[o.id];return [o.start-previous,o.end-previous,...(e?[o.start+e.trimStart-previous,o.end-e.trimEnd-previous]:[])];})].filter(t=>t>=lo&&t<=hi).sort((a,b)=>a-b).filter((t,i,a)=>!i||t-a[i-1]>1e-7);
  const fragments:{start:number;end:number;text?:string}[]=[];
@@ -36,7 +38,7 @@ function remapEdits(before:Project,next:Project,origins:Map<string,string>,confl
  if(last&&Math.abs(last.end-start)<1e-6&&last.text===text)last.end=end;else fragments.push({start,end,text});}
  if(!fragments.length){edits[s.id]={trimStart:0,trimEnd:0,hidden:true};continue;}
  if(fragments.length>1){conflicts.push('Edycja napisu po zmianie widocznych warstw wymaga osobnego zakresu. Zmniejsz zaznaczenie.');continue;}
- const f=fragments[0];edits[s.id]={trimStart:Math.max(0,f.start-lo),trimEnd:Math.max(0,hi-f.end),...(f.text!==undefined?{text:f.text}:{})};
+ const f=fragments[0];edits[s.id]={trimStart:Math.max(0,f.start-lo),trimEnd:Math.max(0,hi-f.end),...(offsets[0]?{offset:offsets[0]}:{}),...(f.text!==undefined?{text:f.text}:{})};
  }
  return {...next,captionEdits:edits};
 }

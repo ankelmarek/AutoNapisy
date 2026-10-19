@@ -1,3 +1,4 @@
+import {testEditor029} from './test-editor029.mjs';
 import {testSmartCut028} from './test-smartcut028.mjs';
 import {testTimeline027} from './test-timeline027.mjs';
 import {testAudio026} from './test-audio026.mjs';
@@ -49,7 +50,7 @@ try{for(const [width,height]of[[1366,700],[1920,1080]]){
  const captionActions19=page.getByRole('group',{name:'Tworzenie i eksport napisów',exact:true});
  assert.equal(await captionActions19.locator('[data-icon="tabler-badge-cc"]').count(),1);assert.equal(await captionActions19.locator('[data-icon="tabler-download"]').count(),1);
  assert(await captionActions19.getByRole('button',{name:'Transkrybuj po polsku',exact:true}).isDisabled());assert(await captionActions19.getByRole('button',{name:'Eksport SRT',exact:true}).isDisabled());
- const empty19=page.locator('#captions-panel .empty');assert((await empty19.innerText()).includes('Tu pojawią się Twoje słowa'));assert(!(await empty19.innerText()).includes('Whisper'));assert.equal(await page.locator('.transcription-scope').count(),0);
+ const empty19=page.locator('#captions-panel .empty');assert((await empty19.innerText()).includes('Tu pojawią się Twoje słowa'));assert(!(await empty19.innerText()).includes('Whisper'));assert.equal(await page.locator('.transcription-scope').count(),1);assert.equal(await page.getByRole('combobox',{name:'Zakres transkrypcji',exact:true}).inputValue(),'all');
  await page.screenshot({path:`docs/ux019-empty-${width}x${height}.png`});await page.getByRole('tab',{name:/Pliki/}).click();
 
  const menuBox=await page.locator('.project-menu').boundingBox(),brandBox=await page.locator('.brand').boundingBox();assert(menuBox.x<brandBox.x+brandBox.width+30);
@@ -183,6 +184,7 @@ try{for(const [width,height]of[[1366,700],[1920,1080]]){
  await testAudio026(page,{load:async p=>{await page.evaluate(p=>window.__saved=p,p);await action('Otwórz');},save:()=>action('Zapisz'),read:()=>page.evaluate(()=>window.__saved),screenshot:`docs/audio026-${width}x${height}.png`});
  await testTimeline027(page,{load:async p=>{await page.evaluate(p=>window.__saved=p,p);await action('Otwórz');},save:()=>action('Zapisz'),read:()=>page.evaluate(()=>window.__saved),screenshot:`docs/timeline027-${width}x${height}.png`});
  await testSmartCut028(page,{load:async p=>{await page.evaluate(p=>window.__saved=p,p);await action('Otwórz');},save:()=>action('Zapisz'),read:()=>page.evaluate(()=>window.__saved),screenshot:`docs/smartcut028-${width}x${height}.png`});
+ await testEditor029(page,{load:async p=>{await page.evaluate(p=>window.__saved=p,p);await action('Otwórz');},save:()=>action('Zapisz'),read:()=>page.evaluate(()=>window.__saved),screenshot:`docs/editor029-${width}x${height}.png`});
  await testStart021(page,action,width,height);
  await action('Importuj filmy');await page.getByRole('tab',{name:/^Pliki/}).click();await page.waitForSelector('.library-file');await testTracks022(page,async()=>{await action('Zapisz');await page.waitForFunction(()=>document.querySelector('.header-save')?.dataset.saveStatus==='saved');},()=>page.evaluate(()=>structuredClone(window.__saved)),`docs/tracks022-${width}x${height}.png`);
  await testSources023(page,async()=>{await action('Zapisz');await page.waitForFunction(()=>document.querySelector('.header-save')?.dataset.saveStatus==='saved');},()=>page.evaluate(()=>structuredClone(window.__saved)),async variant=>page.evaluate(variant=>{window.__replacement={token:Date.now(),path:'/replacement.webm',name:'Zamiennik Łódź.webm',original:{duration:12,videoStreams:1,audioStreams:1,width:320,height:180,rotation:0,fps:30,audioChannels:2,sampleRate:'48000'},info:{duration:variant==='short'?1:30,videoStreams:1,audioStreams:1,width:320,height:180,rotation:0,fps:30,audioChannels:2,sampleRate:'48000'}};},variant),`docs/sources023-${width}x${height}.png`);

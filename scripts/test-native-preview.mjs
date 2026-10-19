@@ -1,3 +1,4 @@
+import {testEditor029} from './test-editor029.mjs';
 import {testSmartCut028} from './test-smartcut028.mjs';
 import {testTimeline027} from './test-timeline027.mjs';
 import {testAudio026} from './test-audio026.mjs';
@@ -85,7 +86,7 @@ try{
  await page.locator('.project-menu summary').click();await page.locator('.project-menu-popup').getByRole('button',{name:'Zapisz',exact:true}).click();await page.waitForFunction(()=>document.querySelector('.header-save').dataset.saveStatus==='saved');
  await page.waitForFunction(()=>!document.querySelector('select[aria-label="Format obrazu"]').disabled);
  const saved=JSON.parse(fs.readFileSync(process.env.ROLVIXA_TEST_PROJECT,'utf8'));
- assert.equal(saved.schemaVersion,13);assert.deepEqual(saved.canvas,{width:1080,height:1080});assert.equal(saved.clips[0].transform.scale,1.5);assert(Math.abs(saved.clips[0].transform.x-.2)<.02);
+ assert.equal(saved.schemaVersion,14);assert.deepEqual(saved.canvas,{width:1080,height:1080});assert.equal(saved.clips[0].transform.scale,1.5);assert(Math.abs(saved.clips[0].transform.x-.2)<.02);
  // Resizing keeps the same MLT stream and normalized frame transform.
  await page.waitForTimeout(250);await page.waitForFunction(()=>document.querySelector('video.mlt-video')?.readyState>=2);const stream020=await page.locator('video.mlt-video').getAttribute('src');const split020=page.getByRole('separator',{name:'Szerokość biblioteki',exact:true});await split020.focus();await page.keyboard.press('ArrowRight');await page.waitForTimeout(150);assert.equal(await page.locator('video.mlt-video').getAttribute('src'),stream020);assert(Math.abs(Number(await page.getByRole('spinbutton',{name:'Pozycja filmu X',exact:true}).inputValue())-20)<2);await split020.dblclick();console.log('Real 0.20 splitters preserve native MLT stream and normalized frame transform: OK');
  await page.getByRole('tab',{name:'Audio',exact:true}).click();
@@ -185,7 +186,7 @@ try{
  await page.getByRole('button',{name:'Odłącz audio → A1',exact:true}).click();
  await page.waitForFunction(()=>document.querySelector('video.mlt-video')?.readyState>=2);
  await page.locator('.header-save').click();await page.waitForFunction(()=>document.querySelector('.header-save').dataset.saveStatus==='saved');
- const detached18=JSON.parse(fs.readFileSync(projectPath,'utf8'));assert.equal(detached18.schemaVersion,13);assert.equal(detached18.clips.length,beforeDetach18.clips.length+1);assert(detached18.clips.find(c=>c.id==='first').audioDetached);assert(detached18.clips.some(c=>c.kind==='audio'&&c.syncGroup));assert.equal(await page.locator('.edit-clip[data-clip-id="first"] .linked-audio').count(),0);
+ const detached18=JSON.parse(fs.readFileSync(projectPath,'utf8'));assert.equal(detached18.schemaVersion,14);assert.equal(detached18.clips.length,beforeDetach18.clips.length+1);assert(detached18.clips.find(c=>c.id==='first').audioDetached);assert(detached18.clips.some(c=>c.kind==='audio'&&c.syncGroup));assert.equal(await page.locator('.edit-clip[data-clip-id="first"] .linked-audio').count(),0);
  await page.keyboard.press('Control+z');await page.locator('.header-save').click();await page.waitForFunction(()=>document.querySelector('.header-save').dataset.saveStatus==='saved');assert.deepEqual(JSON.parse(fs.readFileSync(projectPath,'utf8')).clips,beforeDetach18.clips);
  await page.getByRole('button',{name:'Tryb Ripple',exact:true}).click();await page.locator('.edit-clip[data-clip-id="first"]:not(.audio-clip)').click({position:{x:22,y:12}});
  await page.getByRole('spinbutton',{name:'Wyjście źródła',exact:true}).fill('3');await page.getByRole('spinbutton',{name:'Wyjście źródła',exact:true}).press('Enter');await page.locator('.header-save').click();await page.waitForFunction(()=>document.querySelector('.header-save').dataset.saveStatus==='saved');assert.equal(await page.getByRole('dialog',{name:'Podgląd Ripple',exact:true}).count(),0);assert.equal(JSON.parse(fs.readFileSync(projectPath,'utf8')).clips.find(c=>c.id==='first').sourceOut,3);await page.keyboard.press('Control+z');await page.getByRole('button',{name:'Tryb Ripple',exact:true}).click();
@@ -217,6 +218,7 @@ try{
  await testAudio026(page,{load:async p=>{fs.writeFileSync(projectPath,JSON.stringify(p));await page.keyboard.press('Control+o');},save:async()=>{await page.locator('.header-save').click();},read:()=>JSON.parse(fs.readFileSync(projectPath,'utf8')),screenshot:'.tools/native-audio026.png'});
  await testTimeline027(page,{load:async p=>{fs.writeFileSync(projectPath,JSON.stringify(p));await page.keyboard.press('Control+o');},save:async()=>{await page.locator('.header-save').click();},read:()=>JSON.parse(fs.readFileSync(projectPath,'utf8')),screenshot:'.tools/native-timeline027.png'});
  await testSmartCut028(page,{load:async p=>{fs.writeFileSync(projectPath,JSON.stringify(p));await page.keyboard.press('Control+o');},save:async()=>{await page.locator('.header-save').click();},read:()=>JSON.parse(fs.readFileSync(projectPath,'utf8')),screenshot:'.tools/native-smartcut028.png',paths:{voicePath:path.join(path.dirname(projectPath),'SmartCut głos Łódź.mp4'),musicPath:path.join(path.dirname(projectPath),'SmartCut muzyka Łódź.wav')}});
+ await testEditor029(page,{load:async p=>{fs.writeFileSync(projectPath,JSON.stringify(p));await page.keyboard.press('Control+o');},save:async()=>{await page.locator('.header-save').click();},read:()=>JSON.parse(fs.readFileSync(projectPath,'utf8')),screenshot:'.tools/native-editor029.png',paths:{voicePath:path.join(path.dirname(projectPath),'SmartCut głos Łódź.mp4'),musicPath:path.join(path.dirname(projectPath),'SmartCut muzyka Łódź.wav')}});
  await testSourceAuthorization023(page,projectPath,process.env.ROLVIXA_TEST_REPLACEMENT);
  await testSources023(page,async()=>{await page.locator('.header-save').click();await page.waitForFunction(()=>document.querySelector('.header-save')?.dataset.saveStatus==='saved');},()=>JSON.parse(fs.readFileSync(projectPath,'utf8')),async variant=>{fs.copyFileSync(path.join(path.dirname(projectPath),`replacement-${variant}.mp4`),process.env.ROLVIXA_TEST_REPLACEMENT);},'.tools/native-sources023.png');
  await testMissingRelink023(page,projectPath);

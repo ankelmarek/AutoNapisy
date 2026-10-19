@@ -22,8 +22,13 @@ export function captionRipple(p:Project,at:number,until:number,delta:number):Pro
  const removed=delta<0;
  const map=(t:number)=>removed?(t<=at?t:t>=until?t+delta:at):(t>=at?t+delta:t);
  const edits={...p.captionEdits};
- const segments=p.timelineSegments.flatMap(s=>{
-  const start=map(s.start),end=map(s.end),key='timeline:'+s.id,patch=edits[key];if(end-start<MIN_CLIP-1e-6){delete edits[key];return [];}
+ const segments=p.timelineSegments.flatMap(original=>{
+  const key='timeline:'+original.id,existing=edits[key],offset=existing?.offset??0;
+  // Materialize the visible patch before a nonlinear time mapping; translating a trimmed
+  // caption can put its invisible raw bounds before zero, while its visible time is valid.
+  const s=offset?{...original,start:original.start+offset+existing.trimStart,end:original.end+offset-existing.trimEnd,text:existing.text??original.text,words:existing.text!==undefined||existing.trimStart>0||existing.trimEnd>0?[]:original.words.map(w=>({...w,start:w.start+offset,end:w.end+offset}))}:original;
+  if(offset){if(existing.hidden)edits[key]={trimStart:0,trimEnd:0,hidden:true};else delete edits[key];}
+  const start=map(s.start),end=map(s.end),patch=edits[key];if(end-start<MIN_CLIP-1e-6){delete edits[key];return [];}
   if(patch)edits[key]={...patch,trimStart:Math.max(0,map(s.start+patch.trimStart)-start),trimEnd:Math.max(0,end-map(s.end-patch.trimEnd))};
   const words=s.words.filter(w=>!removed||w.end<=at+1e-7||w.start>=until-1e-7).map(w=>({...w,start:map(w.start),end:map(w.end)}));
   return [{...s,start,end,words,text:s.words.length?words.map(w=>w.text).join(' ').trim():s.text}];

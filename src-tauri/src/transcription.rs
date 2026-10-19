@@ -196,14 +196,31 @@ pub(crate) fn run_process_capture(
     run_process_inner(job, program, args, whisper, cwd, capture, None)
 }
 pub(crate) fn run_process_bounded(
-    job: &Arc<Job>, program: &Path, args: &[std::ffi::OsString], cwd: &Path,
-    output: &Path, max_bytes: u64,
+    job: &Arc<Job>,
+    program: &Path,
+    args: &[std::ffi::OsString],
+    cwd: &Path,
+    output: &Path,
+    max_bytes: u64,
 ) -> Result<(), String> {
-    run_process_inner(job, program, args, false, cwd, None, Some((output, max_bytes)))
+    run_process_inner(
+        job,
+        program,
+        args,
+        false,
+        cwd,
+        None,
+        Some((output, max_bytes)),
+    )
 }
 fn run_process_inner(
-    job: &Arc<Job>, program: &Path, args: &[std::ffi::OsString], whisper: bool,
-    cwd: &Path, capture: Option<&Path>, limit: Option<(&Path, u64)>,
+    job: &Arc<Job>,
+    program: &Path,
+    args: &[std::ffi::OsString],
+    whisper: bool,
+    cwd: &Path,
+    capture: Option<&Path>,
+    limit: Option<(&Path, u64)>,
 ) -> Result<(), String> {
     job.check()?;
     let mut command = Command::new(program);
@@ -265,11 +282,14 @@ fn run_process_inner(
                 {
                     let mut status = reporter.status.lock().unwrap();
                     if status.state == "rendering" {
-                        let duration = status.export_info.as_ref().map(|info|info.duration)
+                        let duration = status
+                            .export_info
+                            .as_ref()
+                            .map(|info| info.duration)
                             .or(*reporter.progress_duration.lock().unwrap());
                         if let Some(duration) = duration {
-                            let percent = ((value / 1_000_000.0 / duration) * 100.0)
-                                .clamp(0.0, 99.0) as u8;
+                            let percent =
+                                ((value / 1_000_000.0 / duration) * 100.0).clamp(0.0, 99.0) as u8;
                             status.progress = Some(status.progress.unwrap_or(0).max(percent));
                         }
                     }
@@ -294,8 +314,10 @@ fn run_process_inner(
     let result = loop {
         let mut slot = job.child.lock().unwrap();
         let child = slot.as_mut().ok_or("Proces nie istnieje")?;
-        if limit.is_some_and(|(path, max)| fs::metadata(path).is_ok_and(|m|m.len()>max)) {
-            let _ = child.kill(); let _ = child.wait(); slot.take();
+        if limit.is_some_and(|(path, max)| fs::metadata(path).is_ok_and(|m| m.len() > max)) {
+            let _ = child.kill();
+            let _ = child.wait();
+            slot.take();
             break Err("Przekroczono limit miejsca dla proxy. Zwolnij cache i ponów.".into());
         }
         if bounded_preview
@@ -517,6 +539,121 @@ pub fn execute(job: Arc<Job>, tools: Tools, media: PathBuf) -> Result<(Vec<Segme
     )?;
     recognize(job, tools, temp.path())
 }
+/// Select only unmuted sound associated with picture. Independent music never enters
+/// recognition. Construct audio-only producers with the existing source-clock gains.
+pub fn voice_project(
+    p: &crate::project::Project,
+    selected: Option<&[String]>,
+) -> Result<crate::project::Project, String> {
+    use crate::project::{Clip, Crossfade, Fade};
+    let clips = p.clips.as_deref().unwrap_or(&[]);
+    if let Some(ids) = selected {
+        if ids.is_empty()
+            || ids.len() > 100
+            || ids
+                .iter()
+                .any(|id| !clips.iter().any(|c| &c.id == id && c.kind != "audio"))
+        {
+            return Err("Zaznacz przynajmniej jeden klip wideo do transkrypcji".into());
+        }
+    }
+    let mut sound: Vec<Clip> = vec![];
+    for v in clips
+        .iter()
+        .filter(|v| v.kind != "audio" && selected.is_none_or(|ids| ids.contains(&v.id)))
+    {
+        if p.tracks
+            .state(&format!("V{}", v.track as u16 + 1))
+            .is_some_and(|t| t.muted)
+        {
+            continue;
+        }
+        if v.audio_detached {
+            for a in clips.iter().filter(|a| {
+                a.kind == "audio"
+                    && v.sync_group.is_some()
+                    && a.sync_group == v.sync_group
+                    && a.asset_id == v.asset_id
+                    && !p.tracks.audio_muted(a)
+                    && a.volume > 0.
+            }) {
+                let mut a = a.clone();
+                if selected.is_some() {
+                    let incoming = p
+                        .transitions
+                        .iter()
+                        .find(|t| t.to_id == v.id)
+                        .map_or(0., |t| t.duration);
+                    let start = a.start.max(v.start - incoming);
+                    let end = a.end().min(v.end());
+                    if end - start < 0.05 - 1e-7 {
+                        continue;
+                    }
+                    a.source_out -= a.end() - end;
+                    a.source_in += start - a.start;
+                    a.start = start;
+                }
+                sound.push(a);
+            }
+        } else if !p.tracks.audio_muted(v) && v.volume > 0. {
+            let incoming = p.transitions.iter().find(|t| t.to_id == v.id);
+            let outgoing = p.transitions.iter().find(|t| t.from_id == v.id);
+            let mut a = v.clone();
+            a.kind = "audio".into();
+            a.audio_route = None;
+            a.track = 0;
+            if let Some(t) = incoming {
+                a.start -= t.duration;
+                a.source_in -= t.duration;
+            }
+            if incoming.is_some() || outgoing.is_some() {
+                a.crossfade = Some(Crossfade {
+                    fade_in: incoming.map(|t| Fade {
+                        anchor: v.source_in - t.duration,
+                        duration: t.duration,
+                    }),
+                    fade_out: outgoing.map(|t| Fade {
+                        anchor: v.source_out,
+                        duration: t.duration,
+                    }),
+                });
+            }
+            sound.push(a);
+        }
+    }
+    if sound.is_empty() {
+        return Err("Brak niewyciszonego dźwięku powiązanego z wybranymi filmami. Osobna muzyka nie jest transkrybowana.".into());
+    }
+    // A detached source may span several split pictures. Union each producer's selected
+    // intervals, avoiding both speech from unselected pictures and duplicate signal.
+    sound.sort_by(|a, b| a.id.cmp(&b.id).then(a.start.total_cmp(&b.start)));
+    let mut merged: Vec<Clip> = vec![];
+    for a in sound {
+        if let Some(last) = merged
+            .last_mut()
+            .filter(|last| last.id == a.id && a.start <= last.end() + 1e-7)
+        {
+            last.source_out = last.source_out.max(a.source_out);
+        } else {
+            merged.push(a);
+        }
+    }
+    let mut sound = merged;
+    for (i, a) in sound.iter_mut().enumerate() {
+        a.id = format!("voice:{i}");
+    }
+    // Controls have already been applied above, including the original V mute and A route.
+    for a in &mut sound {
+        a.track = 0;
+        a.audio_route = None;
+    }
+    let mut result = p.clone();
+    result.clips = Some(sound);
+    result.transitions.clear();
+    result.tracks = Default::default();
+    Ok(result)
+}
+
 pub fn execute_timeline(
     job: Arc<Job>,
     tools: Tools,
@@ -526,10 +663,11 @@ pub fn execute_timeline(
         .prefix("rolvixa-transcript-")
         .tempdir()
         .map_err(|e| e.to_string())?;
+    let speech = voice_project(&p, None)?;
     let ranges = crate::timeline_audio::prepare(
         &job,
         tools.ffmpeg.as_deref().ok_or("Brak FFmpeg")?,
-        &p,
+        &speech,
         temp.path(),
     )?;
     let (segments, _) = recognize(job, tools, temp.path())?;
@@ -548,6 +686,16 @@ pub fn execute_timeline_mlt(
     p: crate::project::Project,
     melt: PathBuf,
 ) -> Result<(Vec<Segment>, f64), String> {
+    execute_timeline_mlt_scoped(job, tools, p, melt, None)
+}
+pub fn execute_timeline_mlt_scoped(
+    job: Arc<Job>,
+    tools: Tools,
+    p: crate::project::Project,
+    melt: PathBuf,
+    selected: Option<Vec<String>>,
+) -> Result<(Vec<Segment>, f64), String> {
+    let speech = voice_project(&p, selected.as_deref())?;
     let temp = tempfile::Builder::new()
         .prefix("rolvixa-mlt-transcript-")
         .tempdir()
@@ -555,7 +703,7 @@ pub fn execute_timeline_mlt(
     let ranges = crate::timeline_audio::plan(
         &job,
         tools.ffmpeg.as_deref().ok_or("Brak FFmpeg")?,
-        &p,
+        &speech,
         temp.path(),
     )?;
     let bounds: Vec<_> = ranges
@@ -576,7 +724,7 @@ pub fn execute_timeline_mlt(
     };
     fs::write(
         temp.path().join("timeline.mlt"),
-        crate::mlt::xml(&p, &meta, &[], Some(&bounds))?,
+        crate::mlt::xml(&speech, &meta, &[], Some(&bounds))?,
     )
     .map_err(|e| e.to_string())?;
     crate::mlt::run(&job, &melt, temp.path(), 0, frames - 1, false, true)?;
@@ -799,5 +947,145 @@ mod tests {
         )
         .unwrap();
         assert_eq!(s[0].end, 2.0);
+    }
+}
+
+#[cfg(test)]
+mod speech_selection_tests {
+    use super::*;
+    use crate::project;
+    fn sample() -> project::Project {
+        project::parse(&serde_json::json!({"schemaVersion":14,"name":"Mowa Łódź","media":{"path":"Łódź.mp4","name":"Film","duration":20},"clips":[{"id":"v","kind":"video","start":2,"sourceIn":1,"sourceOut":5,"audioRoute":"A2"},{"id":"music","kind":"audio","start":0,"sourceIn":0,"sourceOut":12}],"segments":[],"styles":{"default":{"fontFamily":"Arial","fontSize":42,"color":"#ffffff","background":"#000000","position":"bottom"}},"createdAt":"2026-10-17T00:00:00Z","updatedAt":"2026-10-17T00:00:00Z"}).to_string()).unwrap()
+    }
+    #[test]
+    fn excludes_independent_music_and_checks_selected_ids() {
+        let p = sample();
+        let s = voice_project(&p, None).unwrap();
+        assert_eq!(s.clips.as_ref().unwrap().len(), 1);
+        assert_eq!(s.clips.as_ref().unwrap()[0].source_in, 1.);
+        assert!(voice_project(&p, Some(&[])).is_err());
+        assert!(voice_project(&p, Some(&["music".into()])).is_err());
+        assert!(voice_project(&p, Some(&["unknown".into()])).is_err());
+    }
+    #[test]
+    fn honors_original_bus_and_picture_mute_but_eye_is_visual_only() {
+        let mut p = sample();
+        p.tracks.v1.hidden = true;
+        assert!(voice_project(&p, None).is_ok());
+        p.tracks.a2.muted = true;
+        assert!(voice_project(&p, None).is_err());
+        p.tracks.a2.muted = false;
+        p.tracks.v1.muted = true;
+        assert!(voice_project(&p, None).is_err());
+        p.tracks.v1.muted = false;
+        p.clips.as_mut().unwrap()[0].volume = 0.;
+        assert!(voice_project(&p, None).is_err());
+    }
+    #[test]
+    fn linked_j_l_sound_uses_own_gain_and_is_not_duplicated() {
+        let mut p = sample();
+        let clips = p.clips.as_mut().unwrap();
+        clips[0].audio_detached = true;
+        clips[0].sync_group = Some("pair".into());
+        let mut a = clips[1].clone();
+        a.id = "linked".into();
+        a.sync_group = Some("pair".into());
+        a.start = 1.5;
+        a.source_in = 0.5;
+        a.source_out = 5.;
+        a.volume = 0.4;
+        a.track = 1;
+        clips.push(a);
+        let q = voice_project(&p, Some(&["v".into()])).unwrap();
+        let a = &q.clips.unwrap()[0];
+        assert_eq!(a.id, "voice:0");
+        assert_eq!(
+            (a.start, a.source_in, a.source_out, a.volume),
+            (2., 1., 5., 0.4)
+        );
+        p.tracks.a2.muted = true;
+        assert!(voice_project(&p, None).is_err());
+    }
+    #[test]
+    fn selected_transition_side_keeps_linear_crossfade_in_source_clock() {
+        let mut p = sample();
+        let mut b = p.clips.as_ref().unwrap()[0].clone();
+        b.id = "b".into();
+        b.start = 6.;
+        b.source_in = 2.;
+        b.source_out = 6.;
+        p.clips.as_mut().unwrap().push(b);
+        p.transitions.push(project::Transition {
+            id: "t".into(),
+            from_id: "v".into(),
+            to_id: "b".into(),
+            kind: "fade".into(),
+            duration: 0.5,
+        });
+        let q = voice_project(&p, Some(&["b".into()])).unwrap();
+        let a = &q.clips.as_ref().unwrap()[0];
+        assert_eq!((a.start, a.source_in), (5.5, 1.5));
+        assert_eq!(
+            a.crossfade
+                .as_ref()
+                .unwrap()
+                .fade_in
+                .as_ref()
+                .unwrap()
+                .anchor,
+            1.5
+        );
+        assert!(q.transitions.is_empty());
+        assert!((crate::audio_envelope::gain(a, 1.75) - 0.5).abs() < 1e-6);
+    }
+    #[test]
+    fn selected_split_pictures_crop_long_linked_audio_union_without_duplicates() {
+        let mut p = sample();
+        let clips = p.clips.as_mut().unwrap();
+        clips[0].audio_detached = true;
+        clips[0].sync_group = Some("pair".into());
+        let mut second = clips[0].clone();
+        second.id = "tail".into();
+        second.start = 8.;
+        second.source_in = 7.;
+        second.source_out = 9.;
+        second.track = 1;
+        clips[1].sync_group = Some("pair".into());
+        clips[1].start = 1.5;
+        clips[1].source_in = 0.5;
+        clips[1].source_out = 10.;
+        clips.push(second);
+        let selected = vec!["v".into(), "tail".into()];
+        let q = voice_project(&p, Some(&selected)).unwrap();
+        let c = q.clips.unwrap();
+        assert_eq!(c.len(), 2);
+        assert_eq!((c[0].start, c[0].source_in, c[0].source_out), (2., 1., 5.));
+        assert_eq!((c[1].start, c[1].source_in, c[1].source_out), (8., 7., 9.));
+        let full = voice_project(&p, None).unwrap().clips.unwrap();
+        assert_eq!(full.len(), 1);
+        assert_eq!(
+            (full[0].start, full[0].source_in, full[0].source_out),
+            (1.5, 0.5, 10.)
+        );
+        let tail = &mut p.clips.as_mut().unwrap()[2];
+        tail.start = 4.;
+        tail.source_in = 3.;
+        let q = voice_project(&p, Some(&selected)).unwrap().clips.unwrap();
+        assert_eq!(q.len(), 1);
+        assert_eq!((q[0].start, q[0].source_in, q[0].source_out), (2., 1., 9.));
+    }
+    #[test]
+    fn caption_offsets_roundtrip_and_reject_old_schema_and_out_of_range() {
+        let p = sample();
+        let mut v = serde_json::to_value(p).unwrap();
+        v["captionEdits"] =
+            serde_json::json!({"timeline:a":{"trimStart":0,"trimEnd":0,"offset":-2.5}});
+        let p = project::parse(&v.to_string()).unwrap();
+        assert_eq!(p.caption_edits["timeline:a"].offset, Some(-2.5));
+        v["schemaVersion"] = 13.into();
+        assert!(project::parse(&v.to_string()).is_err());
+        v["schemaVersion"] = 14.into();
+        v["captionEdits"]["timeline:a"]["offset"] = 86401.into();
+        assert!(project::parse(&v.to_string()).is_err());
     }
 }
