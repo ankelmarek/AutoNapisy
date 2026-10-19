@@ -40,3 +40,5 @@ it('seed nowego scenariusza WebView2 jest prawidłowym projektem',()=>{const p=p
 
 it('przesunięcie jest stosowane przed ograniczeniem długości montażu',()=>{const p=sample();p.timelineSegments=[seg('a',10,11)];const n=moveCaption(p,compositionSegments(p)[0],-8);n.clips=[{...v('only',0),sourceIn:0,sourceOut:8}];expect(compositionSegments(n)[0]).toMatchObject({start:2,end:3,words:[{start:2,end:3}]});});
 it('trim + przesunięcie przed raw początkiem nie zapisuje ujemnych czasów po Ripple',()=>{const p=sample();p.timelineSegments=[seg('a',0,5)];const trimmed=resizeCaption(p,compositionSegments(p)[0],'left',3),moved=moveCaption(trimmed,compositionSegments(trimmed)[0],-3),r=captionRipple(moved,6,7,-1);expect(compositionSegments(r)[0]).toMatchObject({start:0,end:2});expect(parseProject(serializeProject(r)).timelineSegments![0].start).toBe(0);});
+
+it('migracja v13 wymaga liczbowej wersji i zachowuje kolejność torów',()=>{const p=sample();p.trackLayout.reverse();expect(parseProject(JSON.stringify({...p,schemaVersion:13})).trackLayout).toEqual(p.trackLayout);expect(()=>parseProject(JSON.stringify({...p,schemaVersion:'13'}))).toThrow();});

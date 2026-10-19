@@ -104,7 +104,7 @@ export default function Timeline(p:Props){
   if(modifier&&e.key.toLowerCase()==='a'){e.preventDefault();select(clips.filter(c=>!clipLocked(p.project,c)).map(c=>c.id));setCaptionSelected('');return;}
   if(modifier&&e.key.toLowerCase()==='c'){if(chosen){e.preventDefault();copied.current={...chosen,adjustments:chosen.adjustments?{...chosen.adjustments}:undefined};}return;}
   if(modifier&&e.key.toLowerCase()==='v'){if(copied.current){e.preventDefault();if(clips.length>=100)return;const copy={...copied.current,syncGroup:undefined,id:crypto.randomUUID(),start:Math.max(p.time,duration)};commit(moveClip([...clips,copy],copy.id,p.time,snap?10/zoom:0));}return;}
-  if(modifier&&e.key.toLowerCase()==='x'){if(chosen&&!chosenLocked){e.preventDefault();copied.current={...chosen};request({kind:'delete',id:chosen.id});}return;}
+  if(modifier&&e.key.toLowerCase()==='x'){if(chosen&&!chosenLocked){e.preventDefault();copied.current={...chosen};request({kind:'delete',id:chosen.id});select(p.selectedIds.filter(id=>id!==chosen.id));}return;}
   if(modifier&&e.key.toLowerCase()==='d'){if(chosen&&clips.length<100){e.preventDefault();const copy={...chosen,syncGroup:undefined,id:crypto.randomUUID(),start:duration};commit(moveClip([...clips,copy],copy.id,clipEnd(chosen),snap?10/zoom:0));}return;}
   if(modifier)return;
   if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();if(captionSelected){if(p.project.tracks.T?.locked)return;const s=compositionSegments(p.project).find(s=>s.id===captionSelected);if(s)p.onCaptionChange(editCaption(p.project,s,{hidden:true}));setCaptionSelected('');}else remove();return;}
