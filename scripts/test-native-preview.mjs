@@ -1,3 +1,4 @@
+import {testSmartExport032} from './test-smart-export032.mjs';
 import {testStudio031} from './test-studio031.mjs';
 import {testSmartCut030} from './test-smartcut030.mjs';
 import {testEditor029} from './test-editor029.mjs';
@@ -217,6 +218,7 @@ try{
  const srtPath19=projectPath.replace(/\.json$/i,'.srt');for(let n=0;n<100&&!fs.existsSync(srtPath19);n++)await page.waitForTimeout(100);assert(fs.existsSync(srtPath19),'Native SRT export did not write the selected file');const srtBytes19=fs.readFileSync(srtPath19,'utf8');assert(srtBytes19.includes('Zażółć gęślą'));assert(srtBytes19.includes('00:00:01,250 --> 00:00:02,500'));await page.waitForFunction(()=>!document.querySelector('.header-project-name').disabled);
  assert.equal((await page.locator('.header-export').innerText()).trim(),'Eksportuj');await page.screenshot({path:'.tools/native-ux019.png'});console.log('Real 0.19 SRT: empty source transcript, montage captions, keyboard activation, Unicode and actual atomically saved file: OK');
  await testStudio031(page,{save:async()=>{await page.locator('.header-save').click();},read:()=>JSON.parse(fs.readFileSync(projectPath,'utf8')),screenshot:'.tools/native-studio031.png'});
+ await testSmartExport032(page,{save:async()=>{await page.locator('.header-save').click();},read:()=>JSON.parse(fs.readFileSync(projectPath,'utf8')),screenshot:'.tools/native-export032.png'});
  await testTracks022(page,async()=>{await page.locator('.header-save').click();await page.waitForFunction(()=>document.querySelector('.header-save')?.dataset.saveStatus==='saved');},()=>JSON.parse(fs.readFileSync(projectPath,'utf8')),'.tools/native-tracks022.png');
  await testAudio026(page,{load:async p=>{fs.writeFileSync(projectPath,JSON.stringify(p));await page.keyboard.press('Control+o');},save:async()=>{await page.locator('.header-save').click();},read:()=>JSON.parse(fs.readFileSync(projectPath,'utf8')),screenshot:'.tools/native-audio026.png'});
  await testTimeline027(page,{load:async p=>{fs.writeFileSync(projectPath,JSON.stringify(p));await page.keyboard.press('Control+o');},save:async()=>{await page.locator('.header-save').click();},read:()=>JSON.parse(fs.readFileSync(projectPath,'utf8')),screenshot:'.tools/native-timeline027.png'});

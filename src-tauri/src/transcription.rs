@@ -210,8 +210,17 @@ pub(crate) fn run_process_bounded(
         false,
         cwd,
         None,
-        Some((output, max_bytes)),
+        Some(&[(output, max_bytes)]),
     )
+}
+pub(crate) fn run_process_files_bounded(
+    job: &Arc<Job>,
+    program: &Path,
+    args: &[std::ffi::OsString],
+    cwd: &Path,
+    files: &[(&Path, u64)],
+) -> Result<(), String> {
+    run_process_inner(job, program, args, false, cwd, None, Some(files))
 }
 fn run_process_inner(
     job: &Arc<Job>,
@@ -220,7 +229,7 @@ fn run_process_inner(
     whisper: bool,
     cwd: &Path,
     capture: Option<&Path>,
-    limit: Option<(&Path, u64)>,
+    limit: Option<&[(&Path, u64)]>,
 ) -> Result<(), String> {
     job.check()?;
     let mut command = Command::new(program);
@@ -314,11 +323,17 @@ fn run_process_inner(
     let result = loop {
         let mut slot = job.child.lock().unwrap();
         let child = slot.as_mut().ok_or("Proces nie istnieje")?;
-        if limit.is_some_and(|(path, max)| fs::metadata(path).is_ok_and(|m| m.len() > max)) {
+        if limit.is_some_and(|files| {
+            files
+                .iter()
+                .any(|(path, max)| fs::metadata(path).is_ok_and(|m| m.len() > *max))
+        }) {
             let _ = child.kill();
             let _ = child.wait();
             slot.take();
-            break Err("Przekroczono limit miejsca dla proxy. Zwolnij cache i ponów.".into());
+            break Err(
+                "Przekroczono limit miejsca dla pliku roboczego. Zwolnij miejsce i ponów.".into(),
+            );
         }
         if bounded_preview
             && fs::metadata(cwd.join("preview.mp4")).is_ok_and(|m| m.len() > 512 * 1024 * 1024)
@@ -354,6 +369,15 @@ fn run_process_inner(
         .unwrap_or_else(|_| "Nie można odczytać diagnostyki procesu".into());
     job.check()?;
     let status = result?;
+    if limit.is_some_and(|files| {
+        files
+            .iter()
+            .any(|(path, max)| fs::metadata(path).is_ok_and(|m| m.len() > *max))
+    }) {
+        return Err(
+            "Przekroczono limit miejsca dla pliku roboczego. Zwolnij miejsce i ponów.".into(),
+        );
+    }
     if !status.success() {
         return Err(format!(
             "{} zakończył się błędem ({status}). {diagnostic}",
