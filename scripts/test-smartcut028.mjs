@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import {randomUUID} from 'node:crypto';
 import {smartCut028Fixture} from './smartcut-fixture028.mjs';
 export async function testSmartCut028(page,{load,save,read,screenshot,paths}){
+ const originalTab=await page.locator('.library-tabs [role=tab][aria-selected=true]').getAttribute('id');
  const original=await read(),seed=smartCut028Fixture(original,paths),mock=await page.evaluate(()=>!!window.__calls);
  const button=name=>page.getByRole('button',{name,exact:true});
  const checkpoint=async()=>{await save();await page.waitForFunction(()=>document.querySelector('.header-save')?.dataset.saveStatus==='saved'&&!document.querySelector('.header-save').disabled);return read();};
@@ -47,6 +48,6 @@ export async function testSmartCut028(page,{load,save,read,screenshot,paths}){
  await page.keyboard.press('Control+z');assert.equal((await checkpoint()).transitions.length,0);
  // Existing-join mode is reachable without removing a range.
  await page.locator('[data-clip-id="voice028"]').click({button:'right',position:{x:45,y:12}});await page.getByRole('menuitem',{name:'SmartCut · popraw połączenie',exact:true}).click();await dialog.waitFor();assert(await dialog.getByRole('spinbutton',{name:'Pozycja połączenia',exact:true}).isVisible());await dialog.getByRole('button',{name:'Anuluj SmartCut',exact:true}).click();
- if(await button('Zaznacz zakres SmartCut').getAttribute('aria-pressed')==='true')await button('Zaznacz zakres SmartCut').click();await reload(original);await page.locator('.timeline-body').evaluate(el=>el.scrollTop=0);
+ if(await button('Zaznacz zakres SmartCut').getAttribute('aria-pressed')==='true')await button('Zaznacz zakres SmartCut').click();await reload(original);if(originalTab)await page.locator('#'+originalTab).click();await page.locator('.timeline-body').evaluate(el=>el.scrollTop=0);
  console.log('0.28 SmartCut: pointer range, native short comparison/playback, Natural/Smooth, exact fallback, no edit on Cancel, atomic Undo/Redo/save/reopen, real off-centre transition drop, join mode: OK');
 }
