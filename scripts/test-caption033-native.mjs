@@ -15,6 +15,7 @@ export async function testCaption033(page,projectPath){
   fs.writeFileSync(projectPath,JSON.stringify(seed));await invoke('open_project');await page.goto(root+'?caption-poc');await page.getByRole('main',{name:'Test techniczny animowanych napisów'}).waitFor();
   await page.getByRole('textbox',{name:'Projekt testowy napisów',exact:true}).fill(JSON.stringify(seed));
   for(const preset of ['karaoke-flow','pop-beat']){
+   const began=performance.now();
    await page.getByRole('combobox',{name:'Preset testu animacji',exact:true}).selectOption(preset);await page.getByRole('button',{name:'Renderuj testowy MP4',exact:true}).click();
    await page.waitForFunction(()=>!!document.querySelector('[data-poc-output]'),{},{timeout:90000});
    const output=await page.locator('[data-poc-output]').getAttribute('data-poc-output'),work=path.dirname(path.dirname(output)),layer=path.join(work,'animated-layer.mkv'),composition=path.join(work,'source','composition.mkv');
@@ -27,9 +28,11 @@ export async function testCaption033(page,projectPath){
     const rgba=execFileSync(ff,['-v','error','-i',layer,'-vf',`select=eq(n\\,${n})`,'-frames:v','1','-pix_fmt','rgba','-f','rawvideo','pipe:1'],{maxBuffer:4e6});
     assert.equal(crypto.createHash('sha256').update(rgba).digest('hex'),hash,`${preset} layer differs from shared renderer at frame ${n}`);hashes.push(hash);
     const expected=execFileSync(ff,['-v','error','-i',composition,'-i',layer,'-filter_complex',`[0:v][1:v]overlay=0:0:eof_action=pass:repeatlast=0,format=yuv420p,select=eq(n\\,${n})`,'-frames:v','1','-pix_fmt','rgb24','-f','rawvideo','pipe:1'],{maxBuffer:4e6});
-    const actual=execFileSync(ff,['-v','error','-i',output,'-vf',`select=eq(n\\,${n})`,'-frames:v','1','-pix_fmt','rgb24','-f','rawvideo','pipe:1'],{maxBuffer:4e6});assert.equal(actual.length,expected.length);let error=0;for(let i=0;i<actual.length;i++)error+=Math.abs(actual[i]-expected[i]);assert(error/actual.length<3,`${preset} H264 differs at ${n}: ${error/actual.length}`);
+    const actual=execFileSync(ff,['-v','error','-i',output,'-vf',`select=eq(n\\,${n})`,'-frames:v','1','-pix_fmt','rgb24','-f','rawvideo','pipe:1'],{maxBuffer:4e6});assert.equal(actual.length,expected.length);let error=0,masked=0,channels=0;for(let i=0;i<actual.length;i++){const d=Math.abs(actual[i]-expected[i]);error+=d;if(rgba[Math.floor(i/3)*4+3]>200){masked+=d;channels++;}}assert(error/actual.length<3,`${preset} H264 differs at ${n}: ${error/actual.length}`);assert(channels>300);assert(masked/channels<14,`${preset} caption pixels differ at ${n}: ${masked/channels}`);
    }
    assert(new Set(hashes).size>=4,'Real caption pixels must move/change at word boundaries');
+   const rms=file=>{const b=execFileSync(ff,['-v','error','-ss','1','-i',file,'-t','.3','-vn','-ar','48000','-ac','1','-f','f32le','pipe:1']);let sum=0;for(let i=0;i<b.length;i+=4)sum+=b.readFloatLE(i)**2;return Math.sqrt(sum/(b.length/4));};const rawRms=rms(composition),encodedRms=rms(output);assert(rawRms>1e-4);assert(Math.abs(encodedRms/rawRms-1)<.12,'AAC must retain the actual composed speech level');
+   console.log(JSON.stringify({poc:'0.33a',preset,frames:110,width:320,height:568,alphaBytes:fs.statSync(layer).size,mp4Bytes:fs.statSync(output).size,testSeconds:(performance.now()-began)/1000,checkedPixelFrames:hashes.length,audioRmsRatio:encodedRms/rawRms}));
    await page.getByRole('spinbutton',{name:'Klatka testu animacji',exact:true}).fill('21');await page.screenshot({path:`.tools/caption033-${preset}.png`});
    fs.copyFileSync(output,`.tools/caption033-${preset}.mp4`);await video.evaluate(v=>v.play());await page.waitForFunction(()=>document.querySelector('video')?.currentTime>1);await video.evaluate(v=>{v.pause();v.removeAttribute('src');v.load();});
    await page.getByRole('button',{name:'Anuluj test',exact:true}).click();await page.waitForFunction(()=>!document.querySelector('video')?.currentSrc);for(let i=0;i<50&&fs.existsSync(work);i++)await page.waitForTimeout(100);assert(!fs.existsSync(work),'Session must reap and clean its files');

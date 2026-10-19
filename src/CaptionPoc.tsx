@@ -5,6 +5,7 @@ import {parseProject} from './model';
 import {activeCaption} from './captions';
 import {createAnimatedCaptionRenderer} from './animatedCaptionCanvas';
 import {pocProject,streamCaptionPoc} from './captionPocTransport';
+import {captionFrameTime} from './captionAnimation';
 /** Separate technical harness, only reachable with ?caption-poc. Backend requires ui-tests build. */
 export default function CaptionPoc(){
  const [json,setJson]=useState(''),[preset,setPreset]=useState<'karaoke-flow'|'pop-beat'>('karaoke-flow'),[result,setResult]=useState<Awaited<ReturnType<typeof streamCaptionPoc>>|null>(null),[time,setTime]=useState(0),[progress,setProgress]=useState<number|null>(null),[error,setError]=useState(''),[fallback,setFallback]=useState(false);
@@ -13,7 +14,7 @@ export default function CaptionPoc(){
  const cleanup=async()=>{controller.current?.abort();if(video.current){video.current.pause();video.current.removeAttribute('src');video.current.load();}setResult(null);if(session.current!==null){const id=session.current;session.current=null;await invoke('caption_poc_cancel',{id});}};
  useEffect(()=>()=>{void cleanup();},[]);
  useEffect(()=>{if(!result)return;let frame=0;const tick=()=>{const v=video.current;if(v&&!v.paused&&!v.seeking)setTime(v.currentTime);frame=requestAnimationFrame(tick);};frame=requestAnimationFrame(tick);return()=>cancelAnimationFrame(frame);},[result]);
- useEffect(()=>{if(canvas.current&&result){if(renderer.current?.canvas!==canvas.current)renderer.current={canvas:canvas.current,draw:createAnimatedCaptionRenderer(canvas.current)};const t=result.start+time,c=activeCaption(result.snapshot.segments,t);const s=renderer.current.draw(c,c?result.snapshot.styles[c.styleId]:null,t);setFallback(s.fallback);canvas.current.dataset.frame=String(Math.floor(time*30+1e-7));}},[result,time]);
+ useEffect(()=>{if(canvas.current&&result){if(renderer.current?.canvas!==canvas.current)renderer.current={canvas:canvas.current,draw:createAnimatedCaptionRenderer(canvas.current)};const t=captionFrameTime(result.start+time),c=activeCaption(result.snapshot.segments,t);const s=renderer.current.draw(c,c?result.snapshot.styles[c.styleId]:null,t);setFallback(s.fallback);canvas.current.dataset.frame=String(Math.floor(time*30+1e-7));}},[result,time]);
  const run=async()=>{setError('');await cleanup();setResult(null);const c=new AbortController();controller.current=c;setProgress(0);try{const r=await streamCaptionPoc(pocProject(parseProject(json),preset),0,Math.min(4,editDuration(parseProject(json))),c.signal,setProgress);session.current=r.id;setTime(0);setResult(r);}catch(e){setError(String(e));}finally{setProgress(null);controller.current=null;}};
  return <main style={{padding:20,height:'100vh',overflow:'auto'}} aria-label="Test techniczny animowanych napisów">
   <h1>0.33a · Animated Captions · test techniczny</h1><p>Strumień RGBA → FFV1 z alfą → rzeczywisty MP4 30 FPS. To fundament przed galerią i odbiorem wersji 0.33.</p>

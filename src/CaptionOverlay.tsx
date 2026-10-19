@@ -4,6 +4,7 @@ import { captionCards, activeCaption, type CaptionStyle } from "./captions";
 
 import { layoutCaption } from "./captionCanvas";
 import AnimatedCaption from './AnimatedCaption';
+import {captionFrameTime} from './captionAnimation';
 type Rect = { left: number; top: number; width: number; height: number };
 export function fitVideoRect(
   width: number,
@@ -121,7 +122,8 @@ export default function CaptionOverlay({
     [project.segments, project.styles],
   );
   if (!rect.width) return null;
-  const current = activeCaption(cards, time);
+  const exact = activeCaption(cards, time), framed = activeCaption(cards, captionFrameTime(time));
+  const current = (exact&&project.styles[exact.styleId].animation)||(framed&&project.styles[framed.styleId].animation)?framed:exact;
   return (
     <div className="caption-viewport" style={rect}>
       {(current ? [current] : []).map((card) => {
