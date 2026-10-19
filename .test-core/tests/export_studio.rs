@@ -46,6 +46,24 @@ fn frame(ff: &Path, path: &Path) -> Vec<u8> {
     assert!(o.status.success());
     o.stdout
 }
+fn audio_rms(ff: &Path, path: &Path) -> f64 {
+    let o = Command::new(ff)
+        .args(["-v", "error", "-ss", "0.4", "-i"])
+        .arg(path)
+        .args([
+            "-t", "1", "-vn", "-ac", "1", "-ar", "48000", "-f", "f32le", "pipe:1",
+        ])
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+    let samples: Vec<f64> = o
+        .stdout
+        .chunks_exact(4)
+        .map(|b| f32::from_le_bytes(b.try_into().unwrap()) as f64)
+        .collect();
+    assert!(samples.len() > 47000);
+    (samples.iter().map(|s| s * s).sum::<f64>() / samples.len() as f64).sqrt()
+}
 fn wait(q: &Queue) {
     let end = Instant::now() + Duration::from_secs(60);
     loop {
@@ -142,7 +160,8 @@ fn actual_queue_profiles_srt_burn_cancel_retry_and_collision() {
         .unwrap();
     q.ready(srt.id).unwrap();
     q.cancel(srt.id).unwrap();
-    assert_eq!(q.get(srt.id).unwrap().item().state, "cancelled");
+    assert!(["cancelled", "cancelling"].contains(&q.get(srt.id).unwrap().item().state.as_str()));
+    wait(&q); // Retry only after a running child has actually exited.
     q.retry(srt.id).unwrap();
     let burned = q
         .prepare(
@@ -165,6 +184,12 @@ fn actual_queue_profiles_srt_burn_cancel_retry_and_collision() {
     wait(&q);
     for row in q.list() {
         assert_eq!(row.state, "completed", "{}", row.message);
+    }
+    // Verify float PCM survives MLT -> FFV1 -> AAC with the intended clip gain.
+    let source_rms = audio_rms(&ff, &voice);
+    for entry in [&first, &srt, &burned] {
+        let ratio = audio_rms(&ff, &entry.target) / source_rms;
+        assert!((ratio - 0.6).abs() < 0.035, "unexpected audio gain {ratio}");
     }
     assert_ne!(first.target, srt.target);
     assert!(fs::read_to_string(srt.target.with_extension("srt"))

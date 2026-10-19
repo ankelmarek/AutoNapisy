@@ -460,16 +460,7 @@ impl Queue {
         melt: PathBuf,
     ) -> Result<Arc<Entry>, String> {
         options.validate()?;
-        let mut entries = self.entries.lock().unwrap();
-        if entries.len() >= MAX_JOBS {
-            return Err("Kolejka ma maksymalnie 10 zadań. Usuń zakończone pozycje.".into());
-        }
         let basis = source_basis(&project, &ff, &melt)?;
-        let target = choose_target(
-            folder,
-            &project.name,
-            &entries.iter().map(|e| e.target.clone()).collect(),
-        )?;
         let dir = tempfile::Builder::new()
             .prefix("rolvixa-studio-")
             .tempdir_in(folder)
@@ -498,6 +489,16 @@ impl Queue {
         if count > rendering::MAX_FRAMES {
             return Err("Maksymalnie 3000 plansz napisów".into());
         }
+        // Probing sources must not hold the queue lock: status/cancellation stay responsive.
+        let mut entries = self.entries.lock().unwrap();
+        if entries.len() >= MAX_JOBS {
+            return Err("Kolejka ma maksymalnie 10 zadań. Usuń zakończone pozycje.".into());
+        }
+        let target = choose_target(
+            folder,
+            &project.name,
+            &entries.iter().map(|e| e.target.clone()).collect(),
+        )?;
         job.status.lock().unwrap().message = "Przygotowywanie plansz…".into();
         let entry = Arc::new(Entry {
             id,
