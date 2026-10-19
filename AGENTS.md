@@ -1,5 +1,9 @@
 # Ustalenia projektu RolVixa
 
+## Aktualny najbliższy priorytet (decyzja 19.10.2026)
+
+**Natychmiastowy następny etap po wykonanym 0.32: RolVixa 0.33 Animated Captions, P0**. [Issue #20](https://github.com/ankelmarek/AutoNapisy/issues/20) i pierwsza sekcja ROADMAP.md są źródłem aktualnej specyfikacji. Osiem oryginalnych presetów: Karaoke Flow, Pop Beat, Impact, Neon Pulse, Slide Reveal, Marker, Editorial Clean i Type Flow. Galeria w inspektorze napisów, autentyczne mini-demo, kolory/tempo/intensywność, zastosowanie do całości lub wybranego fragmentu. **Najpierw zademonstrować** MP4 z animowanymi napisami opartymi na *prawdziwym* timecode słów, nie na samym CSS. Dotychczas eksport przesyła jedną bitmapę PNG na planszę, `captionExport` usuwa `words`, a schemat v14 jest strict. Konieczny deterministyczny rendering zależny od czasu, jednolity podgląd/MP4/Export Studio/A-B, bez fałszywego wyrównania słów po ręcznej zmianie tekstu. Zachować SRT jako statyczny tekst + timing, kompatybilność starych stylów i projektów, wydajność oraz anulowanie; testy rzeczywiste Windows i WebView2. Przy pracach stosować `0.33a` (silnik + dwa style), `0.33b` (sześć pozostałych + UI), `0.33c` (eksport/regresje/odbiór). Nie wdrażać kolejnych rozbudów naraz. Nie deklarować 0.33 ukończone przed testami. To ustalenie ma pierwszeństwo przed historycznymi priorytetami zapisanymi dalej w pliku.
+
 ## Ikony interfejsu
 
 Użytkownik wskazał 2026-10-17 **Tabler Icons** jako zestaw ikon dla całego interfejsu: https://tabler.io/icons.
