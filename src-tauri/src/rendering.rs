@@ -201,7 +201,7 @@ pub fn validate_frame(bytes: &[u8], meta: &Metadata) -> Result<(), String> {
         .map_err(|e| format!("Uszkodzona plansza: {e}"))?;
     Ok(())
 }
-fn empty_png(dir: &Path, meta: &Metadata) -> Result<(), String> {
+pub fn empty_png(dir: &Path, meta: &Metadata) -> Result<(), String> {
     let file = fs::File::create(dir.join("empty.png")).map_err(|e| e.to_string())?;
     let mut encoder = png::Encoder::new(file, meta.width, meta.height);
     encoder.set_color(png::ColorType::Rgba);
@@ -255,7 +255,7 @@ pub fn timeline(project: &Project, duration: f64) -> Vec<Interval> {
     }
     result
 }
-fn concat_text(intervals: &[Interval]) -> String {
+pub fn concat_text(intervals: &[Interval]) -> String {
     let mut text = String::from("ffconcat version 1.0\n");
     let name = |index: Option<usize>| index.map(frame_name).unwrap_or_else(|| "empty.png".into());
     for entry in intervals {

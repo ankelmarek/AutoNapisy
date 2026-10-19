@@ -1,5 +1,9 @@
 # Kolejne etapy RolVixa
 
+## 0.31 — Export Studio: profile i kolejka
+
+Zatwierdzony zakres: własne i gotowe profile H.264/AAC 30 FPS, rzeczywisty podgląd fit/crop, kolejka wariantów i zapisanych projektów, anulowanie/ponowienie oraz napisy w obrazie / SRT / bez napisów. Jawne sprawdzenie kadrów paczki, kopie projektów, ochrona źródeł i wyników. Bez migracji v14. Próbki A/B, docelowy rozmiar, inne kodeki/FPS/GPU pozostają dalszą częścią issue #1. Odbiór Windows i instalator w toku.
+
 ## Wykonane w 0.30 — SmartCut 0.2: obraz przy cięciu i jawna przebitka
 
 - [x] Ostatnia/pierwsza klatka z oryginalnej kompozycji MLT, porównanie z sąsiednim ruchem; wskazówka bez fikcyjnej punktacji jakości.

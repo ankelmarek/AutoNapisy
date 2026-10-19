@@ -1,3 +1,5 @@
+import ExportStudio from './ExportStudio';
+import {useExportQueue} from './useExportQueue';
 import {speechIntervals,applySelectedTranscript} from './speechSelection';
 import SmartCutDialog from './SmartCutDialog';
 import type {SmartCutRequest} from './smartCut';
@@ -66,6 +68,8 @@ import { captionExport, yellowPreset, referenceText } from "./captions";
 import {assertUnlockedEdit,clipLocked,auditionProject} from './trackControls';
 export default function App() {
   const history = useProjectHistory();
+  const studio=useExportQueue();
+  const [studioSnapshot,setStudioSnapshot]=useState<Project|null>(null);
   const {project,setProject:writeProject} = history;
   const setProject=(value:Project|((p:Project)=>Project))=>{try{const next=typeof value==='function'?value(latestProject.current):value;assertUnlockedEdit(latestProject.current,next);writeProject(next);}catch(e){setMessage(String(e));}};
   const [source, setSource] = useState(""),
@@ -117,7 +121,8 @@ export default function App() {
   const [smartcut,setSmartcut]=useState<{project:Project;request:SmartCutRequest}|null>(null);
   const [preflight,setPreflight]=useState<{project:Project;issues:PreflightIssue[];autoAnalyze:boolean}|null>(null);
   const [sourceRevision,bumpSourceRevision]=useReducer((n:number)=>n+1,0),[highlightSource,setHighlightSource]=useState('');
-  const locked = !!smartcut || !!replacement || !!preflight || busy || transcribing || exporting || !recoveryReady || !!recoveryInfo;
+  const locked = !!studioSnapshot || !!smartcut || !!replacement || !!preflight || busy || transcribing || exporting || !recoveryReady || !!recoveryInfo;
+  const lockedRef=useRef(locked);lockedRef.current=locked;
   useEffect(()=>{let alive=true;startup.current??=invoke<RecoveryInfo>('recovery_status');void startup.current.then(info=>{if(!alive)return;saver.accept(latestProject.current,'',info.session);if(info.available)setRecoveryInfo(info);if(info.warning){if(info.available)setRecoveryError(info.warning);else setMessage('Odzyskiwanie: '+info.warning);}setRecoveryReady(true);}).catch(e=>{if(alive){setRecoveryError(String(e));setRecoveryReady(true);}});return()=>{alive=false;};},[]);
   useEffect(()=>{
     const needed=saveState.baseline===null?(recovered.current||revision!==pristineRevision.current):dirty;
@@ -131,6 +136,7 @@ export default function App() {
   };
   const closeAction=useRef<()=>Promise<boolean>>(async()=>false);
   closeAction.current=async()=>{
+    if(studio.active){setStudioSnapshot(latestProject.current);setMessage('Anuluj lub ukończ kolejkę eksportu przed zamknięciem aplikacji.');return false;}
     if(busy||transcribing||exporting||saver.saving){setMessage('Poczekaj na zakończenie operacji przed zamknięciem.');return false;}
     if(recoveryInfo||!recoveryReady)return true;
     if(titleEditor.current&&!titleEditor.current.commit())return false;
@@ -165,7 +171,7 @@ export default function App() {
   const [solo,setSolo]=useState<Set<string>>(new Set());
   useEffect(()=>setSolo(new Set()),[saveState.session]);
   const audition=useMemo(()=>auditionProject(project,solo),[project,solo]);
-  const playback = useMltPlayback(audition,proxies.revision+sourceRevision,!sourceViewerItem&&!homeVisible&&!smartcut);
+  const playback = useMltPlayback(audition,proxies.revision+sourceRevision,!sourceViewerItem&&!homeVisible&&!smartcut&&!studioSnapshot);
   useEffect(()=>{if(playback.error&&proxies.active)void proxies.fallback();},[playback.error,proxies.revision]);
   const {time,playing,seek} = playback;
   const toggle=playback.toggle;
@@ -367,35 +373,12 @@ export default function App() {
     setPreflight({project:current,issues,autoAnalyze});
   });
   const performExport = async (snapshot:Project) => {
-
-    if (exportController.current) return;
-    if(latestProject.current!==snapshot){setMessage("Projekt zmienił się. Sprawdź go ponownie przed eksportem.");return;}
-    const abort = new AbortController();
-    exportController.current = abort;
-    setExporting(true);
-    setExportStatus(null);
-    try {
-      const path = await rendering.render(
-        snapshot,
-        abort.signal,
-        setExportStatus,
-      );
-      if (path) setMessage(`Zapisano MP4 z napisami: ${path}`);
-      else setMessage("Anulowano wybór pliku eksportu");
-    } catch (error) {
-      setMessage(
-        error instanceof DOMException && error.name === "AbortError"
-          ? "Anulowano eksport. Plik docelowy pozostaje bez zmian."
-          : `Błąd eksportu: ${error instanceof Error ? error.message : String(error)}`,
-      );
-    } finally {
-      exportController.current = null;
-      setExporting(false);
-    }
+    if(latestProject.current!==snapshot){setMessage('Projekt zmienił się. Sprawdź go ponownie przed eksportem.');return;}
+    playback.pause();setSourceViewerId('');setStudioSnapshot(snapshot);
   };
   useEffect(()=>{
     const handler=(e:KeyboardEvent)=>{
-      if(locked)return;const el=e.target as HTMLElement,text=el?.isContentEditable||el?.tagName==='TEXTAREA'||(el?.tagName==='INPUT'&&['text','search',''].includes((el as HTMLInputElement).type));
+      if(lockedRef.current)return;const el=e.target as HTMLElement,text=el?.isContentEditable||el?.tagName==='TEXTAREA'||(el?.tagName==='INPUT'&&['text','search',''].includes((el as HTMLInputElement).type));
       if(homeVisible){if(e.ctrlKey||e.metaKey){if(e.key.toLowerCase()==='n'){e.preventDefault();void createNew();}else if(e.key.toLowerCase()==='o'){e.preventDefault();void open();}else if(e.key.toLowerCase()==='s')e.preventDefault();}return;}
       if(e.code==='Space'&&(!text||e.ctrlKey)){if(sourceViewerItem){sourceKeys.current?.(e);return;}e.preventDefault();toggle();return;}
       if(e.ctrlKey||e.metaKey){if(e.key.toLowerCase()==='s'){e.preventDefault();void save(e.shiftKey);return;}if(e.key.toLowerCase()==='o'){e.preventDefault();void open();return;}if(e.key.toLowerCase()==='i'){e.preventDefault();if(e.shiftKey)void importMedia('audio');else void importVideo();return;}if(e.key.toLowerCase()==='n'){e.preventDefault();void createNew();return;}}
@@ -438,6 +421,7 @@ export default function App() {
         <ProjectTitle key={saveState.session} ref={titleEditor} name={project.name} disabled={locked} onChange={name=>{const p={...latestProject.current,name};latestProject.current=p;setProject(p);}}/>
         <span className={`save-status status-${status}`} role="status" title={saveState.error||saveState.path||statusText}>{statusText}</span>
         <div className="header-actions">
+          {studio.items.length>0&&<button className="studio-reopen" aria-label="Otwórz kolejkę eksportu" disabled={locked} onClick={()=>{playback.pause();setStudioSnapshot(latestProject.current);}}><Icon name="pack" size={16}/> {studio.items.length}</button>}
           <button className={`header-save status-${status}`} data-save-status={status} aria-label="Zapisz projekt" aria-keyshortcuts="Control+S" title={`Zapisz projekt (Ctrl+S) · ${statusText}${saveState.path?' · '+saveState.path:''}`} disabled={locked||saving} onClick={()=>void save()}><Icon name={status==='saving'?'saveLoading':status==='error'?'saveError':'save'} size={22}/>{status==='saved'&&<Icon name="check" size={11}/>}</button>
           <button className="header-export" aria-label="Eksportuj MP4" title={locked?'Eksport niedostępny podczas operacji':!project.media||!duration?'Dodaj film na oś czasu, aby eksportować MP4':'Eksportuj MP4'} disabled={locked||!project.media||!duration} onClick={()=>void exportMp4()}><Icon name="export" size={21}/><span>Eksportuj</span></button>
         </div>
@@ -811,6 +795,7 @@ export default function App() {
       </footer>
       </div>
       {replacement&&<SourceReplacementDialog key={replacement.candidate.token} project={replacement.project} id={replacement.id} candidate={replacement.candidate} locate={replacement.locate} busy={busy} error={replacementError} onClose={closeReplacement} onChoose={()=>void chooseReplacement(replacement.id,replacement.locate)} onApply={applyReplacement}/>}
+      {studioSnapshot&&<ExportStudio project={studioSnapshot} time={time} queue={studio} onClose={()=>setStudioSnapshot(null)}/>}
       {preflight&&<PreflightDialog project={preflight.project} autoAnalyze={preflight.autoAnalyze} issues={preflight.issues} onNormalize={(plan,target)=>{if(latestProject.current!==preflight.project){setMessage('Projekt zmienił się. Uruchom analizę ponownie.');return;}const next=normalizedProject(preflight.project,plan.gainDb,target);setPreflight(null);changeProject(next);setMessage('Normalizacja zastosowana do całego miksu. Ctrl+Z cofa zmianę.');}} onClose={()=>setPreflight(null)} onExport={()=>{const snapshot=preflight.project;setPreflight(null);void performExport(snapshot);}} onSeek={t=>{setPreflight(null);setSourceViewerId('');seek(t);}} onLocate={id=>{setPreflight(null);setLeftTab('files');setHighlightSource(id);}}/>}
       {recoveryInfo&&<RecoveryDialog info={recoveryInfo} busy={busy} error={recoveryError} onChoose={resolveRecovery}/>}
       {settings && (

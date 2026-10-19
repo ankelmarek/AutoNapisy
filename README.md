@@ -1,6 +1,22 @@
-# RolVixa 0.30 — polska mowa → polskie napisy
+# RolVixa 0.31 — polska mowa → polskie napisy
 
 **Instalator 0.30:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39254150340/artifacts/12187284748), rozpakuj i uruchom `RolVixa_0.30.0_x64-setup.exe`. Pobranie z Actions wymaga zalogowania na GitHub.
+
+## Wersja 0.31 — Export Studio
+
+Po sprawdzeniu przed eksportem otwiera się Export Studio. Wybierz profil, dopasowanie całego kadru z pasami albo centralne przycięcie, tryb napisów i folder. Podgląd rzeczywistej klatki z oryginałów oraz plansze napisów pokazują format docelowy; ostrzeżenia o zmianie proporcji i upscalingu wymagają akceptacji. Projekt montażowy pozostaje niezmieniony (schemat v14).
+
+Profile: format montażu, Reels/TikTok/Shorts 1080×1920, YouTube/Facebook 1920×1080, 4K 3840×2160, szybkie 720p i archiwum CRF 15 w formacie montażu. Własne: parzyste wymiary 128–3840, CRF 12–35, fast/medium/slow oraz AAC 96/128/192/256/320 kb/s. Wszystkie: H.264, 30 kl./s i stereo 48 kHz, kodowanie CPU. Archiwum jest wysoką jakością stratną. Powiększenie nie odzyskuje szczegółów; profile platform są propozycją ustawień. Orientacyjny zakres MB dla CRF jest szeroką heurystyką, nie limitem rozmiaru ani gwarancją.
+
+Napisy: w obrazie, osobny SRT obok MP4 albo bez napisów. Bitmapy z tego samego renderera co podgląd, z rzeczywistymi fontami. Wariant SRT nie wypala tekstu. Ustawienia miksu, gain master, fade'y, obwiednie, crossfade i J/L-cut zachowane. Nowy tor Export Studio składa oryginalny montaż MLT do FFV1 + PCM float, a następnie koduje jeden wynikowy H.264/AAC. Tymczasowy FFV1 nie oznacza bezstratnego pliku końcowego; przejścia nadal korzystają ze wspólnego renderera.
+
+„Dodaj wariant do kolejki” zapisuje niezmienną kopię projektu i ustawień. Można dodać kilka wersji jednego montażu albo wybrać do 10 zapisanych projektów w natywnym dialogu, bez otwierania ich w edytorze. Przed dodaniem całej paczki obejrzyj i zatwierdź kadr każdego projektu. Kolejka ma maks. 10 pozycji, działa sekwencyjnie w backendzie i kontynuuje pracę po zamknięciu panelu; przycisk obok Eksportuj otwiera ją ponownie. Anulowanie jednej pozycji nie zatrzymuje innych; nieudane/anulowane zadanie z kompletnymi planszami można ponowić. Usuń ukończone pozycje, aby zwolnić ich zasoby. Zmiana źródeł lub narzędzi wymaga ponownego dodania zadania. Przygotowywanie plansz można przerwać osobno.
+
+Zapis jest do folderu autoryzowanego natywnym wyborem; IPC nie przyjmuje dowolnej ścieżki wyjścia. Istniejące i zarezerwowane nazwy otrzymują kolejny numer. Publikacja nie nadpisuje istniejących plików także przy konflikcie w trakcie pracy. MP4 i SRT nie są jedną transakcją systemu plików: błąd publikacji MP4 wycofuje niezmieniony SRT tej próby. Pliki źródłowe i projekty JSON nie są nadpisywane.
+
+Własne profile w app_data/export-studio-v1/profiles.json, osobno od projektu i Undo: do 24 wpisów, walidacja, blokada OS i atomowy zapis. Nieczytelny/nowszy rejestr zachowany do jawnego wyczyszczenia. Kolejka jest sesyjna i wymaga działającej aplikacji; przed zamknięciem programu ukończ lub anuluj zadania. Po awarii procesu zadania trzeba dodać ponownie. Tymczasowe plansze do 512 MiB na zadanie, aktywny plik pośredni i wynik do 32 GiB każdy; zapis FFV1 może wymagać znacznie więcej miejsca niż MP4. Brak automatycznego wznowienia po awarii, próbek A/B, docelowego limitu MB, innych kodeków, GPU i nowej bazy FPS w tej wersji. Normalizacja pozostaje istniejącą funkcją pomiaru miksu, nie jest wykonywana automatycznie przy eksporcie.
+
+Odbiór Windows 0.31 i instalator: w trakcie weryfikacji. Poniższy link 0.30 pozostaje ostatnim ukończonym wydaniem do zakończenia testów.
 
 ## Wersja 0.30 — SmartCut 0.2: obraz i przebitka
 
