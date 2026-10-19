@@ -70,3 +70,6 @@ pub mod export_studio;
 
 #[path="../../src-tauri/src/smart_export.rs"]
 pub mod smart_export;
+
+#[path="../../src-tauri/src/caption_stream.rs"]
+pub mod caption_stream;

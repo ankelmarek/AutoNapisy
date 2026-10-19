@@ -8,5 +8,5 @@ it('próbka przeglądarkowego testu Ripple pozostaje prawdziwym v10 po zmianie b
  const page={evaluate:(fn:()=>unknown)=>{const host=globalThis as any,previous=host.window;host.window={__saved:newProject()};try{const value=fn();seed=host.window.__saved;return value;}finally{if(previous===undefined)delete host.window;else host.window=previous;}}};
  await expect(testEdit018(page,async()=>{throw stop;},1366,700)).rejects.toBe(stop);
  const legacy=seed as Record<string,unknown>;expect(legacy.schemaVersion).toBe(10);expect(legacy).not.toHaveProperty('masterAudio');expect(legacy).not.toHaveProperty('trackLayout');
- const loaded=parseProject(JSON.stringify(legacy));expect(loaded.schemaVersion).toBe(14);expect(loaded.masterAudio.gainDb).toBe(0);expect(loaded.rippleEnabled).toBe(true);expect(loaded.clips).toHaveLength(5);
+ const loaded=parseProject(JSON.stringify(legacy));expect(loaded.schemaVersion).toBe(15);expect(loaded.masterAudio.gainDb).toBe(0);expect(loaded.rippleEnabled).toBe(true);expect(loaded.clips).toHaveLength(5);
 });

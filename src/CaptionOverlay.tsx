@@ -3,6 +3,7 @@ import type { Project } from "./model";
 import { captionCards, activeCaption, type CaptionStyle } from "./captions";
 
 import { layoutCaption } from "./captionCanvas";
+import AnimatedCaption from './AnimatedCaption';
 type Rect = { left: number; top: number; width: number; height: number };
 export function fitVideoRect(
   width: number,
@@ -125,6 +126,7 @@ export default function CaptionOverlay({
     <div className="caption-viewport" style={rect}>
       {(current ? [current] : []).map((card) => {
         const style = project.styles[card.styleId];
+        if(style.animation)return <AnimatedCaption key={card.id} card={card} style={style} width={rect.width} height={rect.height} time={time}/>;
         const vertical =
           style.position === "bottom"
             ? { bottom: `${style.marginPercent}%` }

@@ -140,6 +140,9 @@ pub fn encode(
     duration: f64,
     max_bytes: u64,
 ) -> Result<PathBuf, String> {
+    encode_with_layer(e,job,o,input,dir,start,duration,max_bytes,None)
+}
+pub fn encode_with_layer(e:&Entry,job:&Arc<Job>,o:&Options,input:&Path,dir:&Path,start:f64,duration:f64,max_bytes:u64,layer:Option<&Path>)->Result<PathBuf,String>{
     o.validate()?;
     let (w, h) = o.dimensions(&e.meta);
     let intervals = caption_intervals(&e.project, start, duration);
@@ -149,7 +152,10 @@ pub fn encode(
         .map(Into::into)
         .chain(std::iter::once(input.as_os_str().to_owned()))
         .collect();
-    let filter = if burn {
+    let filter = if let Some(layer) = layer {
+        args.push("-i".into());args.push(layer.as_os_str().to_owned());
+        format!("[0:v]{}[base];[1:v]format=rgba[subs];[base][subs]overlay=0:0:eof_action=pass:repeatlast=0,format=yuv420p[v]",o.filter(w,h))
+    } else if burn {
         let mut copied = std::collections::HashSet::new();
         for i in intervals.iter().filter_map(|i| i.index) {
             if copied.insert(i) {

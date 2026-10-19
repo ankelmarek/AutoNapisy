@@ -50,7 +50,7 @@ describe("skład napisów", () => {
   it("bez czasów słów nie wymyśla podziału czasu", () => {
     const s = segment("jeden dwa trzy cztery pięć sześć siedem osiem dziewięć");
     expect(captionCards(s, yellowPreset)).toEqual([
-      { id: "a", text: s.text, start: 0, end: 10, styleId: "default" },
+      { id: "a", text: s.text, start: 0, end: 10, styleId: "default", words: [] },
     ]);
   });
   it("dzieli plansze po rzeczywistych początkach słów, bez luk", () => {
@@ -112,7 +112,7 @@ describe("migracja i geometria", () => {
       },
     };
     const migrated = parseProject(JSON.stringify(legacyFixture(old)));
-    expect(migrated.schemaVersion).toBe(14);
+    expect(migrated.schemaVersion).toBe(15);
     expect(migrated.styles.default.uppercase).toBe(false);
     expect(migrated.styles.default.fontFamily).toBe("Arial");
     expect(parseProject(serializeProject(migrated))).toEqual({

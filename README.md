@@ -1,5 +1,15 @@
 # RolVixa 0.32 — polska mowa → polskie napisy
 
+## W pracach: 0.33a — techniczny fundament Animated Captions
+
+Pierwszy z trzech osobnych PR dla 0.33 / issue #20. Wspólny Canvas sterowany czasem montażu i 30 FPS: Karaoke Flow i Pop Beat. Czasy słów są zachowywane po podziale na plansze i eksporcie; spójny tekst korzysta z prawdziwych czasów, a brak danych/ręczna zmiana ma jawny fallback animacji całej planszy. Nigdy nie wyliczamy czasu słów z liczby znaków. Schemat v15, import v1–v14 zachowuje dotychczasowe statyczne style; nowe parametry nie są akceptowane w starym schemacie.
+
+Techniczny ekran `?caption-poc` wymaga osobnego builda z `--features ui-tests`. Binarne pakiety RGBA trafiają z jednego Canvas do ograniczonego kanału i strumienia stdin FFmpeg, do pojedynczego FFV1/BGRA z alfą. Brak PNG/base64 na każdą klatkę i brak kolekcji wszystkich obrazów w pamięci. Kolejka ma jedną klatkę, writer jedną, frontend jedną; przestrzeń robocza i przekazywanie IPC wymagają dodatkowych buforów. Limit POC: 150 klatek, 1280² pikseli, warstwa 1 GiB, MP4 128 MiB; przerwa w dostarczaniu ponad 30 s przerywa proces. Anulowanie kończy/reapuje FFmpeg, usuwa tempy i nie publikuje spóźnionego wyniku. Dostęp do źródeł i gotowego pliku jest autoryzowany w backendzie. Wynik to tymczasowy, rzeczywisty MP4 H.264/AAC 30 FPS, z kompozycją i miksem MLT.
+
+To **nie jest ukończone wydanie 0.33**. Nie ma jeszcze galerii/pozostałych sześciu stylów (0.33b), pełnego podłączenia animacji do wszystkich eksportów/A-B ani preflight i odbioru długiego renderowania (0.33c). Standardowe wypalanie animowanych stylów jest na razie jawnie blokowane, aby nie wyeksportować ich po cichu jako nieruchomych; statyczne style, SRT i brak napisów pozostają obsługiwane. Poniższy instalator to ostatnie stabilne 0.32.
+
+Odbiór Windows POC i porównania klatek w toku. Materiał mowy i rzeczywisty wynik Whisper opisano w `tests/fixtures/caption033-SOURCE.md`; polskie znaki i ręczny fallback są osobnymi testami. Animacja korzysta z oszacowanych czasów ASR, nie daje gwarancji fonetycznej dokładności rozpoznania.
+
 **Instalator 0.32:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39291594851/artifacts/12206647480), rozpakuj i uruchom `RolVixa_0.32.0_x64-setup.exe`. Pobranie z Actions wymaga zalogowania na GitHub.
 
 ## Wersja 0.32 — Export Studio 0.2
