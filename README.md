@@ -1,9 +1,11 @@
 # RolVixa 0.26 — polska mowa → polskie napisy
 
-**Instalator 0.25:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39163940646/artifacts/12149598498), rozpakuj i uruchom `RolVixa_0.25.0_x64-setup.exe`. Pobranie z Actions wymaga zalogowania na GitHub.
+**Instalator 0.26:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39189432808/artifacts/12160120281), rozpakuj i uruchom `RolVixa_0.26.0_x64-setup.exe`. Pobranie z Actions wymaga zalogowania na GitHub.
 RolVixa (wcześniej AutoNapisy) to lokalna aplikacja Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Rozpoznaje polską mowę przez whisper.cpp, bez tłumaczenia. Transkrypcja i montaż działają na komputerze. Opcjonalna biblioteka muzyki łączy się z Openverse po wpisaniu frazy wyszukiwania; nie wysyła nagrań użytkownika.
 
-## Wersja 0.26 — czytelne audio (odbiór w toku)
+## Wersja 0.26 — czytelne audio (ukończona)
+
+**Osobny [PR #13](https://github.com/ankelmarek/AutoNapisy/pull/13) połączony.** Pełny zielony [Windows run 39189432808](https://github.com/ankelmarek/AutoNapisy/actions/runs/39189432808), także push 39189417417: **220 testów TypeScript, 85 Rust, 17 rzeczywistych integracyjnych**, produkcyjny build, instalacja i WebView2. Sprawdzono zrzuty pełnego audio, nakładania i panelu rozdzielania w 1366×700 / Full HD oraz rzeczywistego okna natywnego z dekodowanym MLT. Potwierdzone waveform w jednym V, pełne A, osobne rzędy kolizji, jawne dodanie A3 i przeniesienie z pojedynczym Undo/Redo, głośność, mute/routing/oczko, zwijanie bez restartu dekodera, odtwarzanie i zapis/reopen. Regresje źródeł, Ripple/J/L-cut, normalizacji, napisów, eksportu, historii i crash/restart także zielone. Lokalnie: 220 TS, 82 Rust core, pięć rzeczywistych integracji audio/dynamicznych torów/Ripple i build frontendu. ZIP: **81 243 839 B**, SHA-256 `9b846c2390e7cee29ed53828c8bd395418be3141547be3aa08a5e0a4abbf2e28`. Narzędzia i licencje pozostają dołączone; model Whisper wybiera się osobno jak dotychczas.
 
 - Film i połączony dźwięk są **jednym klipem na V**. Waveform, głośność, punkty i fade’y znajdują się w dolnej części tego samego klipu. Przesuwanie/trim/żyletka nadal dotyczą całego połączonego ujęcia. Po odłączeniu dźwięk staje się osobnym klipem na A.
 - **A1/A2 i dalsze A** pokazują wyłącznie niezależne lub odłączone audio. Pojedynczy klip wypełnia całą wysokość toru. Dźwięk filmu routowany do A nie tworzy drugiej połowy toru.
