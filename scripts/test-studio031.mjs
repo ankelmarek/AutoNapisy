@@ -13,7 +13,7 @@ export async function testStudio031(page,{read,save,screenshot}){
  const ready=async()=>{await page.waitForFunction(()=>{const i=document.querySelector('.studio-preview img');return i?.complete&&i.naturalWidth>0;});const accept=studio.getByRole('checkbox',{name:'Akceptuję ostrzeżenia eksportu',exact:true});if(await accept.count())await accept.check();};
  await ready();if(!mock)assert(await studio.locator('.studio-preview img').evaluate(i=>i.naturalHeight>100));
  await studio.getByRole('textbox',{name:'Nazwa profilu eksportu',exact:true}).fill('Próba Łódź 031');await studio.getByRole('button',{name:'Zapisz profil eksportu',exact:true}).click();await page.waitForFunction(()=>[...document.querySelectorAll('select[aria-label="Profil eksportu"] option')].some(o=>o.textContent==='Próba Łódź 031'));
- await studio.getByRole('button',{name:'Wybierz folder eksportu…',exact:true}).click();await ready();
+ await studio.getByRole('button',{name:/^(Wybierz|Zmień) folder eksportu…$/}).click();await ready();
  await studio.getByRole('button',{name:'Dodaj wariant do kolejki',exact:true}).click();await page.waitForFunction(()=>document.querySelector('.studio-job')?.classList.contains('completed'));
  let rows=await invoke('studio_status');assert.equal(rows.length,1);assert(rows[0].srtPath);const first=rows[0];
  await studio.getByRole('combobox',{name:'Napisy eksportu',exact:true}).selectOption('none');await ready();await studio.getByRole('button',{name:'Dodaj wariant do kolejki',exact:true}).click();await page.waitForFunction(()=>document.querySelectorAll('.studio-job.completed').length===2);
