@@ -12,3 +12,8 @@ export function parseTimelineView(raw:string|null):TimelineView{
 export function readTimelineView(){try{return parseTimelineView(localStorage.getItem(TIMELINE_VIEW_KEY));}catch{return defaultTimelineView();}}
 export function writeTimelineView(view:TimelineView){try{localStorage.setItem(TIMELINE_VIEW_KEY,JSON.stringify({version:1,...view}));}catch{/* A view preference cannot invalidate a project edit. */}}
 export const fitTimelineZoom=(duration:number,width:number)=>Math.min(160,Math.max(.001,(Math.max(1,width)-32)/Math.max(.05,duration)));
+/** Preserve the timeline time under the pointer; deltaMode is normalized by the DOM caller. */
+export function wheelTimelineZoom(zoom:number,delta:number,duration:number,width:number,left:number,pointer:number){
+ const next=Math.max(Math.min(2,fitTimelineZoom(duration,width)),Math.min(160,zoom*Math.exp(-Math.max(-500,Math.min(500,delta))*.002)));
+ return {zoom:next,left:Math.max(0,(left+pointer)/zoom*next-pointer)};
+}

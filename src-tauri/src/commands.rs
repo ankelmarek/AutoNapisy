@@ -106,6 +106,7 @@ pub fn start_transcription(
     mlt: State<'_, crate::mlt_commands::MltState>,
     path: Option<String>,
     json: Option<String>,
+    selected_clip_ids: Option<Vec<String>>,
     access: State<'_, Access>,
     tools: State<'_, ToolState>,
     tasks: State<'_, Tasks>,
@@ -135,7 +136,8 @@ pub fn start_transcription(
             );
         }
 
-        for c in p.clips.as_deref().unwrap_or(&[]) {
+        let speech=transcription::voice_project(&p,selected_clip_ids.as_deref())?;
+        for c in speech.clips.as_deref().unwrap_or(&[]) {
             let path = media_path(std::path::Path::new(p.clip_path(c).ok_or("Brak źródła")?))?;
             if !access
                 .0
@@ -185,7 +187,7 @@ pub fn start_transcription(
         .name("autonapisy-transcription".into())
         .spawn(move || {
             let result = if let Some(p) = timeline {
-                transcription::execute_timeline_mlt(Arc::clone(&running), tools, p, melt.unwrap())
+                transcription::execute_timeline_mlt_scoped(Arc::clone(&running), tools, p, melt.unwrap(),selected_clip_ids)
             } else {
                 transcription::execute(Arc::clone(&running), tools, media.unwrap())
             };

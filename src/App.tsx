@@ -1,3 +1,4 @@
+import {speechIntervals,applySelectedTranscript} from './speechSelection';
 import SmartCutDialog from './SmartCutDialog';
 import type {SmartCutRequest} from './smartCut';
 import { useEffect, useRef, useState, useMemo, useReducer } from "react";
@@ -150,6 +151,7 @@ export default function App() {
   const elements=useRef(new Map<string,HTMLMediaElement>());
   const [sources,setSources]=useState<Record<string,string>>({});
   const [leftTab,setLeftTab]=useState<"files"|"captions"|"effects"|"audio">("files");
+  const [selectedIds,setSelectedIds]=useState<string[]>([]),[transcriptionScope,setTranscriptionScope]=useState<'all'|'selected'>('all');
   const [inspectorTab,setInspectorTab]=useState<'video'|'captions'>('video'),[selectedClip,setSelectedClip]=useState(''),[selectedCaption,setSelectedCaption]=useState(''),[selectedTransition,setSelectedTransition]=useState('');
   const [effectChoice,setEffectChoice]=useState<EffectChoice>({kind:'fade',duration:.4});
   const captionInput=useRef<HTMLTextAreaElement>(null);
@@ -226,7 +228,7 @@ export default function App() {
         if(!result)return;
         const p=parseProject(result.json),prepared:Record<string,string>={},missing:string[]=[];
         for(const m of [...(p.media?[p.media]:[]),...p.assets]){try{prepared[m.path]=await preview.prepare(m.path);}catch{missing.push(m.name);}}
-        setSources(prepared);setSourceViewerId('');sourceRanges.current.clear();resetPlayback();latestProject.current=p;history.reset(p);recovered.current=false;saver.accept(p,result.path,result.session);setSource(Object.values(prepared)[0]??'');setHomeMode('closed');
+        setSources(prepared);setSourceViewerId('');sourceRanges.current.clear();resetPlayback();latestProject.current=p;history.reset(p);setSelectedIds([]);setSelectedClip('');recovered.current=false;saver.accept(p,result.path,result.session);setSource(Object.values(prepared)[0]??'');setHomeMode('closed');
         void recent.refresh();setMessage(missing.length?`Projekt otwarty. Niedostępne pliki: ${missing.join(', ')}`:'Projekt otwarty.');
       }catch(e){setStartError(String(e));throw e;}finally{resumeRecovery();}
     });
@@ -234,7 +236,7 @@ export default function App() {
   const createNew=()=>run(async()=>{
     if(saver.saving||!replace())return;
     recovery.update(null);try{await recovery.flush();}catch{}const session=await backend.newProject();const p=newProject();
-    setSourceViewerId('');sourceRanges.current.clear();recovered.current=false;resetPlayback();latestProject.current=p;history.reset(p);pristineRevision.current=projectRevision(p);saver.accept(p,'',session);setSource('');setSources({});setHomeMode('closed');setStartError('');
+    setSourceViewerId('');sourceRanges.current.clear();recovered.current=false;resetPlayback();latestProject.current=p;history.reset(p);setSelectedIds([]);setSelectedClip('');pristineRevision.current=projectRevision(p);saver.accept(p,'',session);setSource('');setSources({});setHomeMode('closed');setStartError('');
   });
   const save=async(saveAs=false)=>{
     if(saver.saving)return;
@@ -250,7 +252,7 @@ export default function App() {
       if(result){
         const p=parseProject(result.json),prepared:Record<string,string>={},missing:string[]=[];
         for(const m of [...(p.media?[p.media]:[]),...p.assets]){try{prepared[m.path]=await preview.prepare(m.path);}catch{missing.push(m.name);}}
-        setSourceViewerId('');sourceRanges.current.clear();resetPlayback();latestProject.current=p;history.reset(p);pristineRevision.current=projectRevision(p);recovered.current=action==='recover';setHomeMode('closed');saver.accept(p,result.path,result.session);setSources(prepared);setSource(Object.values(prepared)[0]??'');
+        setSourceViewerId('');sourceRanges.current.clear();resetPlayback();latestProject.current=p;history.reset(p);setSelectedIds([]);setSelectedClip('');pristineRevision.current=projectRevision(p);recovered.current=action==='recover';setHomeMode('closed');saver.accept(p,result.path,result.session);setSources(prepared);setSource(Object.values(prepared)[0]??'');
         if(action==='saved')void recent.refresh();
         setMessage(`${action==='recover'?'Odzyskano projekt. Zapisz go jako nowy plik.':'Otworzono zapisany projekt.'}${missing.length?' Niedostępne pliki: '+missing.join(', '):''}`);
       }else setMessage('Odrzucono kopię odzyskiwania.');
@@ -274,10 +276,14 @@ export default function App() {
     });
   const transcribe = async () => {
     if (!projectClips(project).length || controller.current) return;
+    if(project.tracks.T?.locked){setMessage('Odblokuj ścieżkę napisów przed transkrypcją.');return;}
+    const selected=transcriptionScope==='selected'?selectedIds.filter(id=>projectClips(project).some(c=>c.id===id&&c.kind!=='audio')):undefined;
+    const ranges=speechIntervals(project,selected);
+    if(!ranges.length){setMessage(selected?.length===0?'Zaznacz klipy wideo na osi czasu.':'Brak niewyciszonego dźwięku powiązanego z filmem. Osobna muzyka nie jest transkrybowana.');return;}
     if (
       displayedSegments.length &&
       !window.confirm(
-        "Nowa transkrypcja zastąpi obecne napisy po poprawnym zakończeniu. Kontynuować?",
+        selected?'Nowa transkrypcja zastąpi napisy tylko w zakresach dźwięku zaznaczonych filmów. Napisy poza nimi pozostaną. Kontynuować?':'Nowa transkrypcja zastąpi obecne napisy po poprawnym zakończeniu. Kontynuować?',
       )
     )
       return;
@@ -290,9 +296,10 @@ export default function App() {
         project,
         abort.signal,
         setTask,
+        selected,
       );
       const current=latestProject.current;
-      const updated=applyTimelineTranscript(current,segments);
+      const updated=selected?applySelectedTranscript(current,segments,ranges):applyTimelineTranscript(current,segments);
       setProject(updated);
       
       setMessage(
@@ -478,6 +485,8 @@ export default function App() {
             onAdd={id=>{try{playback.pause();const next=insertLibraryItem(project,id,time);changeProject(next);setMessage('Dodano plik z biblioteki na oś czasu.');adviseAddedAudio(next);}catch(e){setMessage(String(e));}}}/>}
           <div className="captions-tab-content" role="tabpanel" id="captions-panel" aria-labelledby="captions-tab" hidden={leftTab!=='captions'}>
           <div className="transcription-controls" role="group" aria-label="Tworzenie i eksport napisów">
+            <label className="transcription-scope">Zakres transkrypcji<select aria-label="Zakres transkrypcji" disabled={locked} value={transcriptionScope} onChange={e=>setTranscriptionScope(e.target.value as 'all'|'selected')}><option value="all">Cały montaż</option><option value="selected">Tylko zaznaczone klipy</option></select></label>
+            <small className="speech-policy">Dźwięk filmów i powiązane audio, bez wyciszonych ścieżek oraz osobnej muzyki.{transcriptionScope==='selected'&&` Zaznaczono filmów: ${selectedIds.filter(id=>projectClips(project).some(c=>c.id===id&&c.kind!=='audio')).length}.`}</small>
             <button
               className="primary"
               disabled={locked || !projectClips(project).length}
@@ -787,7 +796,7 @@ export default function App() {
             </div>
           </div>
         </section>
-      <Timeline onSmartCut={request=>{if(locked)return;playback.pause();setSourceViewerId('');setSmartcut({project:latestProject.current,request});}} solo={solo} onSolo={id=>setSolo(old=>{const next=new Set(old);next.has(id)?next.delete(id):next.add(id);return next;})} onClearSolo={()=>setSolo(new Set())} project={project} time={time} locked={locked||settings||homeVisible} onError={setMessage} onSeek={t=>{setSourceViewerId('');seek(t);}}
+      <Timeline selectedIds={selectedIds} onSelectionChange={setSelectedIds} onSmartCut={request=>{if(locked)return;playback.pause();setSourceViewerId('');setSmartcut({project:latestProject.current,request});}} solo={solo} onSolo={id=>setSolo(old=>{const next=new Set(old);next.has(id)?next.delete(id):next.add(id);return next;})} onClearSolo={()=>setSolo(new Set())} project={project} time={time} locked={locked||settings||homeVisible} onError={setMessage} onSeek={t=>{setSourceViewerId('');seek(t);}}
         onChange={(clips,mode)=>{if(mode!=='volume')playback.pause();changeProject({...latestProject.current,clips,transitions:reconcileTransitions(latestProject.current,clips)});}} onPreviewVolume={playback.previewVolume} onBeginAudio={playback.pause} onSelect={id=>{setSelectedClip(id);setSelectedTransition('');setInspectorTab('video');}} onCaptionSelect={selectCaption}
         onMediaDrop={(id,at,track,range,kind)=>{try{playback.pause();setSourceViewerId('');const next=insertLibraryItem(latestProject.current,id,at,track,range,kind);changeProject(next);setMessage('Dodano plik na oś czasu.');adviseAddedAudio(next);}catch(e){setMessage(String(e));}}}
         onCaptionChange={p=>changeProject(p)} effectChoice={effectChoice} onTransition={(a,b,choice)=>{try{playback.pause();const next=applyTransition(project,a,b,choice.kind,choice.duration);changeProject(next);setSelectedTransition(next.transitions.find(t=>t.toId===b)!.id);setInspectorTab('video');}catch(e){setMessage(String(e));}}} onTransitionSelect={id=>{setSelectedTransition(id);setInspectorTab('video');}}

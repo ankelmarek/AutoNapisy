@@ -1,5 +1,11 @@
 # Kolejne etapy RolVixa
 
+## Wersja 0.29 — zaznaczenie i transkrypcja mowy (odbiór w toku)
+
+Ctrl+kółko ze stałym czasem pod kursorem; fit obok skali z istniejącą pustą lupką Tabler. Ctrl/Shift+klik, prostokąt i Ctrl+A zaznaczają klipy na różnych torach; grupa zachowuje odstępy i powiązane odłączone audio, blokady/kolizje oraz jeden Undo. Napisy można przesuwać bez trimowania; offset jest zapisany w v14 z migracją v1–v13. Dwuklik nadal edytuje tekst.
+
+Domyślny zakres „Cały montaż” i opcja „Tylko zaznaczone klipy”. Filtrowanie w backendzie obejmuje niewyciszone wideo i jego powiązane audio, pomija muzykę dodaną osobno. Zachowane trasy/mute, źródłowe gain/fade/crossfade, J/L-cut i czasy montażu po pominięciu luk. Wynik wybranego zakresu zachowuje napisy poza nim. Rzeczywisty test PCM obu silników i nowy scenariusz WebView2; pełny odbiór Windows wymagany przed publikacją instalatora. SmartCut 0.2 i Export Studio pozostają osobne.
+
 ## Wykonane w 0.28 — SmartCut 0.1
 
 Zatwierdzone zaznaczanie zakresu / istniejącego połączenia, Dokładne / Naturalne / Wygładzone, pomiar krótkich okien dźwięku i istniejące czasy słów, porównanie krótkiego montażu MLT, pętla i jeden Undo. Zachowane Ripple, J/L-cut, blokady, źródłowe obwiednie i muzyka Auto. Zakres 0.1 mieści się w jednym wybranym filmie; konflikty są jawne. Schemat nadal v13. Szczegółowa obsługa i ograniczenia w README. Naprawa aktywnej strefy drag/drop przejść i pojedyncze kodowanie AAC w składaniu FFmpeg należą do tej iteracji. Pełny zielony Windows run 39220210425: 252 TS, 90 Rust, 19 rzeczywistych integracyjnych, produkcyjny build, instalacja oraz WebView2 1366×700 / Full HD. Zrzuty SmartCut i natywnego zdekodowanego podglądu sprawdzone. PR #15 połączony; instalator 12172325679. SmartCut 0.2 / Export Studio poza paczką.

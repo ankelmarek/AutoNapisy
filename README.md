@@ -1,7 +1,21 @@
-# RolVixa 0.28 — polska mowa → polskie napisy
+# RolVixa 0.29 — polska mowa → polskie napisy
 
 **Instalator 0.28:** [pobierz ZIP Windows x64](https://github.com/ankelmarek/AutoNapisy/actions/runs/39220210425/artifacts/12172325679), rozpakuj i uruchom `RolVixa_0.28.0_x64-setup.exe`. Pobranie z Actions wymaga zalogowania na GitHub.
 RolVixa (wcześniej AutoNapisy) to lokalna aplikacja Windows x64: Tauri 2, React, TypeScript, Vite i Rust. Rozpoznaje polską mowę przez whisper.cpp, bez tłumaczenia. Transkrypcja i montaż działają na komputerze. Opcjonalna biblioteka muzyki łączy się z Openverse po wpisaniu frazy wyszukiwania; nie wysyła nagrań użytkownika.
+
+## Wersja 0.29 — grupy, przesuwanie napisów i zakres transkrypcji
+
+**Odbiór Windows w toku.** Powyższy link prowadzi jeszcze do ostatniego odebranego instalatora 0.28; zostanie zastąpiony po zielonym odbiorze nowej wersji.
+
+- **Ctrl + kółko nad osią** powiększa i pomniejsza skalę wokół kursora. „Cały montaż” z pustą lupką Tabler znajduje się obok suwaka skali. Alt + przeciągnięcie i środkowy przycisk nadal przesuwają widok.
+- **Ctrl/Shift + klik** dodaje lub odejmuje klipy zaznaczenia. Przeciągnięcie pustego obszaru tworzy prostokąt zaznaczenia; Ctrl+A wybiera klipy z odblokowanych torów. Przesunięcie dowolnego zaznaczonego klipu przesuwa grupę poziomo, zachowując odstępy, tory i źródłowe obwiednie. Powiązane odłączone audio filmu podąża raz, z dotychczasowym offsetem J/L-cut. Blokady i kolizje chronią całą operację; jeden gest to jeden Undo. Grupy nie zmieniają torów pionowo; pojedynczy nieodłączony klip nadal można przenosić między torami. Kopiowanie/duplikowanie dotyczy aktywnego klipu, a Delete usuwa zaznaczenie jednym Undo; przy konflikcie Ripple nic nie jest zatwierdzane.
+- **Przeciągnięcie środka napisu** przesuwa jego czas, bez zmiany długości. Uchwyty przycinają; pojedynczy klik zaznacza, Delete usuwa, dwuklik otwiera edycję tekstu. Escape anuluje gest. Przesunięcie zachowuje czasy słów i przypisanie źródła, a jego zapis/Undo działa tak jak pozostałe edycje.
+- **Zakres transkrypcji**: domyślnie „Cały montaż”, opcjonalnie „Tylko zaznaczone klipy”. W obu trybach backend wybiera wyłącznie niewyciszony dźwięk filmów oraz ich powiązane odłączone audio. Samodzielna muzyka/dźwięki są wykluczone. Mute V i oryginalnego busa A jest respektowany; oczko steruje obrazem, Solo pozostaje tylko odsłuchem. Zachowane źródłowe trimy, J/L-cut, obwiednie i liniowy miks przejść. Luki bez wybranego dźwięku są pomijane przed Whisperem, a wynik wraca do czasu montażu. Brak odpowiedniego dźwięku daje jawny komunikat. Wybranie samej muzyki nie uruchamia całego montażu.
+- Wynik zaznaczenia **zastępuje napisy tylko we wskazanych zakresach dźwięku**; widoczny tekst i edycje poza nimi pozostają. Napisy przecinające granicę są dzielone według czasów słów. Przy braku czasów słów zachowany tekst może pojawić się w obu pozostałych częściach — trzeba sprawdzić go ręcznie. Błąd/anulowanie pozostawia napisy bez zmian. Istniejące napisy wymagają potwierdzenia zastąpienia, a blokada T chroni transkrypcję.
+
+Schemat **v14**, `schemas/project-v14.schema.json`: opcjonalny podpisany `captionEdits[id].offset` (sekundy, −86400…86400). Migracje v1–v13 nie zmieniają miksu ani kolejności torów; stare projekty nie mają przesunięć. Starsza aplikacja nie otworzy zapisanych projektów v14. Historia zaznaczenia i wybór zakresu transkrypcji są sesyjne, poza JSON/Undo. W tej wersji nie rozszerzano SmartCut ani Export Studio.
+
+Testy: logika grup/kolizji/blokad/magnesu i Undo, skala wokół kursora, globalne/źródłowe napisy i migracje/trim/Ripple/SmartCut, zakresy mowy/IPC/łączenie częściowych wyników. Test rzeczywistego PCM sprawdza MLT oraz FFmpeg z trzema rozróżnialnymi tonami: brak samodzielnej muzyki i wyciszonego V, wybór klipu, J/L-cut i kompresję luk; nie podstawia fikcyjnego wyniku Whispera. Nowy scenariusz WebView2 sprawdza prawdziwe gesty myszy, zapis/reopen i kontrolki zakresu. W dawnym teście Audio 0.26 usunięto wyścig otwierania: odczyt starego rzędu A nie oznacza już ukończenia nowego Open.
 
 ## Wersja 0.28 — SmartCut 0.1 (ukończona)
 

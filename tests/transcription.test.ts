@@ -151,3 +151,5 @@ describe("zastosowanie wyniku", () => {
     expect(p.segments).toEqual([]);
   });
 });
+
+it('przekazuje jawny wybór klipów do kontrolowanej komendy backendu',async()=>{invoke.mockResolvedValueOnce(7).mockResolvedValueOnce(status('completed',{segments:[]}));const p=newProject();await transcription.transcribe(p,undefined,undefined,['v']);expect(invoke).toHaveBeenNthCalledWith(1,'start_transcription',{json:JSON.stringify(p),selectedClipIds:['v']});});

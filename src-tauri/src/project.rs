@@ -266,6 +266,8 @@ pub struct Adjustments {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CaptionEdit {
+    #[serde(default,skip_serializing_if="Option::is_none")]
+    pub offset: Option<f64>,
     pub trim_start: f64,
     pub trim_end: f64,
     pub text: Option<String>,
@@ -389,13 +391,14 @@ pub fn parse(json: &str) -> Result<Project, String> {
         return Err("Brak listy ujęć w projekcie v3".into());
     }
     if raw["schemaVersion"].as_u64().is_some_and(|v|v<=11)&&raw.get("masterAudio").is_some(){return Err("Pole miksu nie należy do starszego schematu".into());}
+    if raw["schemaVersion"].as_u64().is_some_and(|v|v<=13)&&raw["captionEdits"].as_object().is_some_and(|edits|edits.values().any(|e|e.get("offset").is_some())){return Err("Przesunięcia napisów wymagają schematu v14".into());}
     let legacy = raw["schemaVersion"].as_u64().is_some_and(|v| v <= 10);
     if legacy && raw.get("trackLayout").is_some() {
         return Err("Starszy projekt nie może definiować nowych ścieżek".into());
     }
     let mut p: Project =
         serde_json::from_value(raw).map_err(|e| format!("Niepoprawny JSON projektu: {e}"))?;
-    if ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].contains(&p.schema_version) {
+    if ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14].contains(&p.schema_version) {
         return Err("Nieobsługiwana wersja projektu".into());
     }
     if p.schema_version < 3 {
@@ -449,7 +452,7 @@ pub fn parse(json: &str) -> Result<Project, String> {
     }
     // Before v13 array order had no meaning; preserve historical numeric stacking.
     if p.schema_version <= 12 { p.track_layout.sort_by_key(|t| (if t.kind=="video" {0} else {1},t.index)); }
-    p.schema_version = 13;
+    p.schema_version = 14;
     let master=&p.master_audio;
     if !master.gain_db.is_finite()|| !(-60.0..=24.0).contains(&master.gain_db)||master.normalization.as_ref().is_some_and(|n|!n.target_lufs.is_finite()|| !(-30.0..=-9.0).contains(&n.target_lufs)||n.basis.len()!=16||!n.basis.bytes().all(|b|b.is_ascii_digit()||(b'a'..=b'f').contains(&b))){return Err("Nieprawidłowa normalizacja miksu".into());}
     let mut track_ids = HashSet::new();
@@ -610,6 +613,7 @@ pub fn parse(json: &str) -> Result<Project, String> {
         || p.caption_edits.values().any(|e| {
             !valid_time(e.trim_start)
                 || !valid_time(e.trim_end)
+                || e.offset.is_some_and(|t| !t.is_finite() || t.abs()>86400.)
                 || e.text.as_ref().is_some_and(|t| t.len() > 400000)
         })
     {
@@ -794,7 +798,7 @@ mod tests {
     #[test]
     fn migrate_v1_and_validate_layout() {
         let project = parse(&json()).unwrap();
-        assert_eq!(project.schema_version, 13);
+        assert_eq!(project.schema_version, 14);
         assert!(!project.styles["default"].uppercase);
         assert_eq!(project.styles["default"].max_lines, 2);
         let mut value = serde_json::to_value(project).unwrap();
@@ -901,7 +905,7 @@ mod edit018_tests {
         assert!(p.ripple_enabled && p.tracks.v1.locked);
         assert!(p.tracks.audio_muted(&p.clips.as_ref().unwrap()[0]));
         let q = parse(&serde_json::to_string(&p).unwrap()).unwrap();
-        assert_eq!(q.schema_version, 13);
+        assert_eq!(q.schema_version, 14);
         assert_eq!(q.tracks.v1.ripple, "on");
         assert_eq!(q.clips.unwrap()[1].sync_group.as_deref(), Some("pair"));
     }
@@ -949,7 +953,7 @@ mod dynamic022_tests {
             parse(&serde_json::to_string(&p).unwrap())
                 .unwrap()
                 .schema_version,
-            13
+            14
         );
     }
     #[test]
@@ -1024,7 +1028,7 @@ mod dynamic022_tests {
 #[cfg(test)]mod master024_tests {
  use super::*;
  fn legacy()->serde_json::Value {serde_json::from_str(include_str!("../../tests/fixtures/three-tracks-v11.json")).unwrap()}
- #[test]fn migrate_v11_keeps_tracks_and_master_roundtrips(){let mut p=parse(&legacy().to_string()).unwrap();assert_eq!(p.schema_version,13);assert_eq!(p.master_audio.gain_db,0.);p.master_audio=MasterAudio{gain_db:1.9,normalization:Some(Normalization{target_lufs:-14.,basis:"0123456789abcdef".into(),stale:false})};let q=parse(&serde_json::to_string(&p).unwrap()).unwrap();assert_eq!(q.master_audio.gain_db,1.9);assert_eq!(q.track_layout.len(),6);assert_eq!(q.master_audio.normalization.unwrap().target_lufs,-14.);}
+ #[test]fn migrate_v11_keeps_tracks_and_master_roundtrips(){let mut p=parse(&legacy().to_string()).unwrap();assert_eq!(p.schema_version,14);assert_eq!(p.master_audio.gain_db,0.);p.master_audio=MasterAudio{gain_db:1.9,normalization:Some(Normalization{target_lufs:-14.,basis:"0123456789abcdef".into(),stale:false})};let q=parse(&serde_json::to_string(&p).unwrap()).unwrap();assert_eq!(q.master_audio.gain_db,1.9);assert_eq!(q.track_layout.len(),6);assert_eq!(q.master_audio.normalization.unwrap().target_lufs,-14.);}
  #[test]fn master_bounds_and_legacy_injection_rejected(){for master in [serde_json::json!({"gainDb":25}),serde_json::json!({"gainDb":-61}),serde_json::json!({"gainDb":0,"normalization":{"targetLufs":-8,"basis":"0123456789abcdef"}}),serde_json::json!({"gainDb":0,"normalization":{"targetLufs":-14,"basis":"wrong"}}),serde_json::json!({"gainDb":0,"execute":"x"})]{let mut v=legacy();v["schemaVersion"]=12.into();v["masterAudio"]=master;assert!(parse(&v.to_string()).is_err());}let mut v=legacy();v["masterAudio"]=serde_json::json!({"gainDb":0});assert!(parse(&v.to_string()).is_err());}
 }
 
@@ -1038,7 +1042,7 @@ mod order027_tests {
  #[test] fn legacy_numeric_stacking_and_v13_roundtrip(){
  let mut p=parse(include_str!("../../tests/fixtures/three-tracks-v11.json")).unwrap();
  p.track_layout.reverse();p.schema_version=12;
- let old=parse(&serde_json::to_string(&p).unwrap()).unwrap();assert_eq!(old.video_rank(0),0);assert_eq!(old.video_rank(2),2);assert_eq!(old.schema_version,13);
+ let old=parse(&serde_json::to_string(&p).unwrap()).unwrap();assert_eq!(old.video_rank(0),0);assert_eq!(old.video_rank(2),2);assert_eq!(old.schema_version,14);
  p.schema_version=13;let new=parse(&serde_json::to_string(&p).unwrap()).unwrap();assert_eq!(new.video_rank(2),0);assert_eq!(new.video_rank(0),2);assert_eq!(serde_json::to_value(new.clips).unwrap(),serde_json::to_value(old.clips).unwrap());
  }
  #[test] fn rank_supports_stable_non_contiguous_ids(){let mut p=parse(include_str!("../../tests/fixtures/three-tracks-v11.json")).unwrap();p.track_layout.insert(0,TrackDescriptor{id:"V16".into(),kind:"video".into(),index:15});assert_eq!(p.video_rank(15),0);assert_eq!(p.video_rank(0),1);}

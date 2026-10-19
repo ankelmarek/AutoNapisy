@@ -79,8 +79,8 @@ export function compositionSegments(p: Project): EditedSegment[] {
     }));
   })).flatMap(s=>{
     const patch=p.captionEdits[s.id];if(!patch)return [s];if(patch.hidden)return [];
-    const start=s.start+patch.trimStart,end=s.end-patch.trimEnd;if(end-start<.049999)return [];
-    const words=patch.text!==undefined||patch.trimStart>0||patch.trimEnd>0?[]:s.words;
+    const offset=patch.offset??0,start=Math.max(0,s.start+patch.trimStart+offset),end=Math.min(total,s.end-patch.trimEnd+offset);if(end-start<.049999)return [];
+    const words=patch.text!==undefined||patch.trimStart>0||patch.trimEnd>0?[]:s.words.map(w=>({...w,start:w.start+offset,end:w.end+offset})).filter(w=>w.start<end&&w.end>start).map(w=>({...w,start:Math.max(start,w.start),end:Math.min(end,w.end)}));
     return [{...s,start,end,words,text:patch.text??s.text}];
   });
 }
