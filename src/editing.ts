@@ -63,7 +63,7 @@ export type EditedSegment = Project['segments'][number] & {sourceId:string;clipI
 export function compositionSegments(p: Project): EditedSegment[] {
   const clips=presentationClips(p);
   const total=editDuration(p);
-  const timeline=p.timelineSegments?.filter(s=>s.start<total).map(s=>({...s,end:Math.min(s.end,total),words:s.words.filter(w=>w.start<total).map(w=>({...w,end:Math.min(w.end,total)})),id:'timeline:'+s.id,sourceId:s.id,clipId:''}));
+  const timeline=p.timelineSegments?.map(s=>({...s,id:'timeline:'+s.id,sourceId:s.id,clipId:''}));
   return (timeline??ordered(clips).filter(c=>c.kind!=='audio'&&!p.tracks[trackId('video',c.track??0)]?.hidden).flatMap(c=>{
     const incoming=p.transitions.find(t=>t.toId===c.id),outgoing=p.transitions.find(t=>t.fromId===c.id),next=outgoing?projectClips(p).find(x=>x.id===outgoing.toId):undefined;
     let ranges=[{start:c.start+(incoming?incoming.duration/2:0),end:next?next.start-outgoing!.duration/2:clipEnd(c)}];
@@ -78,10 +78,10 @@ export function compositionSegments(p: Project): EditedSegment[] {
       return [{...s,id:JSON.stringify([c.id,s.id,index]),sourceId:s.id,clipId:c.id,assetId:c.assetId,start:start+offset,end:end+offset,text,words}];
     }));
   })).flatMap(s=>{
-    const patch=p.captionEdits[s.id];if(!patch)return [s];if(patch.hidden)return [];
-    const offset=patch.offset??0,start=Math.max(0,s.start+patch.trimStart+offset),end=Math.min(total,s.end-patch.trimEnd+offset);if(end-start<.049999)return [];
-    const words=patch.text!==undefined||patch.trimStart>0||patch.trimEnd>0?[]:s.words.map(w=>({...w,start:w.start+offset,end:w.end+offset})).filter(w=>w.start<end&&w.end>start).map(w=>({...w,start:Math.max(start,w.start),end:Math.min(end,w.end)}));
-    return [{...s,start,end,words,text:patch.text??s.text}];
+    const patch=p.captionEdits[s.id];if(patch?.hidden)return [];
+    const offset=patch?.offset??0,start=Math.max(0,s.start+(patch?.trimStart??0)+offset),end=Math.min(total,s.end-(patch?.trimEnd??0)+offset);if(end<=start||(patch&&end-start<.049999))return [];
+    const words=patch&&(patch.text!==undefined||patch.trimStart>0||patch.trimEnd>0)?[]:s.words.map(w=>({...w,start:w.start+offset,end:w.end+offset})).filter(w=>w.start<end&&w.end>start).map(w=>({...w,start:Math.max(start,w.start),end:Math.min(end,w.end)}));
+    return [{...s,start,end,words,text:patch?.text??s.text}];
   });
 }
 

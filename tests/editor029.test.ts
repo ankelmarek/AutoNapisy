@@ -37,3 +37,6 @@ describe('0.29 zakres mowy i częściowy wynik',()=>{
 // @ts-expect-error shared native WebView2 fixture
 import {editor029Fixture} from '../scripts/test-editor029.mjs';
 it('seed nowego scenariusza WebView2 jest prawidłowym projektem',()=>{const p=parseProject(JSON.stringify(editor029Fixture({...newProject(),media:{path:'Łódź.mp4',name:'Film',duration:12}})));expect(p.clips).toHaveLength(4);expect(p.timelineSegments).toHaveLength(1);});
+
+it('przesunięcie jest stosowane przed ograniczeniem długości montażu',()=>{const p=sample();p.timelineSegments=[seg('a',10,11)];const n=moveCaption(p,compositionSegments(p)[0],-8);n.clips=[{...v('only',0),sourceIn:0,sourceOut:8}];expect(compositionSegments(n)[0]).toMatchObject({start:2,end:3,words:[{start:2,end:3}]});});
+it('trim + przesunięcie przed raw początkiem nie zapisuje ujemnych czasów po Ripple',()=>{const p=sample();p.timelineSegments=[seg('a',0,5)];const trimmed=resizeCaption(p,compositionSegments(p)[0],'left',3),moved=moveCaption(trimmed,compositionSegments(trimmed)[0],-3),r=captionRipple(moved,6,7,-1);expect(compositionSegments(r)[0]).toMatchObject({start:0,end:2});expect(parseProject(serializeProject(r)).timelineSegments![0].start).toBe(0);});
