@@ -24,8 +24,12 @@ export async function testCaption033(page,projectPath){
    fs.copyFileSync(output,`.tools/caption033-${preset}.mp4`);
    const hashes=[];
    for(const n of [0,2,12,14,19,21,39,40,89,108]){
-    await page.getByRole('spinbutton',{name:'Klatka testu animacji',exact:true}).fill(String(n));try{await page.waitForFunction(n=>document.querySelector('canvas[aria-label="Referencyjna klatka napisów"]')?.dataset.frame===String(n),n,{timeout:5000});}catch(e){console.log('Caption frame seek failure',n,await page.evaluate(()=>({frame:document.querySelector('canvas')?.dataset.frame,time:document.querySelector('video')?.currentTime,input:document.querySelector('input[type=number]')?.value})));throw e;}
-    const hash=await canvas.evaluate(async c=>{const bytes=c.getContext('2d').getImageData(0,0,c.width,c.height).data;return [...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(x=>x.toString(16).padStart(2,'0')).join('');});
+    await page.getByRole('spinbutton',{name:'Klatka testu animacji',exact:true}).fill(String(n));
+    // The frame guard and pixel copy must be atomic. A queued presented-frame callback
+    // can update the canvas between two separate CDP calls, especially on a busy runner.
+    let hash;
+    try{const snapshot=await page.waitForFunction(async n=>{const c=document.querySelector('canvas[aria-label="Referencyjna klatka napisów"]');if(!c||c.dataset.frame!==String(n))return false;const bytes=c.getContext('2d').getImageData(0,0,c.width,c.height).data;return [...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(x=>x.toString(16).padStart(2,'0')).join('');},n,{timeout:5000});hash=await snapshot.jsonValue();await snapshot.dispose();}
+    catch(e){console.log('Caption frame seek failure',n,await page.evaluate(()=>({frame:document.querySelector('canvas')?.dataset.frame,time:document.querySelector('video')?.currentTime,input:document.querySelector('input[type=number]')?.value})));throw e;}
     const rgba=execFileSync(ff,['-v','error','-i',layer,'-vf',`select=eq(n\\,${n})`,'-frames:v','1','-pix_fmt','rgba','-f','rawvideo','pipe:1'],{maxBuffer:4e6});
     assert.equal(crypto.createHash('sha256').update(rgba).digest('hex'),hash,`${preset} layer differs from shared renderer at frame ${n}`);hashes.push(hash);
     const expected=execFileSync(ff,['-v','error','-i',composition,'-i',layer,'-filter_complex',`[0:v][1:v]overlay=0:0:eof_action=pass:repeatlast=0,format=yuv420p,select=eq(n\\,${n})`,'-frames:v','1','-pix_fmt','rgb24','-f','rawvideo','pipe:1'],{maxBuffer:4e6});
