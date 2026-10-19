@@ -174,6 +174,11 @@ fn three_video_three_audio_routing_transitions_and_proxy() {
                 "{tag} missing/duplicated tone {i}: {energy:?}"
             );
         }
+        // Stable V1 can be moved above V3; both engines must render red while preserving all six tones.
+        let mut reordered=p.clone();let i=reordered.track_layout.iter().position(|t|t.id=="V1").unwrap();let v1=reordered.track_layout.remove(i);reordered.track_layout.push(v1);
+        let out=render(&format!("{tag}-reordered-v1"),&reordered,engine);let px=pixel(&ff,&out,"2.2");assert!(px[0]>180&&px[1]<50,"{tag} reordered V1 must cover V3: {px:?}");let e=tones(&ff,&out);for i in 0..6{assert!((e[i]/baseline[i]-1.).abs()<0.12,"{tag} reorder changed audio: {e:?}");}
+        let mut audition=p.clone();for c in audition.clips.as_mut().unwrap(){if c.id!="v3"{c.volume=0.;}}let out=render(&format!("{tag}-solo-v3-audition"),&audition,engine);let e=tones(&ff,&out);assert!(e[2]>0.009,"{tag} solo lost selected tone: {e:?}");for i in [0,1,3,4,5]{assert!(e[i]<0.001,"{tag} solo leaked tone: {e:?}");}
+        let legacy=serde_json::from_str::<serde_json::Value>(&serde_json::to_string(&reordered).unwrap()).unwrap();let mut legacy=legacy;legacy["schemaVersion"]=12.into();let migrated=project::parse(&legacy.to_string()).unwrap();assert_eq!(migrated.video_rank(2),2);
         let mut hidden = p.clone();
         hidden.tracks.extra.entry("V3".into()).or_default().hidden = true;
         hidden.tracks.extra.entry("A3".into()).or_default().muted = true;

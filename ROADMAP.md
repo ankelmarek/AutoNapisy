@@ -1,5 +1,9 @@
 # Kolejne etapy RolVixa
 
+## W realizacji 0.27 — sterowanie torami
+
+Zatwierdzone Solo odsłuchu, kolejność V/A przez nagłówki, trwałe wysokości widoku i dopasowanie całego montażu. Schemat v13 zachowuje stabilne ID; v1–v12 migrują z dawną kolejnością numeryczną. Bez SmartCut / Export Studio. Szczegółowa obsługa i ograniczenia w README. Odbiór Windows/WebView2/instalatora w toku.
+
 
 ## Proponowana korekta UX: prosty Ripple i czytelne audio (issue #11)
 

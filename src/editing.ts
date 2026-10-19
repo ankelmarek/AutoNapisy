@@ -1,4 +1,4 @@
-import {routedAudio,trackId,tracksOf} from './trackModel';
+import {routedAudio,trackId,tracksOf,videoRank} from './trackModel';
 import type { Project } from './model';
 import type {AudioEnvelope} from './audioEnvelope';
 import {presentationClips} from './effects';
@@ -12,7 +12,7 @@ export function projectClips(p: Project): Clip[] {
 export const editDuration = (p: Project) => Math.max(0,...projectClips(p).map(clipEnd));
 export const clipMedia=(p:Project,c:Clip)=>c.assetId?p.assets.find(a=>a.id===c.assetId):p.media;
 export const lane=(c:Clip)=>`${c.kind??'video'}:${c.track??0}`;
-export function clipAt(clips: Clip[], time: number) { return ordered(clips).filter(c=>c.kind!=='audio'&&c.start<=time && time<clipEnd(c)).sort((a,b)=>(b.track??0)-(a.track??0))[0]; }
+export function clipAt(clips: Clip[], time: number,p?:Project) { return ordered(clips).filter(c=>c.kind!=='audio'&&c.start<=time && time<clipEnd(c)).sort((a,b)=>(p?videoRank(p,b.track??0):b.track??0)-(p?videoRank(p,a.track??0):a.track??0))[0]; }
 export function laneClips(clips:Clip[],c:Clip){return clips.filter(x=>lane(x)===lane(c));}
 export function changeTrack(clips:Clip[],id:string,track:number){const c=clips.find(x=>x.id===id);if(!c)return clips;if(c.kind!=='audio'&&clips.some(x=>x.id!==id&&x.kind!=='audio'&&(x.track??0)===track&&x.start<clipEnd(c)-1e-6&&clipEnd(x)>c.start+1e-6))return clips;return clips.map(x=>x.id===id?{...x,track,...(x.kind!=='audio'?{audioRoute:x.audioRoute??(routedAudio(x)===null?'embedded':trackId('audio',routedAudio(x)!))}:{})}:x);}
 export function appendMedia(p:Project,media:{path:string;name:string;duration:number},kind:'video'|'audio',at:number):Project {

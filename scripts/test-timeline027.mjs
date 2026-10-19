@@ -1,0 +1,34 @@
+import assert from 'node:assert/strict';
+import {audio026Fixture} from './test-audio026.mjs';
+export async function testTimeline027(page,{load,save,read,screenshot}){
+ const original=await read(),fixture=audio026Fixture(original);fixture.name='Tory 0.27 — Łódź';fixture.schemaVersion=13;fixture.clips.push({id:'upper27',kind:'video',track:1,audioRoute:'embedded',start:0,sourceIn:2,sourceOut:6,volume:.6});
+ const button=name=>page.getByRole('button',{name,exact:true}),checkpoint=async()=>{await save();await page.waitForFunction(()=>document.querySelector('.header-save')?.dataset.saveStatus==='saved'&&!document.querySelector('.header-save').disabled);return read();};
+ await load(fixture);await page.waitForFunction(()=>!!document.querySelector('[data-clip-id="upper27"]')&&!document.querySelector('.header-project-name').disabled);await checkpoint();
+ const order=()=>page.locator('.track-head[data-track-id^="V"]').evaluateAll(nodes=>nodes.sort((a,b)=>parseFloat(a.style.top)-parseFloat(b.style.top)).map(n=>n.dataset.trackId));
+ assert.deepEqual(await order(),['V2','V1']);const before=await checkpoint();
+ // Real HTML5 drop of a header, not a synthetic model mutation.
+ await button('Przenieś ścieżkę V1').dragTo(page.locator('.track-head[data-track-id="V2"]'),{targetPosition:{x:15,y:8}});
+ let next=await checkpoint();assert.deepEqual(await order(),['V1','V2']);assert.deepEqual(next.clips,before.clips);assert.deepEqual(next.tracks,before.tracks);assert.equal(next.schemaVersion,13);
+ await page.keyboard.press('Control+z');await checkpoint();assert.deepEqual(await order(),['V2','V1']);await page.keyboard.press('Control+y');await checkpoint();assert.deepEqual(await order(),['V1','V2']);
+ // Lock is a guard for header movement too; keyboard provides the same editing policy.
+ await button('Blokada V2').click();await button('Przenieś ścieżkę V1').focus();await page.keyboard.press('Alt+ArrowDown');await checkpoint();assert.deepEqual(await order(),['V1','V2']);await button('Blokada V2').click();
+ await button('Przenieś ścieżkę A2').focus();await page.keyboard.press('Alt+ArrowUp');await checkpoint();const audioOrder=await page.locator('.track-head[data-track-id^="A"]').evaluateAll(nodes=>nodes.sort((a,b)=>parseFloat(a.style.top)-parseFloat(b.style.top)).map(n=>n.dataset.trackId));assert.deepEqual(audioOrder,['A2','A1']);
+ const baseline=await checkpoint(),music=page.locator('[data-clip-id="music26"]'),sound=page.locator('[data-clip-id="video26"] .linked-audio'),other=page.locator('[data-clip-id="busy26"]');
+ await button('Solo A1').click();assert.equal(await button('Solo A1').getAttribute('aria-pressed'),'true');assert(!(await music.getAttribute('class')).includes('track-is-muted'));assert(!(await sound.getAttribute('class')).includes('track-is-muted'));assert((await other.getAttribute('class')).includes('track-is-muted'));
+ // Solo must never be serialized or included in an exported project.
+ assert.deepEqual((await checkpoint()).clips,baseline.clips);assert.deepEqual((await read()).tracks,baseline.tracks);
+ if(await page.evaluate(()=>!!window.__calls)){await page.waitForFunction(()=>{const call=[...window.__calls].reverse().find(c=>c.cmd==='start_mlt_preview');return call&&JSON.parse(call.args.json).clips.find(c=>c.id==='busy26')?.volume===0;});}
+ await button('Wycisz A1').click();assert((await music.getAttribute('class')).includes('track-is-muted'));await button('Wycisz A1').click();await button('Solo · pełny miks').click();assert(!(await other.getAttribute('class')).includes('track-is-muted'));
+ const resize=page.getByRole('separator',{name:'Wysokość ścieżki A1',exact:true}),height=()=>page.locator('[data-lane-id="A1"]').evaluate(el=>el.offsetHeight);
+ const saveBeforeResize=await checkpoint();await resize.scrollIntoViewIfNeeded();let box=await resize.boundingBox();await page.mouse.move(box.x+50,box.y+3);await page.mouse.down();await page.mouse.move(box.x+50,box.y+43,{steps:5});await page.mouse.up();assert.equal(await height(),96);assert.equal(await music.evaluate(el=>el.offsetHeight),90);
+ assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('rolvixa.timeline.v1')).heights.A1),96);assert.deepEqual((await checkpoint()).trackLayout,saveBeforeResize.trackLayout);assert.deepEqual((await read()).clips,saveBeforeResize.clips);
+ await resize.focus();await page.keyboard.press('ArrowDown');assert.equal(await height(),104);await resize.scrollIntoViewIfNeeded();box=await resize.boundingBox();await page.mouse.move(box.x+50,box.y+3);await page.mouse.down();await page.mouse.move(box.x+50,box.y+23,{steps:3});await page.keyboard.press('Escape');await page.mouse.up();assert.equal(await height(),104);
+ await button('Zwiń A1').click();assert.equal(await height(),28);await button('Zwiń A1').click();assert.equal(await height(),104);
+ const vResize=page.getByRole('separator',{name:'Wysokość ścieżki V1',exact:true});await vResize.focus();await page.keyboard.press('Shift+ArrowDown');assert.equal(await page.locator('[data-lane-id="V1"]').evaluate(el=>el.offsetHeight),108);
+ await page.getByRole('slider',{name:'Powiększenie osi czasu'}).fill('160');await page.locator('.timeline-scroll').evaluate(el=>el.scrollLeft=400);await button('Pokaż cały montaż').click();assert.equal(await page.locator('.timeline-scroll').evaluate(el=>el.scrollLeft),0);assert(await page.locator('.timeline-scroll').evaluate(el=>el.scrollWidth<=el.clientWidth+1));
+ await page.locator('.timeline-body').evaluate(el=>el.scrollTop=0);await page.screenshot({path:screenshot});
+ // Persisted view survives project opening and does not consume Undo.
+ const persisted=await checkpoint();await load(persisted);await page.waitForFunction(()=>document.querySelector('.header-project-name')?.textContent.includes('Tory 0.27'));assert.equal(await height(),104);assert.deepEqual(await order(),['V1','V2']);
+ await resize.focus();await page.keyboard.press('Home');await vResize.focus();await page.keyboard.press('Home');await load(original);await page.waitForFunction(name=>document.querySelector('.header-project-name')?.textContent.includes(name)&&!document.querySelector('.header-project-name').disabled,original.name);await page.getByRole('slider',{name:'Powiększenie osi czasu'}).fill('30');
+ console.log('0.27: real header drag/order/Undo/Redo/lock, audio reorder, audition-only Solo/routing/mute, pointer height/persistence/Escape/keyboard/collapse, fit montage, saved v13: OK');
+}

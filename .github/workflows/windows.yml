@@ -188,6 +188,8 @@ jobs:
         with:
           name: RolVixa-UI-Preview
           path: |
+            docs/timeline027-*.png
+            .tools/native-timeline027.png
             docs/audio026-*.png
             .tools/native-audio026.png
             docs/ripple025-*.png
