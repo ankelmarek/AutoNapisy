@@ -30,6 +30,7 @@ struct Slot {
 pub struct CaptionPocState {
     slot: Mutex<Option<Slot>>,
     ids: AtomicU64,
+    gate: Arc<Mutex<()>>,
 }
 impl CaptionPocState {
     pub fn shutdown(&self) {
@@ -38,6 +39,8 @@ impl CaptionPocState {
             s.job.cancel();
             drop(s);
         }
+        // Reap an in-flight metadata/composition worker before the app exits.
+        let _guard = self.gate.lock().unwrap();
     }
     fn get(&self, id: u64) -> Result<Arc<Session>, String> {
         self.slot
@@ -101,7 +104,10 @@ pub async fn caption_poc_begin(
         });
     }
     let running = job.clone();
+    let gate = state.gate.clone();
     let result = tauri::async_runtime::spawn_blocking(move || {
+        let _guard = gate.lock().unwrap();
+        running.check()?;
         let entry = Entry::prepare(
             p,
             Options {
@@ -182,10 +188,12 @@ pub async fn caption_poc_frame(
 #[tauri::command]
 pub async fn caption_poc_finish(app: tauri::AppHandle, id: u64) -> Result<String, String> {
     let s = app.state::<CaptionPocState>().get(id)?;
+    let gate = app.state::<CaptionPocState>().gate.clone();
     if s.finished.swap(true, Ordering::SeqCst) {
         return Err("Test jest już renderowany".into());
     }
     let result = tauri::async_runtime::spawn_blocking(move || {
+        let _guard = gate.lock().unwrap();
         s.stream.finish()?;
         let e = &s.entry;
         let job = e.job.lock().unwrap().clone();
