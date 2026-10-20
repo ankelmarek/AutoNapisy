@@ -5,6 +5,14 @@ export async function testCaption033Exports(page,projectPath){
  const ff=process.env.AUTONAPISY_FFMPEG,probe=ff.replace(/ffmpeg\.exe$/i,'ffprobe.exe'),button=name=>page.getByRole('button',{name,exact:true}),invoke=(cmd,args={})=>page.evaluate(({cmd,args})=>window.__TAURI_INTERNALS__.invoke(cmd,args),{cmd,args});
  const cdp=await page.context().newCDPSession(page);
  const before=JSON.parse(fs.readFileSync(projectPath,'utf8'));
+ // An unapplied local style draft belongs to the current Open/New session, even
+ // when two project files have the same createdAt and caption IDs.
+ await button('Napisy').click();await page.locator('[data-caption-preset="neon"]').click();assert(await page.getByRole('button',{name:/^Zastosuj styl/}).isEnabled());
+ const other={...before,name:before.name+' — statyczny',styles:Object.fromEntries(Object.entries(before.styles).map(([id,style])=>{const copy={...style};delete copy.animation;return[id,copy];}))};
+ fs.writeFileSync(projectPath,JSON.stringify(other));await page.keyboard.press('Control+o');await page.waitForFunction(name=>document.querySelector('.header-project-name')?.textContent.trim()===name&&!document.querySelector('.header-project-name').disabled,other.name);
+ assert.equal(await page.locator('[data-caption-preset][aria-pressed="true"]').count(),0);assert(await page.getByRole('button',{name:/^Zastosuj styl/}).isDisabled());
+ fs.writeFileSync(projectPath,JSON.stringify(before));await page.keyboard.press('Control+o');await page.waitForFunction(name=>document.querySelector('.header-project-name')?.textContent.trim()===name&&!document.querySelector('.header-project-name').disabled,before.name);
+
  const save=async()=>{await page.locator('.header-save').click();await page.waitForFunction(()=>document.querySelector('.header-save')?.dataset.saveStatus==='saved'&&!document.querySelector('.header-save').disabled);};
  const frames=(file,n)=>execFileSync(ff,['-v','error','-i',file,'-vf',`select=eq(n\\,${n})`,'-frames:v','1','-pix_fmt','rgb24','-f','rawvideo','pipe:1'],{maxBuffer:16e6});
  const bright=bytes=>{let count=0;for(let i=0;i<bytes.length;i+=3)if(bytes[i]>180&&bytes[i+1]>180&&bytes[i+2]>180)count++;return count;};
