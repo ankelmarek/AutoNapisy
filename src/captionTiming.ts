@@ -7,7 +7,7 @@ const key=(s:string)=>s.normalize('NFC').toLocaleLowerCase('pl').replace(/[â€™â€
 export function inheritCaptionWords(source:TimedText,text:string):TimedText['words']|null{
  const words=source.words,from=tokens(source.text),to=text.trim().split(/\s+/u).filter(Boolean);
  if(!words.length||words.length>10000||from.length!==words.length||to.length!==words.length||normalized(words.map(w=>w.text.trim()).join(' '))!==normalized(source.text))return null;
- if(words.some((w,i)=>tokens(w.text).length!==1||!Number.isFinite(w.start)||!Number.isFinite(w.end)||w.start<source.start-1e-6||w.end>source.end+1e-6||w.end<=w.start||(i>0&&w.start<words[i-1].end-1e-6)))return null;
+ if(words.some((w,i)=>tokens(w.text).length!==1||!Number.isFinite(w.start)||!Number.isFinite(w.end)||w.start<source.start-1e-6||w.end>source.end+1e-6||w.end<=w.start||(i>0&&w.start<words[i-1].end)))return null;
  const a=from.map(key),b=to.map(key);if(a.some(s=>!s)||b.some(s=>!s))return null;
  const changed=a.flatMap((s,i)=>s!==b[i]?[i]:[]);
  // Reused words in changed positions indicate a move, or an ambiguous deletion/insertion.

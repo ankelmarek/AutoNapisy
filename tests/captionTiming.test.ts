@@ -21,7 +21,7 @@ describe('0.35a positional correction, not forced alignment',()=>{
   expect(inheritCaptionWords(segment('Kwota 1 234 567'), 'Kwota 1234567')).toBeNull();expect(inheritCaptionWords(segment('Kwota 1234 złotych'), 'Kwota 1235 złotych')).not.toBeNull();
  });
  it('does not repair absent, stale, overlapping, zero, nonfinite or out-of-range source times',()=>{
-  const s=segment();for(const words of [[],s.words.slice(1),s.words.map(w=>({...w,text:'inny'})),s.words.map(w=>({...w,start:0})),s.words.map(w=>({...w,end:w.start})),s.words.map(w=>({...w,end:Infinity})),s.words.map(w=>({...w,end:9}))])expect(inheritCaptionWords({...s,words},phrase)).toBeNull();
+  const s=segment();for(const words of [[],s.words.slice(1),s.words.map(w=>({...w,text:'inny'})),s.words.map(w=>({...w,start:0})),s.words.map((w,i)=>({...w,start:i?s.words[i-1].end-1e-7:w.start})),s.words.map(w=>({...w,end:w.start})),s.words.map(w=>({...w,end:Infinity})),s.words.map(w=>({...w,end:9}))])expect(inheritCaptionWords({...s,words},phrase)).toBeNull();
  });
  it('stores provenance, changes one caption only, retains all raw words/style/mix, and produces synchronized export cards',()=>{
   const p=sample();p.timelineSegments!.push({...segment(),id:'other',start:4,end:6,words:[]});const before=JSON.stringify(p),s=compositionSegments(p)[0],q=editCaption(p,s,{text:'Dzisiaj rozpoczynamy nową drogę'}),corrected=compositionSegments(q)[0];
