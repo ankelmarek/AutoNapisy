@@ -454,7 +454,7 @@ impl Entry {
         };
         Ok(entry)
     }
-    pub fn needs_animation(&self)->bool{self.options.captions=="burn"&&self.project.segments.iter().any(|s|self.project.styles.get(&s.style_id).is_some_and(|s|s.animation.is_some()))}
+    pub fn needs_animation(&self)->bool{self.options.captions=="burn"&&self.project.segments.iter().any(|s|self.project.styles.get(&s.style_id).is_some_and(|s|s.animation.as_ref().is_some_and(|a|a.enabled!=Some(false))))}
     pub fn start_animation(&self,start:f64,duration:f64)->Result<Option<crate::caption_stream::UploadInfo>,String>{
         if !self.needs_animation(){return Ok(None);}
         let mut slot=self.animation.lock().map_err(|_|"Błąd warstwy napisów")?;

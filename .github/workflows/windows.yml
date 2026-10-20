@@ -190,6 +190,7 @@ jobs:
           name: RolVixa-UI-Preview
           path: |
             .tools/caption033-*.png
+            .tools/caption034-*.png
             docs/editor029-*.png
             .tools/native-editor029.png
             docs/export032-*.png

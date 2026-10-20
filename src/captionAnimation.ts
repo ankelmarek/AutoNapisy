@@ -1,6 +1,7 @@
 import type {CaptionCard,CaptionStyle} from './captions';
 
 export const CAPTION_FPS=30;
+export const hasCaptionMotion=(style:CaptionStyle)=>!!style.animation&&style.animation.enabled!==false;
 export const captionFrameTime=(time:number)=>Math.floor(Math.max(0,Number.isFinite(time)?time:0)*CAPTION_FPS+1e-7)/CAPTION_FPS;
 const normalized=(text:string)=>text.normalize('NFC').trim().replace(/\s+/g,' ');
 /** Timing is usable only when every displayed token still corresponds to its source word. */
@@ -13,7 +14,7 @@ export const captionEase=(x:number)=>{const t=Math.max(0,Math.min(1,x));return t
 const smooth=captionEase;
 export function captionMotion(card:CaptionCard,style:CaptionStyle,time:number){
  const t=captionFrameTime(time),a=style.animation;
- if(!a)return {time:t,active:-1,scale:1,opacity:1,fallback:false};
+ if(!hasCaptionMotion(style)||!a)return {time:t,active:-1,scale:1,opacity:1,fallback:false};
  const reliable=synchronizedWords(card,style),active=reliable?(card.words??[]).findIndex(w=>t>=w.start&&t<w.end):-1;
  let scale=1;
  if(active>=0&&a.preset==='pop-beat'){

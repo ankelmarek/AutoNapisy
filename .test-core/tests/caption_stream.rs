@@ -396,7 +396,22 @@ fn animated_layer_reaches_standard_queue_ab_and_srt_none() {
         !dir.path().join("timeline.ffconcat").exists(),
         "Animation must not generate PNG-per-frame intermediates"
     );
+    let mut off_project=project.clone();
+    off_project.name="Wyłączona animacja Łódź".into();
+    off_project.styles.get_mut("default").unwrap().animation.as_mut().unwrap().enabled=Some(false);
+    let off=queue.prepare(off_project,Options{speed:"fast".into(),..Options::default()},root.path(),ff.clone(),melt.clone()).unwrap();
+    assert!(!off.needs_animation());
+    assert!(off.start_animation(0.,off.meta.duration).unwrap().is_none());
+    let mut bitmap=Vec::new();
+    {let mut encoder=png::Encoder::new(&mut bitmap,128,224);encoder.set_color(png::ColorType::Rgba);encoder.set_depth(png::BitDepth::Eight);encoder.write_header().unwrap().write_image_data(&pixels(0)).unwrap();}
+    for i in 0..off.project.segments.len(){off.upload(i,&bitmap).unwrap();}
+    queue.ready(off.id).unwrap();let at=Instant::now();
+    while off.item().state!="completed" {assert_ne!(off.item().state,"failed","{}",off.item().message);assert!(at.elapsed()<Duration::from_secs(60));std::thread::sleep(Duration::from_millis(20));}
+    assert!(off.animation_info().is_none());
+    for t in [0.7,1.7]{let c=color(&frame(&off.target,t));assert!(c[0]>200&&c[1]>200&&c[2]<30,"Motion Off lost the unchanged bitmap: {c:?}");}
+    assert_eq!(off.project.styles["default"].animation.as_ref().unwrap().preset,"karaoke-flow");
     queue.shutdown();
+    println!("0.34a motion Off: no alpha stream, retained preset and real static PNG/MP4 pixels across word times: OK");
     println!("0.33c standard MP4, serialized queue burn/SRT/none and A/B nonzero range: real dynamic pixels, unchanged Polish SRT, no static flattening, scratch cleanup: OK");
 }
 

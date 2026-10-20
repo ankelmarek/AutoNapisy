@@ -18,8 +18,9 @@ export async function testCaption033Exports(page,projectPath){
  const bright=bytes=>{let count=0;for(let i=0;i<bytes.length;i+=3)if(bytes[i]>180&&bytes[i+1]>180&&bytes[i+2]>180)count++;return count;};
  const accent=(bytes,width=320)=>{let count=0,sum=0;for(let i=0;i<bytes.length;i+=3)if(bytes[i]>140&&bytes[i+1]>150&&bytes[i+2]<140){count++;sum+=(i/3)%width;}return{count,x:sum/Math.max(1,count)};};
  let lastPath;
- for(const preset of ['karaoke-flow','pop-beat','editorial']){
-  await button('Napisy').click();await page.getByRole('combobox',{name:'Zakres stylu napisów',exact:true}).selectOption('all');await page.locator(`[data-caption-preset="${preset}"]`).click();await button('Zastosuj styl (2)').click();await save();
+ for(const preset of ['karaoke-flow','pop-beat','editorial','classic-yellow','classic-outline','motion-off','neon-off','marker-off','editorial-off']){
+  await button('Napisy').click();await page.getByRole('combobox',{name:'Zakres stylu napisów',exact:true}).selectOption('all');await page.getByRole('tab',{name:'Style napisów',exact:true}).click();await page.locator(`[data-caption-preset="${preset==='motion-off'?'type-flow':preset.endsWith('-off')?preset.slice(0,-4):preset}"]`).click();
+  if(preset.endsWith('-off')){await page.getByRole('tab',{name:'Opcje napisów',exact:true}).click();await page.getByRole('switch',{name:'Animacja napisów',exact:true}).uncheck();await button('Zastosuj zmiany (2)').click();await page.getByRole('tab',{name:'Style napisów',exact:true}).click();}else await button('Zastosuj styl (2)').click();await save();
   await page.locator('.header-export').click();const pre=page.getByRole('dialog',{name:'Sprawdzenie przed eksportem',exact:true});await pre.getByRole('button',{name:/Kontynuuj eksport MP4|Eksportuj mimo ostrzeżeń/}).click();const studio=page.getByRole('dialog',{name:'Export Studio',exact:true});await studio.waitFor();
   if(preset==='karaoke-flow'){for(const r of await invoke('studio_status')){if(['queued','preparing','rendering','cancelling'].includes(r.state))await invoke('studio_cancel',{id:r.id});}for(const r of await invoke('studio_status'))await invoke('studio_remove',{id:r.id});}
   await studio.getByRole('combobox',{name:'Profil eksportu',exact:true}).selectOption('reel');await studio.getByRole('spinbutton',{name:'Szerokość eksportu',exact:true}).fill(preset==='karaoke-flow'?'1080':'320');await studio.getByRole('spinbutton',{name:'Wysokość eksportu',exact:true}).fill(preset==='karaoke-flow'?'1920':'568');await studio.getByRole('combobox',{name:'Napisy eksportu',exact:true}).selectOption('burn');
@@ -37,6 +38,17 @@ export async function testCaption033Exports(page,projectPath){
    const existing=await invoke('studio_status');await studio.getByRole('button',{name:'Dodaj wariant do kolejki',exact:true}).click();await page.waitForFunction(()=>[...document.querySelectorAll('.studio-dialog p[role=status]')].some(p=>/napisy [1-9]\d*%/.test(p.textContent)),{},{timeout:30000});
    const cancelAt=performance.now();await studio.getByRole('button',{name:'Przerwij dodawanie',exact:true}).click();await page.waitForFunction(()=>![...document.querySelectorAll('.studio-dialog p[role=status]')].some(p=>p.textContent.includes('Przygotowywanie:')),{},{timeout:10000});const cancelled=(await invoke('studio_status')).find(r=>!existing.some(b=>b.id===r.id));assert.equal(cancelled?.state,'cancelled');assert(!fs.existsSync(cancelled.outputPath));await invoke('studio_remove',{id:cancelled.id});console.log(JSON.stringify({productionCaptionCancel:'1080x1920',seconds:(performance.now()-cancelAt)/1000}));
   }
+  if(['classic-yellow','classic-outline','motion-off','neon-off','marker-off','editorial-off'].includes(preset)){
+   const a=frames(lastPath,6),b=frames(lastPath,24);let error=0;for(let i=0;i<a.length;i++)error+=Math.abs(a[i]-b[i]);assert(error/a.length<1,'Static or motion-Off MP4 changes at word boundaries');
+   if(preset==='classic-yellow')assert(accent(a).count>1000,'Yellow classic tile did not produce the traditional yellow board');else if(preset!=='neon-off')assert(bright(a)>40,'Static caption text is missing');
+   if(preset==='neon-off'){let colored=0;for(let i=0;i<a.length;i+=3)if(a[i+2]>130&&a[i+1]>90&&a[i]<200)colored++;assert(colored>100,'Frozen Neon lost its cyan/purple typography');}
+   if(preset==='marker-off')assert(accent(a).count>30,'Frozen Marker lost its highlighter');
+   if(preset==='editorial-off'){
+    // A subpixel gold rule loses chroma in 4:2:0. Check its actual isolated
+    // horizontal geometry above the glyphs, rather than demanding source RGB.
+    let lines=0;for(let y=480;y<500;y++){let run=0;for(let x=0;x<320;x++){const i=(y*320+x)*3,below=((y+3)*320+x)*3,lit=(a[i]+a[i+1]+a[i+2])/3>105,darkBelow=(a[below]+a[below+1]+a[below+2])/3<85;if(lit&&darkBelow){if(++run>=12){lines++;break;}}else run=0;}}assert(lines>0,'Frozen Editorial lost its isolated decorative rule');
+   }
+  }
   if(preset==='pop-beat'){const small=accent(frames(lastPath,3)),large=accent(frames(lastPath,6));assert(large.count>small.count*1.15,'Production Pop must have actual scaled word pixels');}
   if(preset==='editorial'){
    assert(bright(frames(lastPath,9))>bright(frames(lastPath,1))+30,'Editorial entry must actually fade in');
@@ -48,5 +60,5 @@ export async function testCaption033Exports(page,projectPath){
   }
   await studio.getByRole('button',{name:'Wróć do montażu',exact:true}).click();
  }
- await save();const after=JSON.parse(fs.readFileSync(projectPath,'utf8'));assert.deepEqual(after.clips,before.clips);assert.deepEqual(after.timelineSegments,before.timelineSegments);assert.deepEqual(after.masterAudio,before.masterAudio);await cdp.detach();console.log('0.33c actual product UI: Karaoke/Pop/Editorial through queue, real changing caption pixels/30FPS/AAC, three A/B variants with nonzero global timing, play/seek and unchanged text/audio: OK');
+ await save();const after=JSON.parse(fs.readFileSync(projectPath,'utf8'));assert.deepEqual(after.clips,before.clips);assert.deepEqual(after.timelineSegments,before.timelineSegments);assert.deepEqual(after.masterAudio,before.masterAudio);await cdp.detach();console.log('0.33c actual product UI: Karaoke/Pop/Editorial + both classic factories + motion Off through queue, real changing caption pixels/30FPS/AAC, three A/B variants with nonzero global timing, play/seek and unchanged text/audio: OK');
 }

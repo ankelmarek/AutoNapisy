@@ -235,7 +235,7 @@ export default function App() {
         if(!result)return;
         const p=parseProject(result.json),prepared:Record<string,string>={},missing:string[]=[];
         for(const m of [...(p.media?[p.media]:[]),...p.assets]){try{prepared[m.path]=await preview.prepare(m.path);}catch{missing.push(m.name);}}
-        setSources(prepared);setSourceViewerId('');sourceRanges.current.clear();resetPlayback();latestProject.current=p;history.reset(p);setSelectedIds([]);setSelectedClip('');recovered.current=false;saver.accept(p,result.path,result.session);setSource(Object.values(prepared)[0]??'');setHomeMode('closed');
+        setSources(prepared);setSourceViewerId('');sourceRanges.current.clear();resetPlayback();latestProject.current=p;history.reset(p);setSelectedIds([]);setSelectedClip('');setSelectedCaption('');setMarkedCaption('');setSelectedTransition('');recovered.current=false;saver.accept(p,result.path,result.session);setSource(Object.values(prepared)[0]??'');setHomeMode('closed');
         void recent.refresh();setMessage(missing.length?`Projekt otwarty. Niedostępne pliki: ${missing.join(', ')}`:'Projekt otwarty.');
       }catch(e){setStartError(String(e));throw e;}finally{resumeRecovery();}
     });
@@ -243,7 +243,7 @@ export default function App() {
   const createNew=()=>run(async()=>{
     if(saver.saving||!replace())return;
     recovery.update(null);try{await recovery.flush();}catch{}const session=await backend.newProject();const p=newProject();
-    setSourceViewerId('');sourceRanges.current.clear();recovered.current=false;resetPlayback();latestProject.current=p;history.reset(p);setSelectedIds([]);setSelectedClip('');pristineRevision.current=projectRevision(p);saver.accept(p,'',session);setSource('');setSources({});setHomeMode('closed');setStartError('');
+    setSourceViewerId('');sourceRanges.current.clear();recovered.current=false;resetPlayback();latestProject.current=p;history.reset(p);setSelectedIds([]);setSelectedClip('');setSelectedCaption('');setMarkedCaption('');setSelectedTransition('');pristineRevision.current=projectRevision(p);saver.accept(p,'',session);setSource('');setSources({});setHomeMode('closed');setStartError('');
   });
   const save=async(saveAs=false)=>{
     if(saver.saving)return;
@@ -259,7 +259,7 @@ export default function App() {
       if(result){
         const p=parseProject(result.json),prepared:Record<string,string>={},missing:string[]=[];
         for(const m of [...(p.media?[p.media]:[]),...p.assets]){try{prepared[m.path]=await preview.prepare(m.path);}catch{missing.push(m.name);}}
-        setSourceViewerId('');sourceRanges.current.clear();resetPlayback();latestProject.current=p;history.reset(p);setSelectedIds([]);setSelectedClip('');pristineRevision.current=projectRevision(p);recovered.current=action==='recover';setHomeMode('closed');saver.accept(p,result.path,result.session);setSources(prepared);setSource(Object.values(prepared)[0]??'');
+        setSourceViewerId('');sourceRanges.current.clear();resetPlayback();latestProject.current=p;history.reset(p);setSelectedIds([]);setSelectedClip('');setSelectedCaption('');setMarkedCaption('');setSelectedTransition('');pristineRevision.current=projectRevision(p);recovered.current=action==='recover';setHomeMode('closed');saver.accept(p,result.path,result.session);setSources(prepared);setSource(Object.values(prepared)[0]??'');
         if(action==='saved')void recent.refresh();
         setMessage(`${action==='recover'?'Odzyskano projekt. Zapisz go jako nowy plik.':'Otworzono zapisany projekt.'}${missing.length?' Niedostępne pliki: '+missing.join(', '):''}`);
       }else setMessage('Odrzucono kopię odzyskiwania.');
@@ -604,7 +604,7 @@ export default function App() {
             </div>
           </div>
         </section>
-      <Timeline selectedIds={selectedIds} onSelectionChange={setSelectedIds} onSmartCut={request=>{if(locked)return;playback.pause();setSourceViewerId('');setSmartcut({project:latestProject.current,request});}} solo={solo} onSolo={id=>setSolo(old=>{const next=new Set(old);next.has(id)?next.delete(id):next.add(id);return next;})} onClearSolo={()=>setSolo(new Set())} project={project} time={time} locked={locked||settings||homeVisible} onError={setMessage} onSeek={t=>{setSourceViewerId('');seek(t);}}
+      <Timeline session={saveState.session} selectedIds={selectedIds} onSelectionChange={setSelectedIds} onSmartCut={request=>{if(locked)return;playback.pause();setSourceViewerId('');setSmartcut({project:latestProject.current,request});}} solo={solo} onSolo={id=>setSolo(old=>{const next=new Set(old);next.has(id)?next.delete(id):next.add(id);return next;})} onClearSolo={()=>setSolo(new Set())} project={project} time={time} locked={locked||settings||homeVisible} onError={setMessage} onSeek={t=>{setSourceViewerId('');seek(t);}}
         onChange={(clips,mode)=>{if(mode!=='volume')playback.pause();changeProject({...latestProject.current,clips,transitions:reconcileTransitions(latestProject.current,clips)});}} onPreviewVolume={playback.previewVolume} onBeginAudio={playback.pause} onSelect={id=>{setSelectedClip(id);setSelectedTransition('');setInspectorTab('video');}} onCaptionSelect={selectCaption} onCaptionMark={setMarkedCaption}
         onMediaDrop={(id,at,track,range,kind)=>{try{playback.pause();setSourceViewerId('');const next=insertLibraryItem(latestProject.current,id,at,track,range,kind);changeProject(next);setMessage('Dodano plik na oś czasu.');adviseAddedAudio(next);}catch(e){setMessage(String(e));}}}
         onCaptionChange={p=>changeProject(p)} effectChoice={effectChoice} onTransition={(a,b,choice)=>{try{playback.pause();const next=applyTransition(project,a,b,choice.kind,choice.duration);changeProject(next);setSelectedTransition(next.transitions.find(t=>t.toId===b)!.id);setInspectorTab('video');}catch(e){setMessage(String(e));}}} onTransitionSelect={id=>{setSelectedTransition(id);setInspectorTab('video');}}

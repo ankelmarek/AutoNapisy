@@ -1,7 +1,7 @@
 import type {Project} from './model';
 import {compositionProject} from './editing';
 import {captionExport} from './captions';
-import {synchronizedWords} from './captionAnimation';
+import {synchronizedWords,hasCaptionMotion} from './captionAnimation';
 import type {CaptionCard} from './captions';
 import {layoutCaption} from './captionCanvas';
 import type {Margins} from './SafeZones';
@@ -22,10 +22,11 @@ export function captionBounds(text:string,style:Project['styles'][string],width:
 export function animatedCaptionBounds(card:CaptionCard,style:Project['styles'][string],width:number,height:number):CaptionBounds{
  if(!style.animation)return captionBounds(card.text,style,width,height);
  const ratio=width/720,h=height/ratio,staticStyle={...style,animation:undefined},a=style.animation;
- let texts=[card.text];if(a.preset==='impact'&&synchronizedWords(card,style))texts=card.words!.reduce<string[]>((out,_,i)=>{if(i%3===0)out.push(card.words!.slice(i,i+3).map(w=>w.text).join(' '));return out;},[]);
+ let texts=[card.text];if(hasCaptionMotion(style)&&a.preset==='impact'&&synchronizedWords(card,style))texts=card.words!.reduce<string[]>((out,_,i)=>{if(i%3===0)out.push(card.words!.slice(i,i+3).map(w=>w.text).join(' '));return out;},[]);
  const boxes=texts.map(text=>{const b=captionBounds(text,staticStyle,720,h),layout=layoutCaption(text,style,720,h);let dx=0,top=0,bottom=0;
   if(a.preset==='editorial'){const y=style.position==='top'?h*style.marginPercent/100:style.position==='center'?(h-layout.boxHeight)/2:h*(1-style.marginPercent/100)-layout.boxHeight;b.top=Math.min(b.top,y+layout.paddingY-6);b.left=Math.min(b.left,(720-layout.boxWidth)/2+layout.paddingX);b.right=Math.max(b.right,(720-layout.boxWidth)/2+layout.paddingX+Math.min(40,layout.boxWidth));}
-  if(!synchronizedWords(card,style)){/* Whole-card fade has no displacement. */}
+  if(a.enabled===false){if(a.preset==='neon')dx=top=bottom=40*a.intensity;}
+  else if(!synchronizedWords(card,style)){/* Whole-card fade has no displacement. */}
   else if(a.preset==='pop-beat'){dx=layout.boxWidth*.05*a.intensity;top=bottom=layout.boxHeight*.1*a.intensity;}
   else if(a.preset==='neon'){dx=top=bottom=40*a.intensity;}
   else if(a.preset==='slide-reveal')bottom=18*a.intensity;

@@ -3084,7 +3084,7 @@ dependencies = [
 
 [[package]]
 name = "rolvixa"
-version = "0.33.0"
+version = "0.34.0-alpha.1"
 dependencies = [
  "base64 0.22.1",
  "hound",
