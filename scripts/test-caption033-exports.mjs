@@ -43,7 +43,11 @@ export async function testCaption033Exports(page,projectPath){
    if(preset==='classic-yellow')assert(accent(a).count>1000,'Yellow classic tile did not produce the traditional yellow board');else if(preset!=='neon-off')assert(bright(a)>40,'Static caption text is missing');
    if(preset==='neon-off'){let colored=0;for(let i=0;i<a.length;i+=3)if(a[i+2]>130&&a[i+1]>90&&a[i]<200)colored++;assert(colored>100,'Frozen Neon lost its cyan/purple typography');}
    if(preset==='marker-off')assert(accent(a).count>30,'Frozen Marker lost its highlighter');
-   if(preset==='editorial-off')assert(accent(a).count>4,'Frozen Editorial lost its decorative rule');
+   if(preset==='editorial-off'){
+    // A subpixel gold rule loses chroma in 4:2:0. Check its actual isolated
+    // horizontal geometry above the glyphs, rather than demanding source RGB.
+    let lines=0;for(let y=480;y<500;y++){let run=0;for(let x=0;x<320;x++){const i=(y*320+x)*3,below=((y+3)*320+x)*3,lit=(a[i]+a[i+1]+a[i+2])/3>105,darkBelow=(a[below]+a[below+1]+a[below+2])/3<85;if(lit&&darkBelow){if(++run>=12){lines++;break;}}else run=0;}}assert(lines>0,'Frozen Editorial lost its isolated decorative rule');
+   }
   }
   if(preset==='pop-beat'){const small=accent(frames(lastPath,3)),large=accent(frames(lastPath,6));assert(large.count>small.count*1.15,'Production Pop must have actual scaled word pixels');}
   if(preset==='editorial'){

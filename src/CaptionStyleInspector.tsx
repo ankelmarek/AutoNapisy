@@ -24,7 +24,7 @@ export default function CaptionStyleInspector({project,selectedId,visible,locked
  const apply=()=>{try{onChange(applyCaptionStyle(project,draft,scope==='all'?null:targets.map(s=>s.id)));setDirty(false);setError('');drafts.current.clear();}catch(e){setError(String(e));}};
  const fallback=useMemo(()=>hasCaptionMotion(draft)?targets.filter(s=>!synchronizedWords(s,draft)).length:0,[draft,segments,scope,selectedId]);
  const tile=(p:{id:string;name:string;description:string})=>{const chosen=currentId===p.id,s=chosen?draft:drafts.current.get(p.id)??baseStyles[p.id];return <button type="button" key={p.id} data-caption-preset={p.id} aria-label={p.name} aria-pressed={chosen} disabled={disabled} title={p.description} onMouseEnter={()=>setActive(p.id)} onMouseLeave={e=>{if(document.activeElement!==e.currentTarget)setActive(null);}} onFocus={()=>setActive(p.id)} onBlur={()=>setActive(null)} onClick={()=>choose(p.id)}>
-  <CaptionPresetPreview style={s} active={canAnimate&&active===p.id}/><span>{p.name}{chosen&&<Icon name="check" size={14}/>}</span>
+  <CaptionPresetPreview style={s} active={canAnimate&&active===p.id} height={150}/><span>{p.name}{chosen&&<Icon name="check" size={14}/>}</span>
  </button>;};
  return <section className="caption-style-inspector" aria-label="Style napisów">
   <label>Zastosuj do<select aria-label="Zakres stylu napisów" value={scope} onChange={e=>setScope(e.target.value as typeof scope)} disabled={disabled}><option value="all">Cały montaż · {segments.length} napisów</option><option value="selected" disabled={!selected}>Zaznaczony napis{selected?` · ${selected.start.toFixed(2)}–${selected.end.toFixed(2)} s`:''}</option></select></label>
@@ -39,7 +39,7 @@ export default function CaptionStyleInspector({project,selectedId,visible,locked
     <h4>Animowane</h4><div className="caption-preset-grid" role="group" aria-label="Galeria animowanych stylów">{animatedPresets.map(tile)}</div>
    </div>
    {reduced&&<small>Podglądy nieruchome zgodnie z ustawieniem ograniczonego ruchu.</small>}
-  </>:<>
+  </>:<div className="caption-options-layout">
    <div className="caption-options-preview"><CaptionPresetPreview style={draft} active={canAnimate} label="Podgląd bieżącego stylu"/><small>Tekst przykładowy · {classicPresets.find(p=>p.id===currentId)?.name??animatedPresets.find(p=>p.id===currentId)?.name??'Styl z projektu'}</small></div>
    <fieldset disabled={disabled} className="style-fields">
     <label>Krój pisma<select aria-label="Krój pisma napisów" value={draft.fontFamily} onChange={e=>update({fontFamily:e.target.value})}>{[...new Set(['Bebas Neue','Arial','Segoe UI','Georgia',draft.fontFamily])].map(f=><option key={f}>{f}</option>)}</select></label>
@@ -64,7 +64,7 @@ export default function CaptionStyleInspector({project,selectedId,visible,locked
      <label>Zaokrąglenie<input aria-label="Zaokrąglenie planszy" type="range" min={0} max={60} value={draft.cornerRadius} onChange={e=>update({cornerRadius:Number(e.target.value)})}/></label>
     </details>
    </fieldset>
-  </>}
+  </div>}
   </div>
   {fallback>0&&<p className="caption-sync-note" role="status">Brak synchronizacji słów — użyto animacji planszy ({fallback} napisów).</p>}
   {disabled&&<p className="hint">Odblokuj ścieżkę napisów, aby zmienić styl.</p>}{error&&<p role="alert" className="error">{error}</p>}
