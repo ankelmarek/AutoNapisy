@@ -1,6 +1,6 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod caption_presets;
 mod caption_preset_commands;
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod caption_stream;
 mod caption_upload_commands;
 mod caption_poc_commands;
