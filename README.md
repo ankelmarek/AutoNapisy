@@ -1,10 +1,17 @@
-# RolVixa 0.34b — grupowe zaznaczanie napisów (weryfikacja)
+# RolVixa 0.34b — grupowe zaznaczanie napisów
+
+**[Pobierz instalator Windows x64 — ZIP](https://github.com/ankelmarek/AutoNapisy/actions/runs/39395809610/artifacts/12252378857)**. Zaloguj się na GitHub, pobierz i rozpakuj ZIP, zamknij aplikację i uruchom `RolVixa_0.34.0-alpha.2_x64-setup.exe`. Schemat pozostaje v16, zgodny z zapisami 0.34a. Alpha.2 oznacza ukończony etap b, a nie całe 0.34.
+
+ZIP 81,585,763 B; SHA-256 `238371268e61a5015f2e25fc22d587b35455f8c0c7212ceea200f48082ec5ff5`.
 
 Etap b dodaje wspólne zaznaczenie w liście napisów i na torze T: klik wybiera jeden, Ctrl+klik dodaje lub usuwa, Shift+klik wybiera zakres w kolejności montażu, Ctrl+Shift dołącza zakres. Ctrl+A działa na napisach, gdy fokus jest w ich liście lub na T. Escape czyści zaznaczenie; skróty nie przechwytują pisania ani zaznaczania tekstu w polach. Dwuklik otwiera edytor pojedynczego napisu; przy grupie edycja tekstu jest zastąpiona prośbą o wybranie jednego. Pojedyncze przeciąganie i trim pozostają dostępne.
 
 Inspektor pokazuje liczbę wybranych napisów. Zmiana wyboru ustawia zakres **Zaznaczone (X)**; **Wszystkie (N)** trzeba wybrać jawnie, również przy pustej selekcji. Przy różnych konfiguracjach widoczny jest komunikat **Różne style**, bez mylącego aktywnego kafelka. Wybierz wspólny kafelek, dopracuj font lub Animacja On/Off i zatwierdź — dokładnie wskazane napisy zmienią się jednym krokiem Undo/Redo. Delete usuwa zaznaczone napisy jednym krokiem; blokada T chroni styl, tekst i usuwanie. Zaznaczenie jest sesyjne, czyszczone po Open/New/odzyskiwaniu i ograniczane do aktualnych ID po edycjach montażu.
 
-Schemat pozostaje **v16**; selekcja nie trafia do JSON ani historii zmian. Nie zmieniono silnika animacji ani miksu. Własna trwała biblioteka stylów i rozszerzenie obsługi fontów pozostają osobnym **0.34c**. Weryfikacja Windows i nowy instalator etapu b są w toku; poniższy instalator a jest wcześniejszą sprawdzoną wersją.
+Schemat pozostaje **v16**; selekcja nie trafia do JSON ani historii zmian. Nie zmieniono silnika animacji ani miksu. Własna trwała biblioteka stylów i rozszerzenie obsługi fontów pozostają osobnym **0.34c**. Etap b odebrany na Windows; wcześniejszy etap a zachowano poniżej jako historię.
+
+
+Pełny zielony [Windows run 39395809610](https://github.com/ankelmarek/AutoNapisy/actions/runs/39395809610): **390 TS, 118 Rust i 27 rzeczywistych integracji**, build produkcyjny, instalacja oraz rzeczywisty WebView2. Testowany head `30cb51cf8ac4d8cb331b819b1b37b9ef0b1d9a12`, tree `b20b23c0ebd3fe3f0ba0f2ecb5f248d97167df82`; po scaleniu PR #26 kod aplikacji i testów identyczny, z zachowanymi późniejszymi dokumentami planu 0.35. Nowy scenariusz potwierdza pięć rozrzuconych napisów, spójne zaznaczenie listy/T, Ctrl/Shift/Ctrl+A/Escape, ochronę pisania, font/Off tylko wybranego zakresu i pojedyncze Undo/Redo, mieszane style, pojedynczy drag, blokadę T, grupowe Delete, zapis/reopen oraz brak zapisywania zaznaczenia. Sprawdzono zrzuty 1366×700 i Full HD oraz rzeczywisty MP4 z pięcioma zmienionymi i pięcioma pozostałymi napisami. Zestaw zachowuje osiem animacji, statyczne style/Off, standardowy eksport/Export Studio/A-B, miks, montaż i crash/restart. UI używa jawnie syntetycznych polskich napisów; referencja prawdziwej mowy/Whisper pozostaje angielska. Lokalnie: 390 TS, 115 core Rust, 27 integracji i build. [Instalator alpha.2](https://github.com/ankelmarek/AutoNapisy/actions/runs/39395809610/artifacts/12252378857). To odebrany etap b; pełne 0.34 wymaga jeszcze c.
 
 # RolVixa 0.34a — jedna galeria napisów (etap a)
 
