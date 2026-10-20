@@ -1,3 +1,13 @@
+# RolVixa 0.34c — Moje style i fonty (weryfikacja)
+
+W galerii **Style napisów → Moje style** zapiszesz dopracowany wariant przyciskiem **Zapisz jako mój styl…**. Nazwa ma 1–60 znaków, a własny kafelek oferuje zmianę nazwy, duplikowanie i usunięcie. W bibliotece jest miejsce na 128 pozycji; szablony fabryczne pozostają niezmienione. Biblioteka jest wspólna dla projektów i kolejnych uruchomień. Zapis szablonu nie stosuje go do montażu: wybierz kafelek, ustaw zakres i kliknij **Zastosuj**. Projekt zachowuje pełną kopię fontu/layoutu/kolorów/animacji, więc usunięcie szablonu nie zmieni dawnych napisów.
+
+Fonty Bebas Neue, Arial, Segoe UI i Georgia są sprawdzane w przeglądarce; niedostępne pozycje są oznaczone. Importowany własny font zachowuje nazwę w projekcie. Gdy go brakuje, widoczny komunikat i ostrzeżenie eksportu wskazują **Bebas Neue** jako wspólny fallback podglądu, metryk i MP4/Export Studio/A-B. Przycisk **Użyj Bebas Neue** zmienia tylko roboczy styl do zatwierdzenia. Nie dołączamy ani nie pobieramy dodatkowych fontów. Po instalacji nowego fontu uruchom aplikację ponownie; identyczny krój na innym komputerze wymaga jego dostępności. Wykrywanie systemowych aliasów/glyphów jest sprawdzeniem renderowania w WebView2, nie audytem wszystkich fontów systemu.
+
+Schemat projektu pozostaje **v16**; biblioteka jest osobnym `app_data/caption-presets-v1/presets.json` (wersja katalogu 1, limit 1 MiB). Backend wybiera tę stałą lokalizację; frontend nie otrzymuje dostępu do dowolnych plików. Atomowy zapis, blokada OS i kontrola rewizji chronią równoczesne instancje. Nieczytelny, nowszy lub niedostępny katalog pozostaje bez zmian; błąd biblioteki nie blokuje fabrycznych stylów ani pracy z projektem. W razie uszkodzenia zamknij aplikację i zachowaj kopię pliku przed ręcznym przywróceniem kopii katalogu. Nie ma synchronizacji zmian szablonu z istniejącymi projektami ani importowania plików fontów.
+
+Testy Windows i odbiór instalatora pełnego 0.34 są w toku; poniżej pozostaje wcześniejszy sprawdzony etap b. 0.35 / inteligentna korekta timingu nie należy do tej paczki.
+
 # RolVixa 0.34b — grupowe zaznaczanie napisów
 
 **[Pobierz instalator Windows x64 — ZIP](https://github.com/ankelmarek/AutoNapisy/actions/runs/39395809610/artifacts/12252378857)**. Zaloguj się na GitHub, pobierz i rozpakuj ZIP, zamknij aplikację i uruchom `RolVixa_0.34.0-alpha.2_x64-setup.exe`. Schemat pozostaje v16, zgodny z zapisami 0.34a. Alpha.2 oznacza ukończony etap b, a nie całe 0.34.

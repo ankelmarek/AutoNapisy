@@ -1,3 +1,4 @@
+import {captionFontFamily,loadCaptionFont} from './captionFonts';
 import { useEffect, useMemo, useState, type RefObject } from "react";
 import type { Project } from "./model";
 import { captionCards, activeCaption, type CaptionStyle } from "./captions";
@@ -35,7 +36,7 @@ export function CaptionBox({
     let alive = true;
     void Promise.all([
       document.fonts.ready,
-      document.fonts.load(`24px "${style.fontFamily}"`),
+      loadCaptionFont(style.fontFamily),
     ])
       .then(() => {
         if (alive) setFontsReady((x) => x + 1);
@@ -55,7 +56,7 @@ export function CaptionBox({
     <div
       className="caption-box"
       style={{
-        fontFamily: `"${style.fontFamily}", sans-serif`,
+        fontFamily: captionFontFamily(style.fontFamily),
         fontSize: layout.fontSize,
         color: style.color,
         background: style.effect==='outline'?'transparent':style.background,

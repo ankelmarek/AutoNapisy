@@ -11,6 +11,7 @@ $env:ROLVIXA_TEST_HISTORY = Join-Path $env:RUNNER_TEMP 'RolVixa historia Łódź
 $env:ROLVIXA_TEST_RECOVERY = Join-Path $env:RUNNER_TEMP 'RolVixa odzyskiwanie Łódź'
 $env:ROLVIXA_TEST_STUDIO_DIR = Join-Path $env:RUNNER_TEMP 'RolVixa eksport Łódź'
 New-Item -ItemType Directory -Path $env:ROLVIXA_TEST_STUDIO_DIR -Force | Out-Null
+$env:ROLVIXA_TEST_CAPTION_PRESETS = Join-Path $env:RUNNER_TEMP 'RolVixa style Łódź'
 $env:ROLVIXA_TEST_STUDIO_PROJECT = $env:ROLVIXA_TEST_PROJECT
 node scripts/test-native-preview.mjs --prepare
 if ($LASTEXITCODE -ne 0) { throw 'Nie udało się przygotować projektu testowego' }
