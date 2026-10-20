@@ -4,17 +4,17 @@ import {compositionSegments,type EditedSegment} from './editing';
 import {editCaption,resizeCaption,setCaptionTiming,canInheritCaption} from './captionEditing';
 import {captionTimingState,captionTimingLabel} from './captionTiming';
 export type CaptionEditorHandle={commit:(p:Project)=>Project};
-export default function CaptionTextEditor({project,caption,locked,inputRef,handleRef,onChange}:{project:Project;caption:EditedSegment;locked:boolean;inputRef:RefObject<HTMLTextAreaElement|null>;handleRef:Ref<CaptionEditorHandle>;onChange:(p:Project)=>void}){
+export default function CaptionTextEditor({project,caption,locked,inputRef,handleRef,getProject,onChange}:{project:Project;caption:EditedSegment;locked:boolean;inputRef:RefObject<HTMLTextAreaElement|null>;handleRef:Ref<CaptionEditorHandle>;getProject:()=>Project;onChange:(p:Project)=>void}){
  const [draft,setDraft]=useState(caption.text),[error,setError]=useState('');
  useLayoutEffect(()=>{setDraft(caption.text);setError('');},[caption.text]);
  const dirty=draft!==caption.text,state=captionTimingState(project,caption);
  const commit=(p:Project)=>{
   if(!dirty)return p;if(p.tracks.T?.locked)throw Error('Ścieżka napisów jest zablokowana.');
-  const current=compositionSegments(p).find(s=>s.id===caption.id);if(!current||current.text!==caption.text)throw Error('Napis zmienił się podczas edycji. Otwórz go ponownie.');
+  const current=compositionSegments(p).find(s=>s.id===caption.id);if(current?.text===draft)return p;if(!current||current.text!==caption.text)throw Error('Napis zmienił się podczas edycji. Otwórz go ponownie.');
   return editCaption(p,current,{text:draft});
  };
  useImperativeHandle(handleRef,()=>({commit}));
- const apply=()=>{if(locked)return;try{const next=commit(project);if(next!==project)onChange(next);setError('');}catch(e){setError(String(e));}};
+ const apply=()=>{if(locked)return;try{const current=getProject(),next=commit(current);if(next!==current)onChange(next);setError('');}catch(e){setError(String(e));}};
  return <div className="caption-editor" onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget))apply();}}>
   <h3>Edycja zaznaczonego napisu</h3>
   <textarea ref={inputRef} aria-label="Tekst zaznaczonego napisu" value={draft} maxLength={100000} disabled={locked} onChange={e=>setDraft(e.target.value)} onKeyDown={e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();setDraft(caption.text);setError('');}else if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();e.stopPropagation();apply();}}}/>
