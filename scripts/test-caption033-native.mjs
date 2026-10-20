@@ -1,3 +1,4 @@
+import {testCaption035Correction} from './test-caption035-correction.mjs';
 import {testCaption034Library,checkCaption034FallbackPixels} from './test-caption034-library.mjs';
 import {testCaption034Selection} from './test-caption034-selection.mjs';
 import {testCaption034Gallery} from './test-caption034-gallery.mjs';
@@ -59,6 +60,7 @@ export async function testCaption033(page,projectPath){
   await testCaption034Library(page,projectPath);
   await testCaption033Exports(page,projectPath);
   checkCaption034FallbackPixels();
+  await testCaption035Correction(page,projectPath);
   console.log('0.33b real spoken fixture + actual Whisper offsets: eight distinct presets, lossless alpha pixel hashes at 104 frames, encoded H264/30FPS + AAC, seek/play, honest Polish manual fallback and cleanup: OK');
  }catch(e){console.log('Caption POC failure:',await page.locator('body').innerText());await page.screenshot({path:'.tools/caption033-failure.png'});throw e;}finally{
   fs.writeFileSync(projectPath,manual);await page.goto(root);await page.waitForFunction(()=>document.querySelector('dialog[open]')||document.querySelector('.start-screen')||document.querySelector('.header-project-name')&&!document.querySelector('.header-project-name').disabled);const recovery=page.getByRole('dialog',{name:'Odzyskaj pracę',exact:true});if(await recovery.isVisible())await recovery.getByRole('button',{name:'Otwórz zapisany projekt',exact:true}).click();

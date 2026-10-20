@@ -1,7 +1,25 @@
 import type {Project} from './model';
-import {editDuration,type EditedSegment} from './editing';
+import {compositionSegments,editDuration,type EditedSegment} from './editing';
+import {inheritCaptionWords} from './captionTiming';
+function sourceCaption(p:Project,id:string){
+ const e=p.captionEdits[id];if(!e)return compositionSegments(p).find(s=>s.id===id);
+ const {text:_,textTiming:__,...rest}=e;return compositionSegments({...p,captionEdits:{...p.captionEdits,[id]:rest}}).find(s=>s.id===id);
+}
 export function editCaption(p:Project,s:EditedSegment,patch:Partial<Project['captionEdits'][string]>):Project{
- const previous=p.captionEdits[s.id]??{trimStart:0,trimEnd:0};return {...p,captionEdits:{...p.captionEdits,[s.id]:{...previous,...patch}}};
+ if(p.tracks.T?.locked)throw Error('Ścieżka napisów jest zablokowana.');
+ const previous=p.captionEdits[s.id]??{trimStart:0,trimEnd:0},next={...previous,...patch};
+ if(patch.text!==undefined){
+  const source=sourceCaption(p,s.id);delete next.textTiming;
+  if(previous.textTiming?.mode==='board')next.textTiming={mode:'board'};
+  else if(source&&inheritCaptionWords(source,patch.text))next.textTiming={mode:'inherited',sourceText:source.text};
+ }
+ return {...p,captionEdits:{...p.captionEdits,[s.id]:next}};
+}
+export function canInheritCaption(p:Project,s:EditedSegment){const source=sourceCaption(p,s.id);return !!source&&!!inheritCaptionWords(source,s.text);}
+export function setCaptionTiming(p:Project,s:EditedSegment,mode:'inherited'|'board'):Project{
+ if(p.tracks.T?.locked)throw Error('Ścieżka napisów jest zablokowana.');
+ const source=sourceCaption(p,s.id);if(mode==='inherited'&&(!source||!inheritCaptionWords(source,s.text)))throw Error('Brak jednoznacznego dopasowania 1:1. Pozostaw animację planszy.');
+ const e=p.captionEdits[s.id]??{trimStart:0,trimEnd:0};return {...p,captionEdits:{...p.captionEdits,[s.id]:{...e,text:s.text,textTiming:mode==='board'?{mode}:{mode,sourceText:source!.text}}}};
 }
 /** A selected group is hidden in one transaction, without altering raw transcripts. */
 export function hideCaptions(p:Project,ids:readonly string[]):Project{

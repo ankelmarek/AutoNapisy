@@ -31,14 +31,14 @@ function remapEdits(before:Project,next:Project,origins:Map<string,string>,confl
  if(offsets.length>1){conflicts.push('Napisy mają różne przesunięcia. Rozdziel zakres cięcia.');continue;}
  delete edits[s.id];
  const bounds=[lo,hi,...candidates.flatMap(o=>{const e=before.captionEdits[o.id];return [o.start-previous,o.end-previous,...(e?[o.start+e.trimStart-previous,o.end-e.trimEnd-previous]:[])];})].filter(t=>t>=lo&&t<=hi).sort((a,b)=>a-b).filter((t,i,a)=>!i||t-a[i-1]>1e-7);
- const fragments:{start:number;end:number;text?:string;styleId?:string}[]=[];
+ const fragments:{start:number;end:number;text?:string;styleId?:string;textTiming?:Project['captionEdits'][string]['textTiming']}[]=[];
  for(let i=0;i<bounds.length-1;i++){const start=bounds[i],end=bounds[i+1],mid=(start+end)/2,o=candidates.find(o=>mid>=o.start-previous&&mid<o.end-previous),patch=o&&before.captionEdits[o.id];
  if(patch&&(patch.hidden||mid<o!.start+patch.trimStart-previous||mid>o!.end-patch.trimEnd-previous))continue;
- const text=patch?.text??(patch&&(patch.trimStart>0||patch.trimEnd>0)?o!.text:undefined),styleId=patch?.styleId,last=fragments.at(-1);
- if(last&&Math.abs(last.end-start)<1e-6&&last.text===text&&last.styleId===styleId)last.end=end;else fragments.push({start,end,text,styleId});}
+ const text=patch?.text??(patch&&(patch.trimStart>0||patch.trimEnd>0)?o!.text:undefined),styleId=patch?.styleId,textTiming=patch?.textTiming,last=fragments.at(-1);
+ if(last&&Math.abs(last.end-start)<1e-6&&last.text===text&&last.styleId===styleId&&JSON.stringify(last.textTiming)===JSON.stringify(textTiming))last.end=end;else fragments.push({start,end,text,styleId,textTiming});}
  if(!fragments.length){edits[s.id]={trimStart:0,trimEnd:0,hidden:true};continue;}
  if(fragments.length>1){conflicts.push('Edycja napisu po zmianie widocznych warstw wymaga osobnego zakresu. Zmniejsz zaznaczenie.');continue;}
- const f=fragments[0];edits[s.id]={trimStart:Math.max(0,f.start-lo),trimEnd:Math.max(0,hi-f.end),...(offsets[0]?{offset:offsets[0]}:{}),...(f.text!==undefined?{text:f.text}:{}),...(f.styleId?{styleId:f.styleId}:{})};
+ const f=fragments[0];edits[s.id]={trimStart:Math.max(0,f.start-lo),trimEnd:Math.max(0,hi-f.end),...(offsets[0]?{offset:offsets[0]}:{}),...(f.text!==undefined?{text:f.text}:{}),...(f.styleId?{styleId:f.styleId}:{}),...(f.textTiming?{textTiming:f.textTiming}:{})};
  }
  return {...next,captionEdits:edits};
 }

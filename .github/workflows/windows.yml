@@ -191,6 +191,7 @@ jobs:
           path: |
             .tools/caption033-*.png
             .tools/caption034-*.png
+            .tools/caption035-*.png
             docs/editor029-*.png
             .tools/native-editor029.png
             docs/export032-*.png
@@ -244,5 +245,7 @@ jobs:
           path: |
             .tools/caption033-*.mp4
             .tools/caption034-*.mp4
+            .tools/caption035-*.mp4
+            .tools/caption035-*.srt
           include-hidden-files: true
           if-no-files-found: ignore

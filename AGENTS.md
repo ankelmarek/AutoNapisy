@@ -1,5 +1,16 @@
 # Ustalenia projektu RolVixa
 
+## Bieżąca implementacja P0 — 0.35a (po odebranym 0.34a/b/c)
+
+Użytkownik zatwierdził budowę kolejnego etapu. Implementacja 0.35a obejmuje deterministyczną korektę 1:1 i jawne pochodzenie czasów, bez forced alignment z 0.35b i pełnego odbioru polskiej mowy z 0.35c. `captionTiming.ts` używa wyłącznie istniejących przedziałów słów; rozpoznane przeniesienie tokenów, zmiana liczby lub brak niezmienionego anchora przy całkowicie przepisanej frazie dają fallback planszy. Nie utożsamiać równej liczby słów z potwierdzeniem audio: UI jawnie mówi o odziedziczonych czasach. Przy zmianie sensu można świadomie wybrać planszę. Nie usuwać fallbacku dla danych niepewnych.
+
+Schemat v17: opcjonalne `captionEdits.textTiming` = `{mode:'inherited',sourceText}` / `{mode:'board'}`. TS i Rust odrzucają wstrzyknięcie do v1–v16, null i nadmiarowe pola; stare edycje bez metadanych zachowują dotychczasowy fallback, bez automatycznego przywracania synchronizacji. W Rust wariant Board jest strukturą `Board {}`, aby serde nie ignorowało obcych pól wariantu jednostkowego. `sourceText` chroni przed użyciem korekty po zmianie podstawy źródłowej; words są wyliczane z aktualnego zegara źródła/klipu/offsetu, nie zapisane po raz drugi. Sam trim napisu nadal usuwa niepewną synchronizację.
+
+`CaptionTextEditor` ma lokalny draft, zatwierdzenie Ctrl+Enter/przyciskiem/wyjściem, Esc/Anuluj, jeden Undo; Ctrl+S/Open/New/export/close pobierają bieżący draft przez commitPendingCaption. Reset draftu po zmianie tekstu odbywa się przed kolejnymi zdarzeniami, także po Undo. Open/New/recovery mają nowy key sesji. T lock chroni korektę i tryb czasowania. Fabryki/renderer, style, miks i własna biblioteka 0.34 bez zmiany. Testy starych fixture'ów nadal oznaczają ich historyczne wersje, oczekują migracji do v17.
+
+Lokalnie 437 TS, 123 core Rust, 27 integracji i build. Windows, MP4/A-B/SRT, ekran laptop/FHD oraz instalator 0.35.0-alpha.1 wymagają pełnego sprawdzenia. **0.35a jest w weryfikacji; 0.35b/c nie wdrożono.**
+
+
 ## Aktualny stan — 0.34a/b/c wdrożone; następny plan to 0.35a (20.10.2026)
 
 Po ukończonych implementacjach 0.33a/b/c użytkownik zatwierdził **następny etap UX 0.34**, szczegółowo w [issue #24](https://github.com/ankelmarek/AutoNapisy/issues/24) i na samej górze ROADMAP.md. **Jedna galeria**: tylko **2 klasyczne kafelki** (must-have żółta plansza Bebas Neue i biały outline) + osiem animowanych + Moje style; dotychczasowe 4 klasyczne przyciski znikają bez zmiany starych projektów. W prawej zakładce `Napisy` podział `Style napisów` (tylko wybór) / `Opcje napisów` (font/rozmiar/kolory/obrys/tło/pozycja/animacja On-Off/intensywność/tempo). Font i ustawienia mają być właściwością stylu, **nie globalnie wszystkich napisów**. Wspólna obsługa wielu zaznaczonych napisów w liście i na T (Ctrl/Shift+klik, Ctrl+A kontekstowo), grupowy apply jako jeden Undo. Kafle własne tworzone przez `Zapisz jako mój styl`, lokalny trwały katalog między projektami z niezależną migawką w projekcie. Bez duplikatów sekcji, bez podmieniania gotowych fabrycznych szablonów w miejscu. Zachować deterministyczny renderer 0.33 w preview/MP4/Export Studio/A-B, starsze projekty i eksport SRT. Wdrożono jako 0.34a/b/c, każdy z testami. **Nie mylić wielozaznaczenia napisów z wielozaznaczeniem klipów wideo z 0.29.**
