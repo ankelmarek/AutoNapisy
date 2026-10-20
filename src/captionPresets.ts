@@ -39,7 +39,7 @@ export function presetStyle(base:CaptionStyle,id:AnimatedPresetId):CaptionStyle{
 /** Only style references change. Timing, text, word data and source media stay untouched. */
 export function applyCaptionStyle(project:Project,style:CaptionStyle,ids:readonly string[]|null,id:string=crypto.randomUUID()):Project{
  if(project.tracks.T?.locked)throw Error('Ścieżka napisów jest zablokowana.');
- const nextStyle=styleSchema.parse(style),segments=compositionSegments(project),selected=ids===null?segments:segments.filter(s=>ids.includes(s.id));
+ const nextStyle=styleSchema.parse(style),segments=compositionSegments(project),wanted=ids===null?null:new Set(ids),selected=wanted===null?segments:segments.filter(s=>wanted.has(s.id));
  if(!selected.length&&ids!==null)throw Error('Wybierz napis lub dodaj transkrypcję przed zastosowaniem stylu.');
  if(!selected.length)return {...project,styles:{...project.styles,default:nextStyle}};
  const key=`caption-${id}`;if(project.styles[key])throw Error('Identyfikator stylu jest już zajęty.');

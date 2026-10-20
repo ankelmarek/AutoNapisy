@@ -7,7 +7,7 @@ export async function testCaption033Exports(page,projectPath){
  const before=JSON.parse(fs.readFileSync(projectPath,'utf8'));
  // An unapplied local style draft belongs to the current Open/New session, even
  // when two project files have the same createdAt and caption IDs.
- await button('Napisy').click();await page.locator('[data-caption-preset="neon"]').click();assert(await page.getByRole('button',{name:/^Zastosuj styl/}).isEnabled());
+ await button('Napisy').click();await page.getByRole('combobox',{name:'Zakres stylu napisów',exact:true}).selectOption('all');await page.locator('[data-caption-preset="neon"]').click();assert(await page.getByRole('button',{name:/^Zastosuj styl/}).isEnabled());
  const other={...before,name:before.name+' — statyczny',styles:Object.fromEntries(Object.entries(before.styles).map(([id,style])=>{const copy={...style};delete copy.animation;return[id,copy];}))};
  fs.writeFileSync(projectPath,JSON.stringify(other));await page.keyboard.press('Control+o');await page.waitForFunction(name=>document.querySelector('.header-project-name')?.textContent.trim()===name&&!document.querySelector('.header-project-name').disabled,other.name);
  assert.equal(await page.locator('[data-caption-preset][aria-pressed="true"]').count(),0);assert(await page.getByRole('button',{name:/^Zastosuj styl/}).isDisabled());

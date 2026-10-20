@@ -241,6 +241,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: RolVixa-Animated-Captions-POC
-          path: .tools/caption033-*.mp4
+          path: |
+            .tools/caption033-*.mp4
+            .tools/caption034-*.mp4
           include-hidden-files: true
           if-no-files-found: ignore

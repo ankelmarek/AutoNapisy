@@ -1,3 +1,11 @@
+# RolVixa 0.34b — grupowe zaznaczanie napisów (weryfikacja)
+
+Etap b dodaje wspólne zaznaczenie w liście napisów i na torze T: klik wybiera jeden, Ctrl+klik dodaje lub usuwa, Shift+klik wybiera zakres w kolejności montażu, Ctrl+Shift dołącza zakres. Ctrl+A działa na napisach, gdy fokus jest w ich liście lub na T. Escape czyści zaznaczenie; skróty nie przechwytują pisania ani zaznaczania tekstu w polach. Dwuklik otwiera edytor pojedynczego napisu; przy grupie edycja tekstu jest zastąpiona prośbą o wybranie jednego. Pojedyncze przeciąganie i trim pozostają dostępne.
+
+Inspektor pokazuje liczbę wybranych napisów. Zmiana wyboru ustawia zakres **Zaznaczone (X)**; **Wszystkie (N)** trzeba wybrać jawnie, również przy pustej selekcji. Przy różnych konfiguracjach widoczny jest komunikat **Różne style**, bez mylącego aktywnego kafelka. Wybierz wspólny kafelek, dopracuj font lub Animacja On/Off i zatwierdź — dokładnie wskazane napisy zmienią się jednym krokiem Undo/Redo. Delete usuwa zaznaczone napisy jednym krokiem; blokada T chroni styl, tekst i usuwanie. Zaznaczenie jest sesyjne, czyszczone po Open/New/odzyskiwaniu i ograniczane do aktualnych ID po edycjach montażu.
+
+Schemat pozostaje **v16**; selekcja nie trafia do JSON ani historii zmian. Nie zmieniono silnika animacji ani miksu. Własna trwała biblioteka stylów i rozszerzenie obsługi fontów pozostają osobnym **0.34c**. Weryfikacja Windows i nowy instalator etapu b są w toku; poniższy instalator a jest wcześniejszą sprawdzoną wersją.
+
 # RolVixa 0.34a — jedna galeria napisów (etap a)
 
 **[Pobierz instalator Windows x64 — ZIP](https://github.com/ankelmarek/AutoNapisy/actions/runs/39389410796/artifacts/12249932070)**. Zaloguj się na GitHub, pobierz i rozpakuj ZIP, zamknij aplikację i uruchom `RolVixa_0.34.0-alpha.1_x64-setup.exe`. Alpha.1 oznacza pierwszy odebrany etap 0.34a; wielozaznaczenie oraz biblioteka własnych stylów będą oddzielnie w b/c. Zachowaj kopię projektu v15 przed zapisem v16.
