@@ -4,6 +4,7 @@ import {newProject,parseProject,serializeProject} from '../src/model';
 import {presetStyle,applyCaptionStyle,setCaptionAnimation,animatedPresets} from '../src/captionPresets';
 import {compositionSegments} from '../src/editing';
 import {captionFontFamily,measureFontAvailability,inspectCaptionFont,knownCaptionFont,fontFallbackMessage} from '../src/captionFonts';
+import {captionExport} from '../src/captions';
 afterEach(()=>vi.unstubAllGlobals());
 const id='user-'+'a'.repeat(32),base=newProject().styles.default;
 describe('0.34c own preset snapshots and validation',()=>{
@@ -18,6 +19,11 @@ describe('0.34c own preset snapshots and validation',()=>{
  });
  it('does not confuse FontFaceSet.check success with actual availability and escapes CSS names',()=>{
   const fake=(font:string)=>font.endsWith('monospace')?100:200;expect(measureFontAvailability('Absent',fake)).toBe(false);expect(measureFontAvailability('Loaded',fake,true)).toBe(true);expect(measureFontAvailability('Arial',f=>f.includes('Arial')?150:fake(f))).toBe(true);expect(captionFontFamily('Font "Łódź"')).toBe('"Font \\"Łódź\\"", "Bebas Neue", sans-serif');expect(fontFallbackMessage('Absent')).toContain('Bebas Neue');
+ });
+ it('wraps export and SRT snapshots with the same missing-font fallback as the preview, without changing source data',()=>{
+  vi.stubGlobal('document',{createElement:()=>({getContext:()=>({font:'',measureText(text:string){return {width:text.length*(this.font.includes('"Bebas Neue"')?20:40)};}})})});
+  const segment={id:'a',text:'Zażółć gęślą jaźń',start:0,end:2,styleId:'default',words:[]},p={...newProject(),segments:[segment]},missing={...p,styles:{default:{...p.styles.default,fontFamily:'RolVixa Missing Font 034c'}}},before=JSON.stringify(missing),expected=captionExport(p).segments;
+  expect(expected[0].text).not.toContain('\n');expect(captionExport(missing).segments).toEqual(expected);expect(JSON.stringify(missing)).toBe(before);
  });
  it('loads the bundled fallback before probing; absent fonts yield a cached honest status without changing a project',async()=>{
   const loads:string[]=[];vi.stubGlobal('document',{fonts:{load:async(f:string)=>{loads.push(f);return [];},ready:Promise.resolve(),[Symbol.iterator]:function*(){}},createElement:()=>({getContext:()=>({font:'',measureText(){return {width:this.font.endsWith('monospace')?100:200};}})})});const p={...newProject(),styles:{default:{...base,fontFamily:'Definitely absent 034c'}}},before=JSON.stringify(p);const a=await inspectCaptionFont(p.styles.default.fontFamily);expect(a.available).toBe(false);expect(loads).toContain('24px "Bebas Neue"');expect(knownCaptionFont(a.family)).toEqual(a);await inspectCaptionFont(a.family);expect(loads).toHaveLength(2);expect(JSON.stringify(p)).toBe(before);

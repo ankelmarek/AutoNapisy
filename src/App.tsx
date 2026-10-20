@@ -337,6 +337,7 @@ export default function App() {
   };
   const exportSrt = () =>
     run(async () => {
+      await ensureCaptionFonts(project);
       const path = await backend.exportSrt(
         serializeProject(project),
         JSON.stringify(captionExport(displayed).segments),

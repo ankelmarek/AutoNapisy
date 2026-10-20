@@ -1,4 +1,5 @@
 import type { Project } from "./model";
+import {captionFontFamily} from './captionFonts';
 export type CaptionStyle = Project["styles"][string];
 export type CaptionCard = {
   id: string;
@@ -217,7 +218,7 @@ export function captionExport(project: Project): Project {
       if (typeof document !== "undefined") {
         const ctx = document.createElement("canvas").getContext("2d");
         if (ctx) {
-          ctx.font = `${style.fontSize}px "${style.fontFamily}"`;
+          ctx.font = `${style.fontSize}px ${captionFontFamily(style.fontFamily)}`;
           measure = (text) => ctx.measureText(text).width;
           width =
             (720 * style.boxWidth) / 100 -
