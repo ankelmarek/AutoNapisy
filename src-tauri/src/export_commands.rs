@@ -21,10 +21,12 @@ struct Session {
     melt: PathBuf,
     target: PathBuf,
     original: Option<Fingerprint>,
-    dir: tempfile::TempDir,
+    animation:Option<std::sync::Arc<crate::caption_stream::CaptionStream>>,
+    dir:Arc<tempfile::TempDir>,
     metadata: Option<Metadata>,
     received: Vec<bool>,
     bytes: usize,
+    basis:String,
 }
 #[derive(Default)]
 pub struct ExportState(Arc<Mutex<Option<Session>>>);
@@ -78,7 +80,6 @@ pub async fn begin_video_export(
         return Err("Montaż jest pusty".into());
     }
     project.segments = project::export_captions(&project, captions.as_deref())?;
-    if project.segments.iter().any(|s|project.styles.get(&s.style_id).is_some_and(|s|s.animation.is_some())) {return Err("Animowane napisy wymagają ukończenia 0.33c; standardowy eksport nie może ich spłaszczyć.".into());}
     if project.segments.len() > rendering::MAX_FRAMES {
         return Err(
             "Eksport wymaga od 0 do 3000 plansz napisów. Dłuższy film podziel na projekty.".into(),
@@ -158,6 +159,7 @@ pub async fn begin_video_export(
     let probe_dir = dir.path().to_owned();
     let probe_media = media.clone();
     let probe_ffmpeg = ffmpeg.clone();
+    let basis=crate::export_studio::source_basis(&project,&ffmpeg,&melt)?;
     let count = project.segments.len();
     let target_text = path_string(&target)?;
     *exports.0.lock().unwrap() = Some(Session {
@@ -168,10 +170,12 @@ pub async fn begin_video_export(
         ffmpeg,
         target,
         original,
-        dir,
+        animation:None,
+        dir:Arc::new(dir),
         metadata: None,
         received: vec![false; count],
         bytes: 0,
+        basis,
     });
     let running = Arc::clone(&job);
     let sessions = Arc::clone(&exports.0);
@@ -195,6 +199,12 @@ pub async fn begin_video_export(
                         crate::framing::apply_canvas(&session.project, &mut meta);
                         meta.duration = project::composition_duration(&session.project);
                         session.metadata = Some(meta.clone());
+                        let animation=if session.project.segments.iter().any(|s|session.project.styles.get(&s.style_id).is_some_and(|s|s.animation.is_some())) {
+                            match crate::caption_stream::export_stream(running.clone(),&session.ffmpeg,session.dir.clone(),meta.width,meta.height,0.,meta.duration){
+                                Ok((stream,info))=>{session.animation=Some(stream);Some(info)},
+                                Err(e)=>{slot.take();failed(&running,e);return;}
+                            }
+                        }else{None};
                         let mut status = running.status.lock().unwrap();
                         if running.cancel.load(Ordering::SeqCst) {
                             drop(status);
@@ -212,6 +222,7 @@ pub async fn begin_video_export(
                             frames: count,
                             received: 0,
                             output_path: target_text,
+                            animation,
                         });
                     }
                 }
@@ -255,6 +266,7 @@ pub async fn upload_export_frame(
             .as_mut()
             .filter(|s| s.id == id)
             .ok_or("Nieaktualny eksport")?;
+        if session.animation.is_some(){return Err("Animacja wymaga binarnego strumienia".into());}
         if index >= session.received.len() || session.received[index] {
             return Err("Niepoprawny lub powtórzony numer planszy".into());
         }
@@ -306,7 +318,7 @@ pub fn finish_export_frames(
         .as_ref()
         .filter(|s| s.id == id)
         .ok_or("Nieaktualny eksport")?;
-    if !session.received.iter().all(|v| *v) {
+    if session.animation.is_none()&&!session.received.iter().all(|v| *v) {
         return Err("Nie wszystkie plansze zostały przygotowane".into());
     }
     let session = slot.take().unwrap();
@@ -327,7 +339,10 @@ pub fn finish_export_frames(
     let worker = std::thread::Builder::new()
         .name("autonapisy-video-export".into())
         .spawn(move || {
-            let result = rendering::render_mlt(
+            let result = (||{
+            if crate::export_studio::source_basis(&session.project,&session.ffmpeg,&session.melt)?!=session.basis{return Err("Źródła zmieniły się od rozpoczęcia eksportu.".into());}
+            if let Some(stream)=session.animation.as_ref(){stream.finish()?;}
+            rendering::render_mlt_with_layer(
                 &session.melt,
                 &running,
                 &session.ffmpeg,
@@ -337,7 +352,8 @@ pub fn finish_export_frames(
                 session.dir.path(),
                 &session.project,
                 session.metadata.as_ref().unwrap(),
-            );
+                session.animation.as_ref().map(|s|s.output.as_path()),
+            )})();
             if let Err(error) = result {
                 failed(&running, error);
             }

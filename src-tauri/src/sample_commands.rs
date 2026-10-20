@@ -63,6 +63,7 @@ pub struct Prepared {
     frames: Vec<usize>,
     total_frames: usize,
     range: SampleRange,
+    animation:Option<crate::caption_stream::UploadInfo>,
 }
 #[tauri::command]
 pub async fn studio_sample_begin(
@@ -124,6 +125,7 @@ pub async fn studio_sample_begin(
             frames: sample.frames.clone(),
             total_frames: sample.entry.project.segments.len(),
             range: sample.range,
+            animation:sample.entry.animation_info(),
         };
         let mut rows = sessions.lock().map_err(|_| "Błąd sesji próbek")?;
         let s = rows

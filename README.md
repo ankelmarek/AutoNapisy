@@ -1,9 +1,19 @@
+## Kandydat 0.33 — Animated Captions (odbiór Windows w toku)
+
+Osiem stylów z galerii korzysta ze wspólnego renderera czasu montażu w podglądzie, MP4, kolejce Export Studio i próbkach A/B. **W obrazie** wypala animację; **SRT** zapisuje tekst i czasy, **Bez napisów** pomija warstwę. Ręczna zmiana tekstu/brak pewnych czasów słów daje jawną animację całej planszy zamiast zgadywanego karaoke. Stare statyczne napisy zachowują wcześniejszy renderer; mogą współistnieć z animowanymi.
+
+Eksport wysyła pojedyncze binarne klatki RGBA z backpressure do jednej warstwy FFV1/BGRA, a następnie koduje wspólnie z pełnym obrazem i miksem MLT. Nie tworzy osobnego PNG/base64 na każdą klatkę. Limity produkcyjne: do 16 megapikseli, 24 h przy 30 FPS, 4 GiB roboczej warstwy; do 10 pozycji kolejki. Limit pliku może zakończyć długi/szczegółowy film błędem przed publikacją — podziel wtedy montaż lub zmniejsz rozdzielczość. Zakończona kolejka usuwa warstwę; nieudany/anulowany gotowy wariant zachowuje ją do ponowienia lub usunięcia pozycji. Anulowanie przygotowania przerywa producenta i reapuje enkoder; katalog pozostaje żywy aż do zakończenia ostatniego żądania. Zmienione źródła blokują publikację.
+
+Preflight uwzględnia maksymalne powiększenie Pop, grupy Impact, glow Neon oraz przemieszczenie Slide/Editorial i strefy bezpieczne. Odtwarzanie napisów śledzi zaprezentowaną klatkę dekodera; po seek jest to ten sam zegar 30 FPS co w eksporcie. Schemat v15, migracje statycznych v1–v14.
+
+Lokalnie: 366 TS, 113 core Rust, dotychczasowy komplet rzeczywistych integracji oraz nowe eksporty/stream/cancel. W pomiarze 60 s / 1280×720 / 1800 klatek: warstwa 3,76 MB, ok. 26 s, wzrost high-water pamięci procesu testowego ok. 11 MiB; jest to pomiar konkretnej próbki, nie gwarancja prędkości ani pomiar całej aplikacji z FFmpeg. Windows/instalator/WebView2 i końcowe porównania klatek wymagają zakończenia workflow. **Nie oznaczono jeszcze pełnego 0.33 jako odebranego.**
+
 <!-- 0.33b remains an alpha until the full 0.33c export acceptance. -->
 ## W przygotowaniu: 0.33b — galeria animowanych napisów
 
 W inspektorze **Napisy** dostępnych jest osiem własnych stylów: Karaoke Flow, Pop Beat, Impact, Neon Pulse, Slide Reveal, Marker, Editorial Clean i Type Flow. Kafelki pokazują rzeczywisty renderer i mają jeden aktywny podgląd; respektują ograniczony ruch i zatrzymują się po schowaniu panelu. Wybór kafelka i suwaki tworzą podgląd roboczy. **Zastosuj styl** zapisuje całość jednym Undo, bez zmiany tekstu, źródeł, czasów i miksu. Zakres: cały montaż albo zaznaczony napis (jeden klik na osi zaznacza, dwuklik nadal edytuje tekst). Kolory, font, rozmiar, pozycja, tempo i intensywność są zapisywane w projekcie. Tempo Karaoke nie przesuwa rzeczywistych czasów słów. Bez pewnego dopasowania słów panel pokazuje fallback całej planszy. Dotychczasowe style statyczne pozostają dostępne.
 
-Schemat v15 rozszerza `captionEdits` o opcjonalne `styleId`; starsze projekty nadal migrują do statycznego wyglądu. Wersja techniczna alpha.2: normalny eksport burn animacji pozostaje zablokowany do etapu **0.33c**, zamiast spłaszczać efekt. SRT i eksport bez napisów zachowują dotychczasowe działanie. Nie jest to jeszcze pełne wydanie 0.33.
+Schemat v15 rozszerza `captionEdits` o opcjonalne `styleId`; starsze projekty nadal migrują do statycznego wyglądu. Wersja techniczna alpha.2: na etapie 0.33b eksport burn animacji był zablokowany; kandydat 0.33c powyżej dodaje obsługę strumieniową. SRT i eksport bez napisów zachowują dotychczasowe działanie. Nie jest to jeszcze pełne wydanie 0.33.
 
 Lokalnie: 352 testy TypeScript, 113 Rust core i produkcyjny frontend. Odbiór Windows/WebView2 tej części jest w toku; nie oznaczać go jako ukończonego.
 

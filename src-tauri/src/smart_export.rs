@@ -356,7 +356,6 @@ pub struct Sample {
     pub entry: Entry,
     pub range: SampleRange,
     pub frames: Vec<usize>,
-    _root: tempfile::TempDir,
 }
 impl Sample {
     pub fn prepare(
@@ -368,15 +367,16 @@ impl Sample {
         start: f64,
         duration: f64,
     ) -> Result<Self, String> {
-        let root = tempfile::tempdir().map_err(|e| e.to_string())?;
-        let entry = Entry::prepare(p, o, root.path(), ff, melt, job)?;
+        // Entry owns the scratch root itself. A second TempDir parent could erase it
+        // while a concurrent RGBA request still owns the encoder/child directory.
+        let entry = Entry::prepare(p, o, &std::env::temp_dir(), ff, melt, job)?;
         let range = SampleRange::new(start, duration, entry.meta.duration)?;
+        entry.start_animation(range.start,range.duration)?;
         let frames = entry.select_sample_frames(range.start, range.start + range.duration);
         Ok(Self {
             entry,
             range,
             frames,
-            _root: root,
         })
     }
     pub fn path(&self, index: usize) -> Result<PathBuf, String> {
@@ -425,7 +425,7 @@ impl Sample {
             let dir = e.dir.path().join(format!("variant-{index}"));
             fs::create_dir(&dir).map_err(|e| e.to_string())?;
             let at = Instant::now();
-            let path = encode(
+            let path = encode_with_layer(
                 e,
                 &job,
                 &options,
@@ -434,6 +434,7 @@ impl Sample {
                 self.range.start,
                 self.range.duration,
                 128 * 1024 * 1024,
+                e.animation_path().as_deref(),
             )?;
             let encode_seconds = at.elapsed().as_secs_f64();
             let bytes = fs::metadata(path).map_err(|e| e.to_string())?.len();

@@ -1,3 +1,4 @@
+import {uploadCaptionLayer,type CaptionUpload} from './captionLayer';
 import {useEffect,useRef,useState} from 'react';
 import {convertFileSrc,invoke} from '@tauri-apps/api/core';
 import {serializeProject,type Project} from './model';
@@ -18,9 +19,10 @@ export default function ExportComparison({project,options,time,onClose,onChoose,
   const check=()=>{if(abort.signal.aborted)throw new DOMException('Anulowano','AbortError');};
   try{
    const captions=captionExport(compositionProject(project));
-   const prepared=await invoke<{width:number;height:number;frames:number[];totalFrames:number}>('studio_sample_begin',{key,json:serializeProject(project),captions:JSON.stringify(captions.segments),options,start,duration});check();
+   const prepared=await invoke<{width:number;height:number;frames:number[];totalFrames:number;animation?:CaptionUpload|null}>('studio_sample_begin',{key,json:serializeProject(project),captions:JSON.stringify(captions.segments),options,start,duration});check();
    if(prepared.totalFrames!==captions.segments.length)throw Error('Niezgodne napisy próbki');
-   if(prepared.frames.length){await ensureCaptionFonts(project);check();const render=createFrameRenderer(prepared.width,prepared.height);for(const index of prepared.frames){check();const s=captions.segments[index];if(!s)throw Error('Nieprawidłowa plansza próbki');const png=await render(s.text,captions.styles[s.styleId]);check();await invoke('studio_sample_upload',{key,index,png});await new Promise(r=>setTimeout(r,0));}}
+   if(prepared.animation){await uploadCaptionLayer(captions,prepared.width,prepared.height,prepared.animation,abort.signal,n=>{setMessage('Przygotowywanie animowanych napisów…');setProgress(n);});}
+   else if(prepared.frames.length){await ensureCaptionFonts(project);check();const render=createFrameRenderer(prepared.width,prepared.height);for(const index of prepared.frames){check();const s=captions.segments[index];if(!s)throw Error('Nieprawidłowa plansza próbki');const png=await render(s.text,captions.styles[s.styleId]);check();await invoke('studio_sample_upload',{key,index,png});await new Promise(r=>setTimeout(r,0));}}
    const result=await invoke<ExportComparisonReport>('studio_sample_run',{key});check();
    if(!alive.current)return;
    const base=result.comparison.measurements.findIndex(m=>m.options.crf===options.crf&&(m.options.targetMb??null)===(options.targetMb??null));

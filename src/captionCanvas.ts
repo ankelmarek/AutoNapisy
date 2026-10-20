@@ -53,6 +53,30 @@ export function createFrameRenderer(width: number, height: number) {
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Brak obsługi Canvas");
   return async (text: string, style: CaptionStyle): Promise<string> => {
+    drawStaticCaption(canvas,text,style);
+    const blob = await new Promise<Blob>((resolve, reject) =>
+      canvas.toBlob(
+        (blob) =>
+          blob
+            ? resolve(blob)
+            : reject(new Error("Nie można utworzyć planszy PNG")),
+        "image/png",
+      ),
+    );
+    const data = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result).split(",")[1]);
+      reader.onerror = () => reject(new Error("Nie można odczytać planszy"));
+      reader.readAsDataURL(blob);
+    });
+    return data;
+  };
+}
+
+/** Exact legacy bitmap layout, reused for static cards inside animated video layers. */
+export function drawStaticCaption(canvas:HTMLCanvasElement,text:string,style:CaptionStyle){
+ const {width,height}=canvas,ctx=canvas.getContext('2d');if(!ctx)throw Error('Brak obsługi Canvas');
+ ctx.resetTransform();ctx.globalAlpha=1;ctx.shadowBlur=0;
     const box = layoutCaption(text, style, width, height);
     ctx.clearRect(0, 0, width, height);
     const x = (width - box.boxWidth) / 2;
@@ -97,21 +121,4 @@ export function createFrameRenderer(width: number, height: number) {
       if(stroke>0){ctx.strokeStyle=style.outlineColor??'#080808';ctx.lineWidth=stroke;ctx.lineJoin='round';ctx.strokeText(line,width/2,baseline+i*lineHeight);}
       ctx.fillText(line,width/2,baseline+i*lineHeight);
     });
-    const blob = await new Promise<Blob>((resolve, reject) =>
-      canvas.toBlob(
-        (blob) =>
-          blob
-            ? resolve(blob)
-            : reject(new Error("Nie można utworzyć planszy PNG")),
-        "image/png",
-      ),
-    );
-    const data = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result).split(",")[1]);
-      reader.onerror = () => reject(new Error("Nie można odczytać planszy"));
-      reader.readAsDataURL(blob);
-    });
-    return data;
-  };
 }

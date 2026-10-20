@@ -4,14 +4,92 @@ use std::{
     ffi::OsString,
     path::{Path, PathBuf},
     sync::{
+        atomic::{AtomicU64, Ordering},
         mpsc::{sync_channel, SyncSender},
-        Arc, Mutex,
+        Arc, Mutex, OnceLock, Weak,
     },
     thread::JoinHandle,
 };
 pub const MAX_PIXELS: u32 = 1280 * 1280;
 pub const MAX_FRAMES: usize = 150;
 pub const MAX_BYTES: u64 = 1024 * 1024 * 1024;
+pub const EXPORT_PIXELS: u32 = 16_777_216;
+pub const EXPORT_FRAMES: usize = 24 * 60 * 60 * 30;
+pub const EXPORT_BYTES: u64 = 4 * 1024 * 1024 * 1024;
+static IDS: AtomicU64 = AtomicU64::new(0);
+static REGISTRY: OnceLock<Mutex<std::collections::HashMap<u64, Weak<CaptionStream>>>> =
+    OnceLock::new();
+#[derive(Clone, Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UploadInfo {
+    pub id: u64,
+    pub frames: usize,
+    pub start: f64,
+}
+pub fn lookup(id: u64) -> Result<Arc<CaptionStream>, String> {
+    REGISTRY
+        .get_or_init(Default::default)
+        .lock()
+        .map_err(|_| "Błąd strumieni")?
+        .get(&id)
+        .and_then(Weak::upgrade)
+        .ok_or_else(|| "Nieaktualny strumień animacji".into())
+}
+pub fn shutdown() {
+    let streams = REGISTRY
+        .get_or_init(Default::default)
+        .lock()
+        .unwrap()
+        .values()
+        .filter_map(Weak::upgrade)
+        .collect::<Vec<_>>();
+    for stream in streams {
+        stream.abort();
+    }
+}
+pub fn export_stream(
+    job: Arc<Job>,
+    ff: &Path,
+    dir: Arc<tempfile::TempDir>,
+    width: u32,
+    height: u32,
+    start: f64,
+    duration: f64,
+) -> Result<(Arc<CaptionStream>, UploadInfo), String> {
+    if !start.is_finite()
+        || start < 0.
+        || !duration.is_finite()
+        || duration <= 0.
+        || duration > 86400.
+    {
+        return Err("Nieprawidłowy zakres animacji".into());
+    }
+    let frames = (duration * 30. - 1e-7).ceil().max(1.) as usize;
+    let mut stream = CaptionStream::start_limited(
+        job,
+        ff,
+        dir.path(),
+        width,
+        height,
+        frames,
+        EXPORT_PIXELS,
+        EXPORT_FRAMES,
+        EXPORT_BYTES,
+    )?;
+    stream.owner = Some(dir);
+    let stream = Arc::new(stream);
+    let mut registry = REGISTRY
+        .get_or_init(Default::default)
+        .lock()
+        .map_err(|_| "Błąd strumieni")?;
+    registry.retain(|_, v| v.strong_count() > 0);
+    if registry.len() >= 16 {
+        return Err("Zbyt wiele strumieni animacji".into());
+    }
+    let id = IDS.fetch_add(1, Ordering::SeqCst) + 1;
+    registry.insert(id, Arc::downgrade(&stream));
+    Ok((stream, UploadInfo { id, frames, start }))
+}
 struct Writer {
     sender: Option<SyncSender<Vec<u8>>>,
     next: usize,
@@ -23,6 +101,8 @@ pub struct CaptionStream {
     pub output: PathBuf,
     bytes: usize,
     frames: usize,
+    max_bytes: u64,
+    owner: Option<Arc<tempfile::TempDir>>,
 }
 impl CaptionStream {
     pub fn start(
@@ -33,15 +113,30 @@ impl CaptionStream {
         height: u32,
         frames: usize,
     ) -> Result<Self, String> {
+        Self::start_limited(
+            job, ff, dir, width, height, frames, MAX_PIXELS, MAX_FRAMES, MAX_BYTES,
+        )
+    }
+    fn start_limited(
+        job: Arc<Job>,
+        ff: &Path,
+        dir: &Path,
+        width: u32,
+        height: u32,
+        frames: usize,
+        max_pixels: u32,
+        max_frames: usize,
+        max_bytes: u64,
+    ) -> Result<Self, String> {
         if width < 128
             || height < 128
             || width % 2 != 0
             || height % 2 != 0
-            || width.checked_mul(height).is_none_or(|n| n > MAX_PIXELS)
+            || width.checked_mul(height).is_none_or(|n| n > max_pixels)
             || frames == 0
-            || frames > MAX_FRAMES
+            || frames > max_frames
         {
-            return Err("POC napisów: maks. 1280² pikseli i 150 klatek".into());
+            return Err("Nieprawidłowy rozmiar lub długość strumienia napisów".into());
         }
         job.check()?;
         let output = dir.join("animated-layer.mkv");
@@ -84,7 +179,7 @@ impl CaptionStream {
         let worker = std::thread::Builder::new()
             .name("caption-alpha-stream".into())
             .spawn(move || {
-                transcription::run_process_stream(&running, &ff, &args, &dir, &out, MAX_BYTES, rx)
+                transcription::run_process_stream(&running, &ff, &args, &dir, &out, max_bytes, rx)
             })
             .map_err(|e| e.to_string())?;
         Ok(Self {
@@ -97,6 +192,8 @@ impl CaptionStream {
             output,
             bytes: width as usize * height as usize * 4,
             frames,
+            max_bytes,
+            owner: None,
         })
     }
     pub fn push(&self, index: usize, bytes: Vec<u8>) -> Result<(), String> {
@@ -115,6 +212,14 @@ impl CaptionStream {
             .map_err(|_| "Enkoder zamknął strumień")?;
         w.next += 1;
         Ok(())
+    }
+    pub fn abort(&self) {
+        self.job.cancel();
+        self.writer.lock().unwrap().sender.take();
+        if let Some(w) = self.worker.lock().unwrap().take() {
+            let _ = w.join();
+        }
+        let _ = std::fs::remove_file(&self.output);
     }
     pub fn finish(&self) -> Result<(), String> {
         {
@@ -137,9 +242,9 @@ impl CaptionStream {
         if std::fs::metadata(&self.output)
             .map_err(|e| e.to_string())?
             .len()
-            > MAX_BYTES
+            > self.max_bytes
         {
-            return Err("Warstwa przekracza 1 GiB".into());
+            return Err("Warstwa napisów przekracza limit plików roboczych".into());
         }
         Ok(())
     }
@@ -156,7 +261,7 @@ impl Drop for CaptionStream {
     }
 }
 pub fn packet(bytes: &[u8]) -> Result<(u64, usize), String> {
-    if bytes.len() < 16 || bytes.len() > 16 + MAX_PIXELS as usize * 4 || &bytes[..4] != b"RVC1" {
+    if bytes.len() < 16 || bytes.len() > 16 + EXPORT_PIXELS as usize * 4 || &bytes[..4] != b"RVC1" {
         return Err("Nieprawidłowy pakiet RGBA".into());
     }
     Ok((
@@ -212,12 +317,30 @@ mod tests {
     }
     #[test]
     fn style_migration_roundtrip_and_invalid_animation_are_strict() {
-        let base:serde_json::Value=serde_json::from_str(include_str!("../../tests/fixtures/smartcut030.json")).unwrap();
-        let mut p=base["input"].clone();
-        let old=crate::project::parse(&p.to_string()).unwrap();assert_eq!(old.schema_version,15);assert!(old.styles["default"].animation.is_none());
-        let a=serde_json::json!({"preset":"karaoke-flow","version":1,"accentColor":"#ffe600","speed":1,"intensity":0.8});
-        p["styles"]["default"]["animation"]=a.clone();assert!(crate::project::parse(&p.to_string()).is_err());
-        p["schemaVersion"]=15.into();let read=crate::project::parse(&p.to_string()).unwrap();assert_eq!(read.styles["default"].animation.as_ref().unwrap().preset,"karaoke-flow");assert!(crate::project::parse(&serde_json::to_string(&read).unwrap()).is_ok());
-        for a in [serde_json::Value::Null,serde_json::json!({"preset":"shell","version":1,"accentColor":"#ffe600","speed":1,"intensity":1}),serde_json::json!({"preset":"pop-beat","version":2,"accentColor":"#ffe600","speed":1,"intensity":1}),serde_json::json!({"preset":"pop-beat","version":1,"accentColor":"red","speed":1,"intensity":1})] {p["styles"]["default"]["animation"]=a;assert!(crate::project::parse(&p.to_string()).is_err());}
+        let base: serde_json::Value =
+            serde_json::from_str(include_str!("../../tests/fixtures/smartcut030.json")).unwrap();
+        let mut p = base["input"].clone();
+        let old = crate::project::parse(&p.to_string()).unwrap();
+        assert_eq!(old.schema_version, 15);
+        assert!(old.styles["default"].animation.is_none());
+        let a = serde_json::json!({"preset":"karaoke-flow","version":1,"accentColor":"#ffe600","speed":1,"intensity":0.8});
+        p["styles"]["default"]["animation"] = a.clone();
+        assert!(crate::project::parse(&p.to_string()).is_err());
+        p["schemaVersion"] = 15.into();
+        let read = crate::project::parse(&p.to_string()).unwrap();
+        assert_eq!(
+            read.styles["default"].animation.as_ref().unwrap().preset,
+            "karaoke-flow"
+        );
+        assert!(crate::project::parse(&serde_json::to_string(&read).unwrap()).is_ok());
+        for a in [
+            serde_json::Value::Null,
+            serde_json::json!({"preset":"shell","version":1,"accentColor":"#ffe600","speed":1,"intensity":1}),
+            serde_json::json!({"preset":"pop-beat","version":2,"accentColor":"#ffe600","speed":1,"intensity":1}),
+            serde_json::json!({"preset":"pop-beat","version":1,"accentColor":"red","speed":1,"intensity":1}),
+        ] {
+            p["styles"]["default"]["animation"] = a;
+            assert!(crate::project::parse(&p.to_string()).is_err());
+        }
     }
 }

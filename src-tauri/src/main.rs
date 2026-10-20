@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod caption_stream;
+mod caption_upload_commands;
 mod caption_poc_commands;
 mod export_studio;
 mod smart_export;
@@ -233,6 +234,7 @@ fn main() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            caption_upload_commands::upload_caption_rgba,
             caption_poc_commands::caption_poc_begin,
             caption_poc_commands::caption_poc_frame,
             caption_poc_commands::caption_poc_finish,
@@ -321,6 +323,7 @@ fn main() {
         .expect("Nie można uruchomić RolVixa");
     app.run(|handle, event| {
         if let tauri::RunEvent::ExitRequested { .. } = event {
+            caption_stream::shutdown();
             handle.state::<caption_poc_commands::CaptionPocState>().shutdown();
             handle.state::<sample_commands::SampleState>().shutdown();
             handle.state::<studio_commands::StudioState>().shutdown();

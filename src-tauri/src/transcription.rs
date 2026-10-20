@@ -85,6 +85,7 @@ pub struct ExportInfo {
     pub frames: usize,
     pub received: usize,
     pub output_path: String,
+    pub animation:Option<crate::caption_stream::UploadInfo>,
 }
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
