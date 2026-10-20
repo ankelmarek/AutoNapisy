@@ -267,6 +267,8 @@ pub struct Adjustments {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CaptionEdit {
     #[serde(default,skip_serializing_if="Option::is_none")]
+    pub style_id: Option<String>,
+    #[serde(default,skip_serializing_if="Option::is_none")]
     pub offset: Option<f64>,
     pub trim_start: f64,
     pub trim_end: f64,
@@ -405,6 +407,8 @@ pub fn parse(json: &str) -> Result<Project, String> {
     if raw["schemaVersion"].as_u64().is_some_and(|v|v<=13)&&raw["captionEdits"].as_object().is_some_and(|edits|edits.values().any(|e|e.get("offset").is_some())){return Err("Przesunięcia napisów wymagają schematu v14".into());}
     if raw["schemaVersion"].as_u64().is_some_and(|v|v<=14) && raw["styles"].as_object().is_some_and(|styles|styles.values().any(|s|s.get("animation").is_some())) { return Err("Animowane napisy wymagają schematu v15".into()); }
     if raw["styles"].as_object().is_some_and(|styles|styles.values().any(|s|s.get("animation").is_some_and(|a|a.is_null()))) { return Err("Nieprawidłowa animacja napisów".into()); }
+    if raw["captionEdits"].as_object().is_some_and(|edits|edits.values().any(|e|e.get("styleId").is_some_and(|v|v.as_str().is_none_or(|s|s.is_empty()||s.chars().count()>100)))) {return Err("Nieprawidłowy styl napisu".into());}
+    if raw["schemaVersion"].as_u64().is_some_and(|v|v<=14) && raw["captionEdits"].as_object().is_some_and(|edits|edits.values().any(|e|e.get("styleId").is_some())) {return Err("Styl pojedynczego napisu wymaga v15".into());}
     let legacy = raw["schemaVersion"].as_u64().is_some_and(|v| v <= 10);
     if legacy && raw.get("trackLayout").is_some() {
         return Err("Starszy projekt nie może definiować nowych ścieżek".into());
@@ -624,7 +628,7 @@ pub fn parse(json: &str) -> Result<Project, String> {
     }
     if p.caption_edits.len() > 10000
         || p.caption_edits.values().any(|e| {
-            !valid_time(e.trim_start)
+            e.style_id.as_ref().is_some_and(|id| !p.styles.contains_key(id)) || !valid_time(e.trim_start)
                 || !valid_time(e.trim_end)
                 || e.offset.is_some_and(|t| !t.is_finite() || t.abs()>86400.)
                 || e.text.as_ref().is_some_and(|t| t.len() > 400000)
@@ -689,7 +693,7 @@ pub fn parse(json: &str) -> Result<Project, String> {
     }
     for s in p.styles.values() {
         if let Some(a) = &s.animation {
-            if a.version != 1 || !["karaoke-flow", "pop-beat"].contains(&a.preset.as_str()) || !color(&a.accent_color) || !a.speed.is_finite() || !(0.5..=2.).contains(&a.speed) || !a.intensity.is_finite() || !(0.0..=1.).contains(&a.intensity) { return Err("Nieprawidłowa animacja napisów".into()); }
+            if a.version != 1 || !["karaoke-flow", "pop-beat", "impact", "neon", "slide-reveal", "marker", "editorial", "type-flow"].contains(&a.preset.as_str()) || !color(&a.accent_color) || !a.speed.is_finite() || !(0.5..=2.).contains(&a.speed) || !a.intensity.is_finite() || !(0.0..=1.).contains(&a.intensity) { return Err("Nieprawidłowa animacja napisów".into()); }
         }
         if s.effect
             .as_ref()
@@ -810,6 +814,25 @@ mod tests {
     use super::*;
     fn json() -> String {
         serde_json::json!({"schemaVersion":1,"name":"Zażółć 🎬","media":null,"segments":[],"styles":{"default":{"fontFamily":"Arial","fontSize":42,"color":"#ffffff","background":"#111111","position":"bottom"}},"createdAt":"2026-10-14T00:00:00Z","updatedAt":"2026-10-14T00:00:00Z"}).to_string()
+    }
+    #[test]
+    fn all_eight_caption_presets_and_individual_style_are_strict() {
+        let p=parse(&json()).unwrap();
+        for preset in ["karaoke-flow","pop-beat","impact","neon","slide-reveal","marker","editorial","type-flow"] {
+            let mut v=serde_json::to_value(&p).unwrap();
+            v["styles"]["styled"]=v["styles"]["default"].clone();
+            v["styles"]["styled"]["animation"]=serde_json::json!({"preset":preset,"version":1,"accentColor":"#a572ff","speed":1,"intensity":0.7});
+            v["captionEdits"]=serde_json::json!({"timeline:one":{"trimStart":0,"trimEnd":0,"styleId":"styled"}});
+            let loaded=parse(&v.to_string()).unwrap();
+            assert_eq!(loaded.caption_edits["timeline:one"].style_id.as_deref(),Some("styled"));
+            assert_eq!(loaded.styles["styled"].animation.as_ref().unwrap().preset,preset);
+            v["captionEdits"]["timeline:one"]["styleId"]=serde_json::json!("missing");
+            assert!(parse(&v.to_string()).is_err());
+            v["captionEdits"]["timeline:one"]["styleId"]=serde_json::json!("default");
+            v["styles"].as_object_mut().unwrap().remove("styled");
+            v["schemaVersion"]=serde_json::json!(14);
+            assert!(parse(&v.to_string()).is_err());
+        }
     }
     #[test]
     fn migrate_v1_and_validate_layout() {

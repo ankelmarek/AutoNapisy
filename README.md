@@ -1,3 +1,12 @@
+<!-- 0.33b remains an alpha until the full 0.33c export acceptance. -->
+## W przygotowaniu: 0.33b — galeria animowanych napisów
+
+W inspektorze **Napisy** dostępnych jest osiem własnych stylów: Karaoke Flow, Pop Beat, Impact, Neon Pulse, Slide Reveal, Marker, Editorial Clean i Type Flow. Kafelki pokazują rzeczywisty renderer i mają jeden aktywny podgląd; respektują ograniczony ruch i zatrzymują się po schowaniu panelu. Wybór kafelka i suwaki tworzą podgląd roboczy. **Zastosuj styl** zapisuje całość jednym Undo, bez zmiany tekstu, źródeł, czasów i miksu. Zakres: cały montaż albo zaznaczony napis (jeden klik na osi zaznacza, dwuklik nadal edytuje tekst). Kolory, font, rozmiar, pozycja, tempo i intensywność są zapisywane w projekcie. Tempo Karaoke nie przesuwa rzeczywistych czasów słów. Bez pewnego dopasowania słów panel pokazuje fallback całej planszy. Dotychczasowe style statyczne pozostają dostępne.
+
+Schemat v15 rozszerza `captionEdits` o opcjonalne `styleId`; starsze projekty nadal migrują do statycznego wyglądu. Wersja techniczna alpha.2: normalny eksport burn animacji pozostaje zablokowany do etapu **0.33c**, zamiast spłaszczać efekt. SRT i eksport bez napisów zachowują dotychczasowe działanie. Nie jest to jeszcze pełne wydanie 0.33.
+
+Lokalnie: 352 testy TypeScript, 113 Rust core i produkcyjny frontend. Odbiór Windows/WebView2 tej części jest w toku; nie oznaczać go jako ukończonego.
+
 # RolVixa 0.32 — polska mowa → polskie napisy
 
 ## W pracach: 0.33a — techniczny fundament Animated Captions

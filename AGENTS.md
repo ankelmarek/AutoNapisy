@@ -14,6 +14,10 @@ Pełny zielony Windows run 39306125331, head 5e8748b9fa14196c777ffd42370ffdddfb0
 
 Uwaga odbioru: równoległy push 39306115482 przeszedł Karaoke, lecz trafił w wyścig testowego odczytu hashów Pop: callback odtwarzacza mógł zmienić Canvas między osobnymi CDP wait i getImageData. Nie deklarować go jako zielonego. W teście numer klatki i kopię pikseli pobierać atomowo w jednej funkcji strony, dopiero potem liczyć hash skopiowanych bajtów. Pełny PR 39306125331 pozostał zielony; poprawka testu wymaga osobnego potwierdzenia głównej gałęzi.
 
+## 0.33b w implementacji
+
+Alpha.2 dodaje pozostałe presety: impact/neon/slide-reveal/marker/editorial/type-flow, wspólny Canvas i galerię z jednym animowanym kafelkiem. CaptionStyleInspector ma lokalny draft; Apply jedno Undo i jawny zakres cały/wybrany napis. CaptionEdit.styleId jest opcjonalne wyłącznie w v15, walidowane TS/Rust; compositionSegments i materializacja offsetu w captionRipple zachowują ten styl. Nie modyfikować tekstu/timingu/miksu przy zmianie szablonu. UI pojedynczym kliknięciem zaznacza napis bez otwierania edycji, dwuklik edytuje. Zachować stare statyczne presety, pusty projekt pozwala ustawić przyszły styl domyślny. Lokalnie 352 TS i 113 core Rust. Odbiór Windows tej części jest w toku; 0.33c i pełny release nadal przed nami.
+
 ## Ikony interfejsu
 
 Użytkownik wskazał 2026-10-17 **Tabler Icons** jako zestaw ikon dla całego interfejsu: https://tabler.io/icons.

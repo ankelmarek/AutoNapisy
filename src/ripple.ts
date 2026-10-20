@@ -26,7 +26,7 @@ export function captionRipple(p:Project,at:number,until:number,delta:number):Pro
   const key='timeline:'+original.id,existing=edits[key],offset=existing?.offset??0;
   // Materialize the visible patch before a nonlinear time mapping; translating a trimmed
   // caption can put its invisible raw bounds before zero, while its visible time is valid.
-  const s=offset?{...original,start:original.start+offset+existing.trimStart,end:original.end+offset-existing.trimEnd,text:existing.text??original.text,words:existing.text!==undefined||existing.trimStart>0||existing.trimEnd>0?[]:original.words.map(w=>({...w,start:w.start+offset,end:w.end+offset}))}:original;
+  const s=offset?{...original,styleId:existing.styleId??original.styleId,start:original.start+offset+existing.trimStart,end:original.end+offset-existing.trimEnd,text:existing.text??original.text,words:existing.text!==undefined||existing.trimStart>0||existing.trimEnd>0?[]:original.words.map(w=>({...w,start:w.start+offset,end:w.end+offset}))}:original;
   if(offset){if(existing.hidden)edits[key]={trimStart:0,trimEnd:0,hidden:true};else delete edits[key];}
   const start=map(s.start),end=map(s.end),patch=edits[key];if(end-start<MIN_CLIP-1e-6){delete edits[key];return [];}
   if(patch)edits[key]={...patch,trimStart:Math.max(0,map(s.start+patch.trimStart)-start),trimEnd:Math.max(0,end-map(s.end-patch.trimEnd))};
