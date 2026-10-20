@@ -19,6 +19,7 @@ describe('0.35a positional correction, not forced alignment',()=>{
   expect(inheritCaptionWords(segment('Tak'), 'Nie')?.[0]).toMatchObject({text:'Nie',start:.1,end:.8});expect(inheritCaptionWords(segment('To jest to'), 'Tu jest to')).not.toBeNull();
   expect(inheritCaptionWords(segment('Mamy biało-czerwony znak'), 'Mamy biało‑czerwony znak!')).not.toBeNull();
   expect(inheritCaptionWords(segment('Kwota 1 234 567'), 'Kwota 1234567')).toBeNull();expect(inheritCaptionWords(segment('Kwota 1234 złotych'), 'Kwota 1235 złotych')).not.toBeNull();
+  const p=sample();expect(captionTimingState(p,{...segment('Tu — teraz'),id:'timeline:pl'})).toBe('source');
  });
  it('does not repair absent, stale, overlapping, zero, nonfinite or out-of-range source times',()=>{
   const s=segment();for(const words of [[],s.words.slice(1),s.words.map(w=>({...w,text:'inny'})),s.words.map(w=>({...w,start:0})),s.words.map((w,i)=>({...w,start:i?s.words[i-1].end-1e-7:w.start})),s.words.map(w=>({...w,end:w.start})),s.words.map(w=>({...w,end:Infinity})),s.words.map(w=>({...w,end:9}))])expect(inheritCaptionWords({...s,words},phrase)).toBeNull();

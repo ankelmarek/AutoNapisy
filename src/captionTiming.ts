@@ -1,4 +1,5 @@
 import type {Project} from './model';
+import {synchronizedWords} from './captionAnimation';
 type TimedText=Pick<Project['segments'][number],'text'|'start'|'end'|'words'>;
 const normalized=(s:string)=>s.normalize('NFC').trim().replace(/\s+/gu,' ');
 const tokens=(s:string)=>normalized(s).split(' ').filter(Boolean);
@@ -17,9 +18,9 @@ export function inheritCaptionWords(source:TimedText,text:string):TimedText['wor
  return words.map((w,i)=>({...w,text:to[i]}));
 }
 export type CaptionTimingState='source'|'inherited'|'uncertain'|'board';
-export function captionTimingState(p:Project,s:TimedText&{id:string}):CaptionTimingState{
+export function captionTimingState(p:Project,s:TimedText&{id:string;styleId:string}):CaptionTimingState{
  const e=p.captionEdits[s.id];if(e?.textTiming?.mode==='board')return 'board';
- if(!inheritCaptionWords(s,s.text))return 'uncertain';
+ if(!synchronizedWords(s,p.styles[s.styleId]))return 'uncertain';
  return e?.textTiming?.mode==='inherited'?'inherited':'source';
 }
 export const captionTimingLabel=(state:CaptionTimingState)=>({source:'Czasy z projektu',inherited:'Korekta zachowała czasy',uncertain:'Wymaga dopasowania',board:'Animacja całej planszy'})[state];
