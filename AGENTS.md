@@ -1,5 +1,11 @@
 # Ustalenia projektu RolVixa
 
+## Aktualny nowy priorytet P0 — RolVixa 0.34: uporządkowanie napisów (20.10.2026)
+
+Po ukończonych implementacjach 0.33a/b/c użytkownik zatwierdził **następny etap UX 0.34**, szczegółowo w [issue #24](https://github.com/ankelmarek/AutoNapisy/issues/24) i na samej górze ROADMAP.md. **Jedna galeria**: tylko **2 klasyczne kafelki** (must-have żółta plansza Bebas Neue i biały outline) + osiem animowanych + Moje style; dotychczasowe 4 klasyczne przyciski znikają bez zmiany starych projektów. W prawej zakładce `Napisy` podział `Style napisów` (tylko wybór) / `Opcje napisów` (font/rozmiar/kolory/obrys/tło/pozycja/animacja On-Off/intensywność/tempo). Font i ustawienia mają być właściwością stylu, **nie globalnie wszystkich napisów**. Wspólna obsługa wielu zaznaczonych napisów w liście i na T (Ctrl/Shift+klik, Ctrl+A kontekstowo), grupowy apply jako jeden Undo. Kafle własne tworzone przez `Zapisz jako mój styl`, lokalny trwały katalog między projektami z niezależną migawką w projekcie. Bez duplikatów sekcji, bez podmieniania gotowych fabrycznych szablonów w miejscu. Zachować deterministyczny renderer 0.33 w preview/MP4/Export Studio/A-B, starsze projekty i eksport SRT. Wdrożyć jako 0.34a/b/c, każdy z testami. **Nie mylić wielozaznaczenia napisów z wielozaznaczeniem klipów wideo z 0.29.**
+
+Uwaga: oddzielnie **0.33 issue #20 nadal oczekuje rzeczywistego polskiego nagrania + Whisper**; prace nad 0.34 nie są dowodem wykonania tego testu i nie pozwalają automatycznie zamknąć #20.
+
 ## Aktualny priorytet — domknięcie odbioru 0.33 Animated Captions
 
 P0 z decyzji 19.10.2026 wdrożono jako osobne PR #21 (a), #22 (b), #23 (c), wszystkie połączone. Nie rozpoczynać kolejnych dużych funkcji przed ostatnim scenariuszem odbioru w issue #20: **rzeczywista polska wypowiedź → import i bieżący Whisper → Karaoke/Pop/Editorial → zgodność podglądu/MP4/Export Studio**. Referencyjne prawdziwe nagranie/Whisper są angielskie, a polskie dane UI są syntetyczne. Nie deklarować tego polskiego scenariusza jako wykonanego ani zamykać issue #20 bez potwierdzenia. Instrukcja instalatora kandydata i dokładne ograniczenia są w README; aktualny status jest na początku ROADMAP.
