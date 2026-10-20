@@ -13,7 +13,8 @@ import AudioAutomation from './AudioAutomation';
 import {NumberEdit} from './AudioProperties';
 import {resizeCaption,editCaption,moveCaption} from './captionEditing';
 import type {EditedSegment} from './editing';
-import {timelineClips} from './effects';
+import {inheritCaptionStyles} from './captionPresets';
+import {reconcileTransitions,timelineClips} from './effects';
 import {transitionKinds,transitionLabels} from './transitionCatalog';
 import type {EffectChoice} from './EffectsLibrary';
 import AudioWaveform from './AudioWaveform';
@@ -43,7 +44,7 @@ export default function Timeline(p:Props){
  const canvas=useRef<HTMLDivElement>(null),scroller=useRef<HTMLDivElement>(null);
  const pointerSelecting=useRef(false);
  const pan=useRef<{x:number;left:number}|null>(null);
- const copied=useRef<Clip|null>(null);
+ const copied=useRef<Clip|null>(null),copiedSource=useRef<Project|null>(null);
  const captionDrag=useRef<{segment:EditedSegment;edge:'left'|'right'|'move';x:number;next:Project}|null>(null);
  const [captionDraft,setCaptionDraft]=useState<Project|null>(null),[captionSelected,setCaptionSelected]=useState(''),[hoverJoin,setHoverJoin]=useState('');
  const [scroll,setScroll]=useState(0),[viewport,setViewport]=useState(window.innerWidth);
@@ -60,8 +61,8 @@ export default function Timeline(p:Props){
  const select=(ids:string[])=>{p.onSelectionChange(ids);if(!ids.includes(selected))setSelected(ids.at(-1)??'');};
  const deleteSelected=()=>{try{let next=p.project;for(const id of [...p.selectedIds].sort((a,b)=>(clips.find(c=>c.id===b)?.start??0)-(clips.find(c=>c.id===a)?.start??0))){if(!projectClips(next).some(c=>c.id===id))continue;const plan=planEdit(next,{kind:'delete',id});if(plan.conflicts.length)throw Error(plan.conflicts[0]);next=plan.active?plan.next:plan.plain;}change(next);select([]);}catch(e){p.onError(String(e));}};
 
- const commit=(next:Clip[])=>{p.onChange(next);setDraft(null);};
- const cut=(id:string,t:number)=>{const c=clips.find(c=>c.id===id);if(!c||clipLocked(p.project,c))return;const next=splitClip(clips,id,t);if(next!==clips)commit(next);};
+ const commit=(next:Clip[],origins?:Map<string,string>,source=p.project)=>{try{if(origins)p.onCaptionChange(inheritCaptionStyles(source,{...p.project,clips:next,transitions:reconcileTransitions(p.project,next)},origins));else p.onChange(next);}catch(e){p.onError(String(e));}setDraft(null);};
+ const cut=(id:string,t:number)=>{const c=clips.find(c=>c.id===id);if(!c||clipLocked(p.project,c))return;const next=splitClip(clips,id,t);if(next!==clips)commit(next,new Map(next.filter(n=>!clips.some(c=>c.id===n.id)).map(n=>[n.id,id])));};
  const remove=()=>{if(captionSelected){if(p.project.tracks.T?.locked)return;const s=compositionSegments(p.project).find(s=>s.id===captionSelected);if(s)p.onCaptionChange(editCaption(p.project,s,{hidden:true}));setCaptionSelected('');return;}if(p.selectedIds.length>1){deleteSelected();return;}if(chosen&&!chosenLocked){request({kind:'delete',id:selected});select([]);setSelected('');}};
  const start=(e:PointerEvent,id:string,kind:'move'|'left'|'right')=>{
   if(p.locked)return;e.stopPropagation();if(e.button!==0)return;e.preventDefault();pointerSelecting.current=true;(e.currentTarget as HTMLElement).closest<HTMLElement>('.edit-clip')?.focus({preventScroll:true});pointerSelecting.current=false;
@@ -105,10 +106,10 @@ export default function Timeline(p:Props){
   if(p.locked||document.querySelector('dialog[open]')||preview||clipMenu||trackMenu||e.altKey||(e.target instanceof HTMLElement&&(e.target.isContentEditable||['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))))return;
   const modifier=e.ctrlKey||e.metaKey;
   if(modifier&&e.key.toLowerCase()==='a'){e.preventDefault();select(clips.filter(c=>!clipLocked(p.project,c)).map(c=>c.id));setCaptionSelected('');return;}
-  if(modifier&&e.key.toLowerCase()==='c'){if(chosen){e.preventDefault();copied.current={...chosen,adjustments:chosen.adjustments?{...chosen.adjustments}:undefined};}return;}
-  if(modifier&&e.key.toLowerCase()==='v'){if(copied.current){e.preventDefault();if(clips.length>=100)return;const copy={...copied.current,syncGroup:undefined,id:crypto.randomUUID(),start:Math.max(p.time,duration)};commit(moveClip([...clips,copy],copy.id,p.time,snap?10/zoom:0));}return;}
-  if(modifier&&e.key.toLowerCase()==='x'){if(chosen&&!chosenLocked){e.preventDefault();copied.current={...chosen};request({kind:'delete',id:chosen.id});select(p.selectedIds.filter(id=>id!==chosen.id));}return;}
-  if(modifier&&e.key.toLowerCase()==='d'){if(chosen&&clips.length<100){e.preventDefault();const copy={...chosen,syncGroup:undefined,id:crypto.randomUUID(),start:duration};commit(moveClip([...clips,copy],copy.id,clipEnd(chosen),snap?10/zoom:0));}return;}
+  if(modifier&&e.key.toLowerCase()==='c'){if(chosen){e.preventDefault();copiedSource.current=p.project;copied.current={...chosen,adjustments:chosen.adjustments?{...chosen.adjustments}:undefined};}return;}
+  if(modifier&&e.key.toLowerCase()==='v'){if(copied.current){e.preventDefault();if(clips.length>=100)return;const copy={...copied.current,syncGroup:undefined,id:crypto.randomUUID(),start:Math.max(p.time,duration)};commit(moveClip([...clips,copy],copy.id,p.time,snap?10/zoom:0),new Map([[copy.id,copied.current.id]]),copiedSource.current??p.project);}return;}
+  if(modifier&&e.key.toLowerCase()==='x'){if(chosen&&!chosenLocked){e.preventDefault();copiedSource.current=p.project;copied.current={...chosen};request({kind:'delete',id:chosen.id});select(p.selectedIds.filter(id=>id!==chosen.id));}return;}
+  if(modifier&&e.key.toLowerCase()==='d'){if(chosen&&clips.length<100){e.preventDefault();const copy={...chosen,syncGroup:undefined,id:crypto.randomUUID(),start:duration};commit(moveClip([...clips,copy],copy.id,clipEnd(chosen),snap?10/zoom:0),new Map([[copy.id,chosen.id]]));}return;}
   if(modifier)return;
   if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();if(captionSelected){if(p.project.tracks.T?.locked)return;const s=compositionSegments(p.project).find(s=>s.id===captionSelected);if(s)p.onCaptionChange(editCaption(p.project,s,{hidden:true}));setCaptionSelected('');}else remove();return;}
   if(e.key.toLowerCase()==='c')setTool('razor');if(e.key.toLowerCase()==='v')setTool('select');

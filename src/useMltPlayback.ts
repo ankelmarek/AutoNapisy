@@ -34,7 +34,12 @@ export function useMltPlayback(project:Project,proxyRevision='',enabled=true,loo
   v.addEventListener('canplay',ready);v.addEventListener('ended',ended);v.addEventListener('waiting',waiting);v.addEventListener('error',decodeError);
   return()=>{alive=false;clearTimeout(timer);v.pause();v.removeEventListener('canplay',ready);v.removeEventListener('ended',ended);v.removeEventListener('waiting',waiting);v.removeEventListener('error',decodeError);if(id)void invoke('cancel_mlt_preview',{id}).catch(()=>{});v.removeAttribute('src');v.load();if(url)URL.revokeObjectURL(url);};
  },[key,revision,duration,proxyRevision,enabled]);
- useEffect(()=>{if(!playing)return;let frame=0;const tick=()=>{const v=video.current;if(v&&!v.seeking&&v.readyState>=2){cursor.current=Math.min(editDuration(latest.current),base.current+v.currentTime);setTime(cursor.current);}frame=requestAnimationFrame(tick);};frame=requestAnimationFrame(tick);return()=>cancelAnimationFrame(frame);},[playing]);
+ // Caption clock follows the presented 30 FPS frame, including paused seek. The UI cursor
+ // keeps the user's seek target until the decoder confirms the corresponding frame.
+ useEffect(()=>{const v=video.current;if(!v||!enabled)return;let handle=0,alive=true;
+  if(v.requestVideoFrameCallback){const tick:VideoFrameRequestCallback=(_,meta)=>{if(!alive)return;if(!v.seeking&&!v.ended){cursor.current=Math.min(editDuration(latest.current),base.current+Math.round(meta.mediaTime*30)/30);setTime(cursor.current);}handle=v.requestVideoFrameCallback(tick);};handle=v.requestVideoFrameCallback(tick);return()=>{alive=false;v.cancelVideoFrameCallback(handle);};}
+  const tick=()=>{if(playing&&!v.seeking&&v.readyState>=2){cursor.current=Math.min(editDuration(latest.current),base.current+v.currentTime);setTime(cursor.current);}handle=requestAnimationFrame(tick);};handle=requestAnimationFrame(tick);return()=>{alive=false;cancelAnimationFrame(handle);};
+ },[playing,enabled,revision,key]);
  useEffect(()=>{const hide=()=>{if(document.hidden)pause();};document.addEventListener('visibilitychange',hide);return()=>document.removeEventListener('visibilitychange',hide);},[]);
  return {video,time,playing,loading,error,aspect,pause,seek,suspend:async()=>{pause();if(session.current)await invoke('cancel_mlt_preview',{id:session.current});},retry:()=>setRevision(n=>n+1),reset:()=>{pause();seek(0);},previewVolume:(_id:string,_gain:number)=>{},toggle:()=>{if(wanted.current)pause();else if(editDuration(latest.current)>0){if(cursor.current>=editDuration(latest.current))seek(0);wanted.current=true;setPlaying(true);const v=video.current;if(v&&v.readyState>=2)void v.play().catch(e=>{setError(String(e));pause();});}}};
 }

@@ -29,3 +29,16 @@ export function applyCaptionStyle(project:Project,style:CaptionStyle,ids:readonl
  return {...project,styles:Object.fromEntries(Object.entries({...project.styles,...(ids===null?{default:nextStyle}:{}),[key]:nextStyle}).filter(([id])=>used.has(id))),captionEdits:edits};
 }
 export function captionFallbackCount(p:Project,ids:readonly string[]|null){return compositionSegments(p).filter(s=>(ids===null||ids.includes(s.id))&&!synchronizedWords(s,p.styles[s.styleId])).length;}
+
+/** Explicit split/copy origins preserve the style in source time; no inferred word timing. */
+export function inheritCaptionStyles(before:Project,next:Project,origins:ReadonlyMap<string,string>):Project{
+ if(before.timelineSegments||next.timelineSegments||!origins.size)return next;
+ const rawBefore=compositionSegments({...before,captionEdits:{}}),rawAfter=compositionSegments({...next,captionEdits:{}}),edits={...next.captionEdits},styles={...next.styles};
+ for(const s of rawAfter){const origin=origins.get(s.clipId);if(!origin)continue;const a=before.clips?.find(c=>c.id===origin),b=next.clips?.find(c=>c.id===s.clipId);if(!a||!b)continue;
+  const from=a.start-a.sourceIn,to=b.start-b.sourceIn,lo=s.start-to,hi=s.end-to,candidates=rawBefore.filter(o=>o.clipId===origin&&o.sourceId===s.sourceId&&o.start-from<hi-1e-7&&o.end-from>lo+1e-7);
+  const ids=[...new Set(candidates.map(o=>before.captionEdits[o.id]?.styleId??o.styleId))];
+  if(ids.length>1)throw Error('Fragment łączy różne style napisów. Podziel go na granicy stylów.');
+  const id=ids[0];if(id&&before.styles[id]&&id!==s.styleId){styles[id]=before.styles[id];edits[s.id]={...(edits[s.id]??{trimStart:0,trimEnd:0}),styleId:id};}
+ }
+ return {...next,styles,captionEdits:edits};
+}

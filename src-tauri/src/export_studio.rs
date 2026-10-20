@@ -387,7 +387,8 @@ pub struct Entry {
     pub ff: PathBuf,
     pub melt: PathBuf,
     pub basis: String,
-    pub dir: tempfile::TempDir,
+    pub animation:Mutex<Option<(Arc<crate::caption_stream::CaptionStream>,crate::caption_stream::UploadInfo)>>,
+    pub dir: Arc<tempfile::TempDir>,
     pub job: Mutex<Arc<Job>>,
     uploads: Mutex<Uploads>,
 }
@@ -401,7 +402,7 @@ impl Entry {
         job: Arc<Job>,
     ) -> Result<Self, String> {
         options.validate()?;
-        if options.captions == "burn" && project.segments.iter().any(|s|project.styles.get(&s.style_id).is_some_and(|s|s.animation.is_some())) { return Err("Animowane napisy: eksport produktu będzie dostępny po odbiorze 0.33c. W 0.33a dostępny jest test techniczny.".into()); }
+
         let basis = source_basis(&project, &ff, &melt)?;
         let dir = tempfile::Builder::new()
             .prefix("rolvixa-studio-")
@@ -442,7 +443,8 @@ impl Entry {
             ff,
             melt,
             basis,
-            dir,
+            animation:Mutex::new(None),
+            dir:Arc::new(dir),
             job: Mutex::new(job),
             uploads: Mutex::new(Uploads {
                 received: vec![false; count],
@@ -452,6 +454,17 @@ impl Entry {
         };
         Ok(entry)
     }
+    pub fn needs_animation(&self)->bool{self.options.captions=="burn"&&self.project.segments.iter().any(|s|self.project.styles.get(&s.style_id).is_some_and(|s|s.animation.is_some()))}
+    pub fn start_animation(&self,start:f64,duration:f64)->Result<Option<crate::caption_stream::UploadInfo>,String>{
+        if !self.needs_animation(){return Ok(None);}
+        let mut slot=self.animation.lock().map_err(|_|"Błąd warstwy napisów")?;
+        if slot.is_some(){return Err("Warstwa została już przygotowana".into());}
+        let (w,h)=self.options.dimensions(&self.meta);
+        let (stream,info)=crate::caption_stream::export_stream(self.job.lock().unwrap().clone(),&self.ff,self.dir.clone(),w,h,start,duration)?;
+        *slot=Some((stream,info.clone()));Ok(Some(info))
+    }
+    pub fn animation_info(&self)->Option<crate::caption_stream::UploadInfo>{self.animation.lock().unwrap().as_ref().map(|s|s.1.clone())}
+    pub fn animation_path(&self)->Option<PathBuf>{self.animation.lock().unwrap().as_ref().map(|s|s.0.output.clone())}
     pub fn select_sample_frames(&self, start: f64, end: f64) -> Vec<usize> {
         let mut u = self.uploads.lock().unwrap();
         let mut indices = Vec::new();
@@ -468,7 +481,9 @@ impl Entry {
     pub fn finish_uploads(&self) -> Result<(), String> {
         self.job.lock().unwrap().check()?;
         let mut u = self.uploads.lock().unwrap();
-        if !u.received.iter().all(|v| *v) || u.ready {
+        if u.ready {return Err("Zadanie już dodano".into());}
+        if self.needs_animation(){let a=self.animation.lock().unwrap();a.as_ref().ok_or("Brak warstwy animacji")?.0.finish()?;u.received.fill(true);}
+        if !u.received.iter().all(|v| *v) {
             return Err("Plansze nie są gotowe lub zadanie już dodano".into());
         }
         u.ready = true;
@@ -494,7 +509,7 @@ impl Entry {
         let job = self.job.lock().unwrap().clone();
         job.check()?;
         let mut u = self.uploads.lock().unwrap();
-        if u.ready || index >= u.received.len() || u.received[index] {
+        if self.needs_animation() || u.ready || index >= u.received.len() || u.received[index] {
             return Err("Niepoprawny numer planszy".into());
         }
         if u.bytes + bytes.len() > rendering::MAX_TOTAL_BYTES {
@@ -592,6 +607,7 @@ impl Queue {
         let job = e.job.lock().unwrap().clone();
         let waiting = ["queued", "preparing"].contains(&job.status.lock().unwrap().state.as_str());
         job.cancel();
+        if !e.uploads.lock().unwrap().ready{if let Some((stream,_))=e.animation.lock().unwrap().take(){stream.abort();}}
         let mut s = job.status.lock().unwrap();
         if waiting {
             s.state = "cancelled".into();
@@ -741,7 +757,7 @@ fn render(e: &Entry, job: &Arc<Job>) -> Result<(), String> {
         s.progress = None;
     }
     let assembled = assemble(job, &e.ff, &e.melt, &e.project, &e.meta, dir.path(), None)?;
-    crate::smart_export::encode(
+    crate::smart_export::encode_with_layer(
         e,
         job,
         &e.options,
@@ -750,6 +766,7 @@ fn render(e: &Entry, job: &Arc<Job>) -> Result<(), String> {
         0.,
         e.meta.duration,
         32 * 1024 * 1024 * 1024,
+        e.animation_path().as_deref(),
     )?;
     job.check()?;
     if source_basis(&e.project, &e.ff, &e.melt)? != e.basis {
@@ -778,6 +795,7 @@ fn render(e: &Entry, job: &Arc<Job>) -> Result<(), String> {
         }
         return Err(err);
     }
+    if let Some((stream,_))=e.animation.lock().unwrap().take(){let _=fs::remove_file(&stream.output);}
     s.state = "completed".into();
     s.message = "Eksport zakończony".into();
     s.progress = Some(100);

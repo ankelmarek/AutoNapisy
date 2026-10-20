@@ -18,6 +18,10 @@ Uwaga odbioru: równoległy push 39306115482 przeszedł Karaoke, lecz trafił w 
 
 Alpha.2 dodaje pozostałe presety: impact/neon/slide-reveal/marker/editorial/type-flow, wspólny Canvas i galerię z jednym animowanym kafelkiem. CaptionStyleInspector ma lokalny draft; Apply jedno Undo i jawny zakres cały/wybrany napis. CaptionEdit.styleId jest opcjonalne wyłącznie w v15, walidowane TS/Rust; compositionSegments i materializacja offsetu w captionRipple zachowują ten styl. Nie modyfikować tekstu/timingu/miksu przy zmianie szablonu. UI pojedynczym kliknięciem zaznacza napis bez otwierania edycji, dwuklik edytuje. Zachować stare statyczne presety, pusty projekt pozwala ustawić przyszły styl domyślny. Lokalnie 352 TS i 113 core Rust. Odbiór Windows tej części jest w toku; 0.33c i pełny release nadal przed nami.
 
+## Kandydat 0.33c — odbiór jeszcze niezakończony
+
+CaptionLayer współdzieli Canvas czasu i zachowuje osobny, dokładny drawStaticCaption dla statycznych plansz w mieszanym strumieniu. Produkcyjne RVC1 → kanał(1) → FFV1/BGRA: do 16 MP / 24 h / 4 GiB; POC nadal ma osobne limity 150 / 1280² / 1 GiB. Weak-registry przyjmuje jedynie backendowy token żywego strumienia; Arc<TempDir> w CaptionStream zapobiega usuwaniu katalogu przed reap przy równoległym upload/cancel. Ograniczać pamięć, nie wracać do PNG/base64 na klatkę. Entry.start_animation dostaje globalny zakres, Sample lokalny PTS=0 ale rysuje od range.start; kolejka i standardowy MP4 kodują prawdziwą warstwę. SRT/none jej nie tworzą. Gotowy sukces usuwa warstwę, gotowy błąd zachowuje do retry; anulowane przygotowanie abort/reap/cleanup. Bez zmian miksu MLT. Presented-frame callback odłączamy po zmianie sesji/revision/key; stare wywołanie nie może nadpisać celu seek. Preflight uwzględnia obwiednie ruchu. Lokalnie 366 TS / 113 Rust core i realne integracje; nie deklarować Windows/pełnego 0.33 przed odbiorem. Osobne PR #21 (a), #22 (b) i c; issue #20 pozostaje otwarte.
+
 ## Ikony interfejsu
 
 Użytkownik wskazał 2026-10-17 **Tabler Icons** jako zestaw ikon dla całego interfejsu: https://tabler.io/icons.

@@ -191,6 +191,7 @@ pub struct Prepared {
     height: u32,
     frames: usize,
     output_path: String,
+    animation:Option<crate::caption_stream::UploadInfo>,
 }
 #[tauri::command]
 pub async fn studio_prepare(
@@ -214,9 +215,11 @@ pub async fn studio_prepare(
     let queue = state.queue.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let e = queue.prepare(p, options, &folder, ff, melt)?;
+        let animation=match e.start_animation(0.,e.meta.duration){Ok(v)=>v,Err(err)=>{let _=queue.cancel(e.id);let _=queue.remove(e.id);return Err(err);}};
         let (w, h) = e.options.dimensions(&e.meta);
         Ok(Prepared {
             id: e.id,
+            animation,
             width: w,
             height: h,
             frames: if e.options.captions == "burn" {

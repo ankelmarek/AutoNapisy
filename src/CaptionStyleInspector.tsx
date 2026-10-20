@@ -22,6 +22,7 @@ function PresetCanvas({style,active}:{style:CaptionStyle;active:boolean}){
 export default function CaptionStyleInspector({project,selectedId,visible,locked,onChange}:{project:Project;selectedId:string;visible:boolean;locked:boolean;onChange:(p:Project)=>void}){
  const segments=useMemo(()=>compositionSegments(project),[project]),selected=segments.find(s=>s.id===selectedId);
  const [scope,setScope]=useState<'all'|'selected'>(selected?'selected':'all'),[draft,setDraft]=useState<CaptionStyle>(selected?project.styles[selected.styleId]:project.styles.default),[dirty,setDirty]=useState(false),[error,setError]=useState(''),[active,setActive]=useState<AnimatedPresetId|null>(null),[demos,setDemos]=useState(true),[reduced,setReduced]=useState(false),[pageHidden,setPageHidden]=useState(document.hidden),[intersecting,setIntersecting]=useState(true);
+ const presetStyles=useMemo(()=>Object.fromEntries(animatedPresets.map(p=>[p.id,presetStyle(project.styles.default,p.id)])),[project.styles.default]);
  const gallery=useRef<HTMLDivElement>(null),targets=scope==='all'?segments:selected?[selected]:[],actual=targets[0]?project.styles[targets[0].styleId]:project.styles.default,actualKey=JSON.stringify(actual),lastSelection=useRef(selectedId);
  useEffect(()=>{if(lastSelection.current!==selectedId){lastSelection.current=selectedId;if(selected){setScope('selected');setDraft(project.styles[selected.styleId]);setDirty(false);}}},[selectedId,selected,project.styles]);
  useEffect(()=>{if(!dirty)setDraft(actual);},[actualKey,dirty]);
@@ -32,12 +33,12 @@ export default function CaptionStyleInspector({project,selectedId,visible,locked
  const update=(patch:Partial<CaptionStyle>)=>{setDraft(s=>({...s,...patch}));setDirty(true);setError('');};
  const animation=(patch:Partial<NonNullable<CaptionStyle['animation']>>)=>{if(draft.animation)update({animation:{...draft.animation,...patch}});};
  const apply=()=>{try{onChange(applyCaptionStyle(project,draft,scope==='all'?null:targets.map(s=>s.id)));setDirty(false);setError('');}catch(e){setError(String(e));}};
- const fallback=draft.animation?targets.filter(s=>!synchronizedWords(s,draft)).length:0;
+ const fallback=useMemo(()=>draft.animation?targets.filter(s=>!synchronizedWords(s,draft)).length:0,[draft,segments,scope,selectedId]);
  return <section className="caption-style-inspector" aria-label="Style napisów">
   <div className="caption-style-heading"><h3>Style napisów</h3><label><input type="checkbox" aria-label="Animuj podglądy stylów" checked={demos&&!reduced} disabled={reduced} onChange={e=>setDemos(e.target.checked)}/> Podglądy</label></div>
   <label>Zastosuj do<select aria-label="Zakres stylu napisów" value={scope} onChange={e=>setScope(e.target.value as typeof scope)} disabled={disabled}><option value="all">Cały montaż · {segments.length} napisów</option><option value="selected" disabled={!selected}>Zaznaczony napis{selected?` · ${selected.start.toFixed(2)}–${selected.end.toFixed(2)} s`:''}</option></select></label>
   <div ref={gallery} className="animated-caption-gallery" role="group" aria-label="Galeria animowanych stylów">
-   {animatedPresets.map(p=>{const chosen=draft.animation?.preset===p.id,s=chosen?draft:presetStyle(project.styles.default,p.id);return <button type="button" key={p.id} data-caption-preset={p.id} aria-label={`${p.name}: ${p.description}`} aria-pressed={chosen} disabled={disabled} title={p.description} onMouseEnter={()=>setActive(p.id)} onMouseLeave={e=>{if(document.activeElement!==e.currentTarget)setActive(null);}} onFocus={()=>setActive(p.id)} onBlur={()=>setActive(null)} onClick={()=>{setDraft(presetStyle(draft,p.id));setDirty(true);setError('');}}>
+   {animatedPresets.map(p=>{const chosen=draft.animation?.preset===p.id,s=chosen?draft:presetStyles[p.id];return <button type="button" key={p.id} data-caption-preset={p.id} aria-label={`${p.name}: ${p.description}`} aria-pressed={chosen} disabled={disabled} title={p.description} onMouseEnter={()=>setActive(p.id)} onMouseLeave={e=>{if(document.activeElement!==e.currentTarget)setActive(null);}} onFocus={()=>setActive(p.id)} onBlur={()=>setActive(null)} onClick={()=>{setDraft(presetStyle(draft,p.id));setDirty(true);setError('');}}>
     <PresetCanvas style={s} active={canAnimate&&active===p.id}/><span>{p.name}{chosen&&<Icon name="check" size={14}/>}</span>
    </button>;})}
   </div>

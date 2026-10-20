@@ -3,7 +3,9 @@ import { serializeProject, type Project } from "./model";
 import { compositionProject, editDuration } from "./editing";
 import { captionExport } from "./captions";
 import { createFrameRenderer, ensureCaptionFonts } from "./captionCanvas";
+import {uploadCaptionLayer,type CaptionUpload} from "./captionLayer";
 export type ExportInfo = {
+  animation?:CaptionUpload|null;
   width: number;
   height: number;
   duration: number;
@@ -80,6 +82,8 @@ export const rendering: RenderingAdapter = {
       const info = current.exportInfo;
       if (!info || info.frames !== snapshot.segments.length)
         throw new Error("Nieprawidłowe parametry eksportu");
+      if(info.animation){await uploadCaptionLayer(snapshot,info.width,info.height,info.animation,signal,n=>onStatus?.({...current,message:`Animowane napisy: ${n}%`,progress:n}));}
+      else {
       const frame = createFrameRenderer(info.width, info.height);
       for (let index = 0; index < snapshot.segments.length; index++) {
         check(signal);
@@ -93,6 +97,7 @@ export const rendering: RenderingAdapter = {
         });
         onStatus?.(update);
         await new Promise((resolve) => setTimeout(resolve, 0));
+      }
       }
       check(signal);
       await invoke("finish_export_frames", { id });

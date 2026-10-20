@@ -284,7 +284,7 @@ pub fn render(
     meta: &Metadata,
 ) -> Result<(), String> {
     render_inner(
-        None, job, ffmpeg, media, target, original, dir, project, meta,
+        None, job, ffmpeg, media, target, original, dir, project, meta, None,
     )
 }
 pub fn render_mlt(
@@ -308,8 +308,10 @@ pub fn render_mlt(
         dir,
         project,
         meta,
+        None,
     )
 }
+pub fn render_mlt_with_layer(melt:&Path,job:&Arc<Job>,ffmpeg:&Path,media:&Path,target:&Path,original:&Option<Fingerprint>,dir:&Path,project:&Project,meta:&Metadata,layer:Option<&Path>)->Result<(),String>{render_inner(Some(melt),job,ffmpeg,media,target,original,dir,project,meta,layer)}
 fn render_inner(
     melt: Option<&Path>,
     job: &Arc<Job>,
@@ -320,7 +322,9 @@ fn render_inner(
     dir: &Path,
     project: &Project,
     meta: &Metadata,
+    layer:Option<&Path>,
 ) -> Result<(), String> {
+    let basis=if layer.is_some(){Some(crate::export_studio::source_basis(project,ffmpeg,melt.unwrap_or(ffmpeg))?)}else{None};
     let target_text = target
         .to_str()
         .ok_or("Ścieżka nie jest Unicode")?
@@ -342,9 +346,9 @@ fn render_inner(
         status.message = "Kodowanie MP4 z napisami…".into();
         status.progress = Some(0);
     }
-    empty_png(dir, meta)?;
-    fs::write(dir.join("timeline.ffconcat"), concat_text(&intervals)).map_err(|e| e.to_string())?;
-    let filter=format!("[0:v:0]scale={}:{},setsar=1[base];[1:v:0]format=rgba[subs];[base][subs]overlay=0:0:eof_action=repeat:repeatlast=1:format=auto,format=yuv420p[v]",meta.width,meta.height);
+    if layer.is_none(){empty_png(dir, meta)?;
+    fs::write(dir.join("timeline.ffconcat"), concat_text(&intervals)).map_err(|e| e.to_string())?;}
+    let filter=if layer.is_some(){format!("[0:v:0]scale={}:{},setsar=1[base];[1:v:0]format=rgba[subs];[base][subs]overlay=0:0:eof_action=pass:repeatlast=0,format=yuv420p[v]",meta.width,meta.height)}else{format!("[0:v:0]scale={}:{},setsar=1[base];[1:v:0]format=rgba[subs];[base][subs]overlay=0:0:eof_action=repeat:repeatlast=1:format=auto,format=yuv420p[v]",meta.width,meta.height)};
     let mut args: Vec<OsString> = [
         "-nostdin",
         "-hide_banner",
@@ -359,21 +363,8 @@ fn render_inner(
     .map(Into::into)
     .collect();
     args.push(render_media.as_os_str().to_owned());
-    args.extend(
-        [
-            "-protocol_whitelist",
-            "file,pipe",
-            "-f",
-            "concat",
-            "-safe",
-            "0",
-            "-i",
-            "timeline.ffconcat",
-            "-filter_complex",
-        ]
-        .iter()
-        .map(Into::into),
-    );
+    if let Some(layer)=layer{args.push("-i".into());args.push(layer.as_os_str().to_owned());args.push("-filter_complex".into());}
+    else {args.extend(["-protocol_whitelist","file,pipe","-f","concat","-safe","0","-i","timeline.ffconcat","-filter_complex"].iter().map(Into::into));}
     args.push(filter.into());
     args.extend(
         [
@@ -388,7 +379,7 @@ fn render_inner(
             "-crf",
             "18",
             "-fps_mode",
-            "vfr",
+            if layer.is_some(){"cfr"}else{"vfr"},
             "-c:a",
             "aac",
             "-b:a",
@@ -408,6 +399,7 @@ fn render_inner(
         .map(Into::into),
     );
     args.push(meta.duration.to_string().into());
+    if layer.is_some(){args.extend(["-r".into(),"30".into()]);}
     args.push("render.mp4".into());
     run_process(job, ffmpeg, &args, false, dir)?;
     job.check()?;
@@ -420,6 +412,7 @@ fn render_inner(
         .open(&output)
         .and_then(|f| f.sync_all())
         .map_err(|e| e.to_string())?;
+    if let Some(basis)=basis{if crate::export_studio::source_basis(project,ffmpeg,melt.unwrap_or(ffmpeg))?!=basis{return Err("Źródła zmieniły się podczas eksportu. Nie zapisano wyniku.".into());}}
     // Serialize cancellation with the final commit. No destination writes before this point.
     let mut status = job.status.lock().unwrap();
     if job.cancel.load(Ordering::SeqCst) {
