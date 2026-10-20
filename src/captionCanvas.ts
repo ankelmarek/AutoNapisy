@@ -1,43 +1,8 @@
-import { wrapCaption, type CaptionStyle } from "./captions";
+import type {CaptionStyle} from "./captions";
+import {layoutCaption} from "./captionLayout";
+export {layoutCaption} from "./captionLayout";
+import {createAnimatedCaptionRenderer} from "./animatedCaptionCanvas";
 import type { Project } from "./model";
-/** Shared font metrics and layout for DOM preview and video bitmaps. */
-export function layoutCaption(
-  text: string,
-  style: CaptionStyle,
-  width: number,
-  height: number,
-) {
-  const scale = width / 720,
-    base = style.fontSize * scale;
-  const canvas = document.createElement("canvas"),
-    ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Nie można uruchomić renderowania plansz");
-  ctx.font = `${base}px "${style.fontFamily}"`;
-  const measure = (s: string) => ctx.measureText(s).width;
-  const paddingX = Math.min(base * (style.effect==='highlight'?.25:.55), width * 0.06),
-    paddingY = Math.min(base * (style.effect==='highlight'?.08:.4), height * 0.1);
-  const available = Math.max(1, (width * style.boxWidth) / 100 - paddingX * 2);
-  const lines = wrapCaption(text, style, measure, available),
-    widest = Math.max(1, ...lines.map(measure));
-  const fontScale = Math.min(
-    1,
-    available / widest,
-    Math.max(1, height * 0.45 - paddingY * 2) /
-      (base * Math.max(lines.length, 1) * 1.04),
-  );
-  const fontSize = base * fontScale;
-  ctx.font = `${fontSize}px "${style.fontFamily}"`;
-  const lineWidths = lines.map((s) => ctx.measureText(s).width);
-  return {
-    lines,
-    fontSize,
-    paddingX,
-    paddingY,
-    borderRadius: (style.effect==='highlight'?Math.min(6,style.cornerRadius):style.cornerRadius) * scale,
-    boxWidth: Math.max(0, ...lineWidths) + paddingX * 2,
-    boxHeight: fontSize * 1.04 * lines.length + paddingY * 2,
-  };
-}
 export async function ensureCaptionFonts(project: Project) {
   await Promise.all(
     Object.values(project.styles).map((style) =>
@@ -75,6 +40,7 @@ export function createFrameRenderer(width: number, height: number) {
 
 /** Exact legacy bitmap layout, reused for static cards inside animated video layers. */
 export function drawStaticCaption(canvas:HTMLCanvasElement,text:string,style:CaptionStyle){
+ if(style.animation?.enabled===false){createAnimatedCaptionRenderer(canvas)({id:'frozen',text,start:0,end:1,styleId:'frozen'},style,0);return;}
  const {width,height}=canvas,ctx=canvas.getContext('2d');if(!ctx)throw Error('Brak obsługi Canvas');
  ctx.resetTransform();ctx.globalAlpha=1;ctx.shadowBlur=0;
     const box = layoutCaption(text, style, width, height);
