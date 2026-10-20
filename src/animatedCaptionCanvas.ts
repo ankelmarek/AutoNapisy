@@ -1,4 +1,4 @@
-import {layoutCaption} from './captionCanvas';
+import {layoutCaption,drawStaticCaption} from './captionCanvas';
 import type {CaptionCard,CaptionStyle} from './captions';
 import {captionMotion,captionEase} from './captionAnimation';
 
@@ -9,6 +9,7 @@ export function createAnimatedCaptionRenderer(canvas:HTMLCanvasElement){
  return (card:CaptionCard|null,style:CaptionStyle|null,time:number)=>{
   const {width:pw,height:ph}=canvas;ctx.resetTransform();ctx.globalAlpha=1;ctx.shadowBlur=0;ctx.clearRect(0,0,pw,ph);
   if(!card||!style)return {fallback:false,active:-1};
+  if(style.animation?.enabled===false){drawStaticCaption(canvas,card.text,style);return {fallback:false,active:-1};}
   const width=720,height=ph/pw*720,ratio=pw/720,motion=captionMotion(card,style,time),a=style.animation,preset=a?.preset,intensity=a?.intensity??1,speed=a?.speed??1,t=motion.time;
   ctx.scale(ratio,ratio);let text=card.text,offset=0,groupStart=card.start;
   if(preset==='impact'&&!motion.fallback&&card.words?.length){

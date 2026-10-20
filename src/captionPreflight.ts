@@ -1,7 +1,7 @@
 import type {Project} from './model';
 import {compositionProject} from './editing';
 import {captionExport} from './captions';
-import {synchronizedWords} from './captionAnimation';
+import {synchronizedWords,hasCaptionMotion} from './captionAnimation';
 import type {CaptionCard} from './captions';
 import {layoutCaption} from './captionCanvas';
 import type {Margins} from './SafeZones';
@@ -20,7 +20,7 @@ export function captionBounds(text:string,style:Project['styles'][string],width:
 }
 /** Conservative motion envelopes, in the same 720px logical space as the video renderer. */
 export function animatedCaptionBounds(card:CaptionCard,style:Project['styles'][string],width:number,height:number):CaptionBounds{
- if(!style.animation)return captionBounds(card.text,style,width,height);
+ if(!style.animation||!hasCaptionMotion(style))return captionBounds(card.text,style,width,height);
  const ratio=width/720,h=height/ratio,staticStyle={...style,animation:undefined},a=style.animation;
  let texts=[card.text];if(a.preset==='impact'&&synchronizedWords(card,style))texts=card.words!.reduce<string[]>((out,_,i)=>{if(i%3===0)out.push(card.words!.slice(i,i+3).map(w=>w.text).join(' '));return out;},[]);
  const boxes=texts.map(text=>{const b=captionBounds(text,staticStyle,720,h),layout=layoutCaption(text,style,720,h);let dx=0,top=0,bottom=0;

@@ -2,13 +2,13 @@ import {invoke} from '@tauri-apps/api/core';
 import {createAnimatedCaptionRenderer} from './animatedCaptionCanvas';
 import {drawStaticCaption,ensureCaptionFonts} from './captionCanvas';
 import {activeCaption,type CaptionCard,type CaptionStyle} from './captions';
-import {captionFrameTime} from './captionAnimation';
+import {captionFrameTime,hasCaptionMotion} from './captionAnimation';
 import type {Project} from './model';
 export type CaptionUpload={id:number;frames:number;start:number};
 export function createCaptionLayerRenderer(canvas:HTMLCanvasElement){
  const animated=createAnimatedCaptionRenderer(canvas);let staticKey='',staticImage:HTMLCanvasElement|null=null;
  return (card:CaptionCard|null,style:CaptionStyle|null,time:number)=>{
-  if(!card||!style||style.animation){staticKey='';return animated(card,style,time);}
+  if(!card||!style||hasCaptionMotion(style)){staticKey='';return animated(card,style,time);}
   const key=JSON.stringify([card.text,style,canvas.width,canvas.height]);
   if(staticKey!==key){staticImage??=document.createElement('canvas');staticImage.width=canvas.width;staticImage.height=canvas.height;drawStaticCaption(staticImage,card.text,style);staticKey=key;}
   const ctx=canvas.getContext('2d')!;ctx.resetTransform();ctx.globalAlpha=1;ctx.shadowBlur=0;ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(staticImage!,0,0);

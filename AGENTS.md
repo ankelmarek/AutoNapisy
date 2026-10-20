@@ -6,6 +6,12 @@ Po ukończonych implementacjach 0.33a/b/c użytkownik zatwierdził **następny e
 
 **Odbiór użytkownika 20.10.2026:** użytkownik potwierdził, że osobiście przetestował 0.33 na rzeczywistym polskim materiale i „wszystko działa idealnie”. Odnotowano pozytywny odbiór manualny w ROADMAP.md. Nie przypisywać temu potwierdzeniu nowych logów CI ani oddzielnie potwierdzonej ścieżki Whisper/MP4. **Można rozpoczynać 0.34, bez czekania na kolejne testy 0.33.**
 
+## W implementacji 0.34a — nie całe 0.34
+
+Jedna galeria i wspólny CaptionPresetPreview dla dwóch classicPresets i ośmiu animowanych; bez dodatkowych zielonych/fioletowych przycisków i duplikatu żółtej planszy. Style/Opcje to dostępne klawiaturowo taby, nie równolegle zamontowane panele. Jedna animowana miniatura albo jeden podgląd opcji, reduce-motion/hidden i czyszczenie RAF. Lokalne drafty wariantów nie zmieniają fabryk/projektu do Apply; otwarcie nowej sesji nadal resetuje inspektor. Etap a nadal ma scope all/single; wielozaznaczenie i biblioteka użytkownika są osobno w b/c.
+
+Schemat v16: opcjonalne animation.enabled, brak pola=On, false=Off zachowujące ID i wszystkie parametry. v1–v15 migrują bez zmiany styles, w <=v15 zabronione enabled, null/nieboolean odrzuca TS/Rust. Off stosuje dokładny drawStaticCaption/CaptionBox i statyczny preflight, nie udaje motion; backend needs_animation wyłącza stream tylko gdy wszystkie użyte style są statyczne/Off. Mieszane warstwy nadal cachują jeden static bitmap. Nie kasować animation przy wyłączaniu ruchu; stare animation:undefined nadal jest klasyczne. Lokalnie 380 TS, 115 core Rust i realne testy eksportu/stream/kolejki/A-B/Off. Odbiór Windows w toku, nie deklarować go bez wyniku.
+
 ## 0.33 Animated Captions — ukończona implementacja, pozytywny odbiór manualny
 
 P0 z decyzji 19.10.2026 wdrożono jako osobne PR #21 (a), #22 (b), #23 (c), wszystkie połączone. **20.10.2026 użytkownik potwierdził pozytywny własny test na rzeczywistym polskim materiale.** To potwierdzenie użytkownika, nie automatyczny przebieg CI. Referencyjne prawdziwe nagranie/Whisper w CI są angielskie, a polskie dane UI syntetyczne; nie twierdzić, że wykonano odrębny udokumentowany end-to-end test polskiego Whisper, jeśli nie ma dowodu. Instrukcja instalatora i ograniczenia są w README. **Nowe zadanie wykonawcze P0 to #24, 0.34a jako pierwszy etap.**

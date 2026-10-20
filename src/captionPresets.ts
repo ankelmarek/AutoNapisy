@@ -2,6 +2,25 @@ import {styleSchema,type Project} from './model';
 import {compositionSegments} from './editing';
 import {synchronizedWords} from './captionAnimation';
 import type {CaptionStyle} from './captions';
+import {yellowPreset} from './captions';
+export const classicPresets=[
+ {id:'classic-yellow',name:'Żółta plansza',description:'Czarny Bebas Neue na żółtej planszy'},
+ {id:'classic-outline',name:'Biały obrys',description:'Białe litery z ciemnym obrysem'},
+] as const;
+export type ClassicPresetId=typeof classicPresets[number]['id'];
+export function classicPresetStyle(id:ClassicPresetId):CaptionStyle{
+ return styleSchema.parse(id==='classic-yellow'?{...yellowPreset,effect:'box',outlineWidth:0}:{...yellowPreset,color:'#ffffff',background:'#000000',effect:'outline',outlineColor:'#080808',outlineWidth:3});
+}
+export function visualCaptionPreset(style:CaptionStyle):string|null{
+ if(style.animation)return style.animation.preset;
+ if((style.effect??'box')==='box'&&style.background.toLowerCase()==='#ffe600'&&style.color.toLowerCase()==='#080808')return 'classic-yellow';
+ if(style.effect==='outline'&&style.color.toLowerCase()==='#ffffff')return 'classic-outline';
+ return null;
+}
+/** Off keeps the selected preset, font and all animation parameters for a later On. */
+export function setCaptionAnimation(style:CaptionStyle,enabled:boolean):CaptionStyle{
+ return style.animation?{...style,animation:{...style.animation,enabled}}:style;
+}
 export const animatedPresets=[
  {id:'karaoke-flow',name:'Karaoke Flow',description:'Bieżące słowo w kolorze akcentu',fontFamily:'Bebas Neue',fontSize:56,accent:'#ffe600',uppercase:true},
  {id:'pop-beat',name:'Pop Beat',description:'Sprężysty akcent każdego słowa',fontFamily:'Bebas Neue',fontSize:64,accent:'#b4ff58',uppercase:true},

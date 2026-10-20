@@ -1,3 +1,13 @@
+# W przygotowaniu: RolVixa 0.34a — jedna galeria napisów
+
+Pierwszy oddzielny etap [issue #24](https://github.com/ankelmarek/AutoNapisy/issues/24): wspólne kafelki **Klasyczne** (Żółta plansza Bebas Neue, Biały obrys) i **Animowane** (8 dotychczasowych), bez dwóch zbędnych skrótów kolorystycznych. Zachowano stare projekty z dowolnymi kolorami i podświetleniem. Fabryczna żółta plansza nie zmienia historycznej definicji.
+
+W prawym inspektorze wybierz **Style napisów** dla galerii lub **Opcje napisów** dla fontu, kolorów, rozmiaru, położenia i animacji. Zmiany są podglądem roboczym do chwili **Zastosuj styl / Zastosuj zmiany**; jedna operacja to jeden Undo. Opcje mają własny podgląd, a rzadkie ustawienia są w **Zaawansowane**. Strzałki oraz Home/End przełączają zakładki z klawiatury. Font jest ustawieniem wybranego stylu i zakresu; przełączanie niezastosowanych wariantów pamięta osobny roboczy font każdego kafelka w bieżącej sesji edycji.
+
+**Animacja: wyłączona** zatrzymuje efekty słów i ruch, ale zachowuje ID, font, kolory i parametry presetu. **Włączona** przywraca je również po zapisaniu i otwarciu projektu. Wyłączony wariant pokazuje cały tekst statycznym rendererem; **Podglądy** w galerii sterują wyłącznie miniaturkami. Schemat **v16** dodaje opcjonalne `animation.enabled`; brak pola znaczy dotychczasowe On. Migracje v1–v15 nie zmieniają stylów. Starszy schemat nie może zawierać nowego pola, a stara aplikacja nie otworzy zapisu v16.
+
+Lokalnie: 380 TS, 115 core Rust, produkcyjny build frontendu oraz rzeczywiste integracje strumienia/MP4/kolejki/A-B, w tym statyczne PNG/MP4 dla Off. **Windows/WebView2/instalator wymagają jeszcze odbioru tej wersji.** Nie promować tego etapu jako ukończonego pełnego 0.34. Wielozaznaczenie napisów to 0.34b, trwała biblioteka własnych stylów i dalsze dopracowanie fontów to 0.34c. Na etapie a zakres nadal obejmuje cały montaż lub pojedynczy zaznaczony napis.
+
 # RolVixa 0.33 — Animated Captions
 
 **Zbudowany i sprawdzony na Windows kandydat do odbioru.** Osiem stylów: Karaoke Flow, Pop Beat, Impact, Neon Pulse, Slide Reveal, Marker, Editorial Clean i Type Flow. Animacja działa w podglądzie, MP4, kolejce Export Studio i próbkach A/B. SRT zachowuje tekst i czasy; nie zawiera animacji.
@@ -21,7 +31,7 @@ Pełny zielony [Windows run 39367692306](https://github.com/ankelmarek/AutoNapis
 
 [Próbki MP4 z Windows](https://github.com/ankelmarek/AutoNapisy/actions/runs/39367692306/artifacts/12240761709): osiem stylów na rzeczywistej mowie i prawdziwym wyniku Whisper, 104 identyczne hashe klatek alfa, kontrola odpowiadających pikseli H.264 i AAC (RMS ratio 0,99956). Przez faktyczny interfejs kolejki sprawdzono Karaoke 1080×1920, Pop i Editorial oraz trzy warianty A/B od niezerowego czasu. Obejrzano zrzuty galerii i A/B oraz klatki MP4. Nagranie referencyjne jest angielskie; polskie znaki, ręczna edycja i scenariusz galerii mają osobne, jawnie syntetyczne dane. Pochodzenie: `tests/fixtures/caption033-SOURCE.md`.
 
-**Pozostały warunek odbioru issue #20:** pełny scenariusz na rzeczywistym polskim nagraniu: import → bieżąca transkrypcja → Karaoke/Pop/Editorial → podgląd i eksport. Nie deklarujemy go jako wykonanego na podstawie angielskiej próbki ani ręcznie wpisanych polskich słów. Issue #20 pozostaje otwarte do tego potwierdzenia; kandydat 0.33 nie zastępuje jeszcze stabilnego 0.32.
+**Odbiór manualny 20.10.2026:** użytkownik potwierdził pomyślne działanie 0.33 na rzeczywistym polskim materiale. To relacja użytkownika, bez nowego raportu CI ani odrębnego udokumentowanego przebiegu polskiego Whisper/MP4. Zgodnie z aktualną decyzją można rozpocząć 0.34.
 
 Równoległy PR run 39367696790 nie jest zielony: nowe eksporty zakończyły się pomyślnie, lecz cała sekwencja WebView2 przekroczyła dawny limit kroku 8 minut podczas późniejszej regresji. Pełny push przeszedł w 7 min 47 s. Następcza zmiana limitu CI do 15 minut nie zmienia kodu sprawdzonego instalatora ani asercji testów.
 

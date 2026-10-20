@@ -199,7 +199,7 @@ pub async fn begin_video_export(
                         crate::framing::apply_canvas(&session.project, &mut meta);
                         meta.duration = project::composition_duration(&session.project);
                         session.metadata = Some(meta.clone());
-                        let animation=if session.project.segments.iter().any(|s|session.project.styles.get(&s.style_id).is_some_and(|s|s.animation.is_some())) {
+                        let animation=if session.project.segments.iter().any(|s|session.project.styles.get(&s.style_id).is_some_and(|s|s.animation.as_ref().is_some_and(|a|a.enabled!=Some(false)))) {
                             match crate::caption_stream::export_stream(running.clone(),&session.ffmpeg,session.dir.clone(),meta.width,meta.height,0.,meta.duration){
                                 Ok((stream,info))=>{session.animation=Some(stream);Some(info)},
                                 Err(e)=>{slot.take();failed(&running,e);return;}
