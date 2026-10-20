@@ -1,3 +1,4 @@
+import {testCaption034Selection} from './test-caption034-selection.mjs';
 import {testCaption034Gallery} from './test-caption034-gallery.mjs';
 import {testCaption033Exports} from './test-caption033-exports.mjs';
 import {testCaption033Gallery} from './test-caption033-gallery.mjs';
@@ -53,6 +54,7 @@ export async function testCaption033(page,projectPath){
   const fallback={...seed,segments:recognized.map(s=>({...s,text:'Zażółć gęślą jaźń — ręczna zmiana'}))};await page.getByRole('textbox',{name:'Projekt testowy napisów',exact:true}).fill(JSON.stringify(fallback));await page.getByRole('button',{name:'Renderuj testowy MP4',exact:true}).click();await page.waitForFunction(()=>!!document.querySelector('[data-poc-output]'),{},{timeout:90000});await page.getByText('Brak synchronizacji słów — użyto animacji planszy.',{exact:true}).waitFor();await page.getByRole('button',{name:'Anuluj test',exact:true}).click();
   await testCaption033Gallery(page,projectPath,seed,root);
   await testCaption034Gallery(page,projectPath);
+  await testCaption034Selection(page,projectPath);
   await testCaption033Exports(page,projectPath);
   console.log('0.33b real spoken fixture + actual Whisper offsets: eight distinct presets, lossless alpha pixel hashes at 104 frames, encoded H264/30FPS + AAC, seek/play, honest Polish manual fallback and cleanup: OK');
  }catch(e){console.log('Caption POC failure:',await page.locator('body').innerText());await page.screenshot({path:'.tools/caption033-failure.png'});throw e;}finally{

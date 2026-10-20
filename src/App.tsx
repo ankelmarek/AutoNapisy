@@ -1,3 +1,5 @@
+import {hideCaptions} from './captionEditing';
+import {pruneCaptionSelection,selectCaptions} from './captionSelection';
 import ExportStudio from './ExportStudio';
 import {useExportQueue} from './useExportQueue';
 import {speechIntervals,applySelectedTranscript} from './speechSelection';
@@ -159,8 +161,9 @@ export default function App() {
   const [sources,setSources]=useState<Record<string,string>>({});
   const [leftTab,setLeftTab]=useState<"files"|"captions"|"effects"|"audio">("files");
   const [selectedIds,setSelectedIds]=useState<string[]>([]),[transcriptionScope,setTranscriptionScope]=useState<'all'|'selected'>('all');
-  const [inspectorTab,setInspectorTab]=useState<'video'|'captions'>('video'),[selectedClip,setSelectedClip]=useState(''),[selectedCaption,setSelectedCaption]=useState(''),[markedCaption,setMarkedCaption]=useState(''),[selectedTransition,setSelectedTransition]=useState('');
+  const [inspectorTab,setInspectorTab]=useState<'video'|'captions'>('video'),[selectedClip,setSelectedClip]=useState(''),[selectedCaption,setSelectedCaption]=useState(''),[selectedCaptionIds,setSelectedCaptionIds]=useState<string[]>([]),[selectedTransition,setSelectedTransition]=useState('');
   const [effectChoice,setEffectChoice]=useState<EffectChoice>({kind:'fade',duration:.4});
+  const captionAnchor=useRef('');
   const captionInput=useRef<HTMLTextAreaElement>(null);
   const [sourceViewerId,setSourceViewerId]=useState('');
   const sourceRanges=useRef(new Map<string,SourceRange>()),sourceKeys=useRef<((e:KeyboardEvent)=>void)|null>(null);
@@ -179,12 +182,19 @@ export default function App() {
   useEffect(()=>{setAspect(playback.aspect);},[playback.aspect]);
   const duration = editDuration(project);
   const displayed = useMemo(()=>compositionProject(project),[project]);
-  const displayedSegments = useMemo(()=>compositionSegments(project),[project]);
+  const displayedSegments = useMemo(()=>compositionSegments(project).sort((a,b)=>a.start-b.start||a.end-b.end||a.id.localeCompare(b.id)),[project]);
   const selected=projectClips(project).find(c=>c.id===selectedClip)??clipAt(projectClips(project),time,project);
-  const caption=displayedSegments.find(s=>s.id===selectedCaption);
+  const selectedCaptionSet=useMemo(()=>new Set(selectedCaptionIds),[selectedCaptionIds]);
+  const captionOrder=useMemo(()=>displayedSegments.map(s=>s.id),[displayedSegments]);
+  useEffect(()=>{setSelectedCaptionIds(ids=>{const next=pruneCaptionSelection(ids,captionOrder);return next.length===ids.length&&next.every((id,i)=>id===ids[i])?ids:next;});if(!captionOrder.includes(captionAnchor.current))captionAnchor.current='';},[captionOrder]);
+  const caption=selectedCaptionIds.length===1&&selectedCaptionIds[0]===selectedCaption?displayedSegments.find(s=>s.id===selectedCaption):undefined;
   const picture=visuals(project,Math.min(time,Math.max(0,duration-1e-7)));
-  const selectCaption=(id:string)=>{setMarkedCaption(id);setSelectedCaption(id);setInspectorTab('captions');requestAnimationFrame(()=>{captionInput.current?.focus();captionInput.current?.scrollIntoView({block:'nearest'});});};
+  const clearCaptionSelection=()=>{setSelectedCaptionIds([]);setSelectedCaption('');captionAnchor.current='';};
+  const markCaption=(id:string,modifiers:{ctrlKey?:boolean;metaKey?:boolean;shiftKey?:boolean}={})=>{const next=selectCaptions(selectedCaptionIds,captionAnchor.current,id,captionOrder,modifiers);captionAnchor.current=next.anchor;setSelectedCaptionIds(next.ids);setSelectedCaption('');setSelectedIds([]);setSelectedClip('');setInspectorTab('captions');};
+  const selectCaption=(id:string)=>{markCaption(id);setSelectedCaption(id);setInspectorTab('captions');requestAnimationFrame(()=>{captionInput.current?.focus();captionInput.current?.scrollIntoView({block:'nearest'});});};
   const changeProject=(p:Project)=>{try{assertUnlockedEdit(latestProject.current,p);setProject(p);}catch(e){setMessage(String(e));}};
+  const deleteCaptions=()=>{if(locked||project.tracks.T?.locked){setMessage('Ścieżka napisów jest zablokowana.');return;}changeProject(hideCaptions(project,pruneCaptionSelection(selectedCaptionIds,captionOrder)));clearCaptionSelection();};
+  const captionKeys=(e:React.KeyboardEvent)=>{const el=e.target as HTMLElement;if(el.isContentEditable||el.closest('input,textarea,select,[contenteditable=true]')||locked)return;const key=e.key.toLowerCase();if((e.ctrlKey||e.metaKey)&&key==='a'){e.preventDefault();e.stopPropagation();setSelectedCaptionIds(captionOrder);setSelectedCaption('');setSelectedIds([]);setSelectedClip('');setInspectorTab('captions');captionAnchor.current=captionOrder[0]??'';}else if(key==='escape'){e.preventDefault();e.stopPropagation();clearCaptionSelection();}else if(key==='delete'||key==='backspace'){e.preventDefault();e.stopPropagation();deleteCaptions();}};
   const adviseAddedAudio=(next:Project)=>{const clips=projectClips(next),added=clips.at(-1);if(added?.kind==='audio'&&overlappingAudio(clips,added).length){setSelectedClip(added.id);setSelectedTransition('');setInspectorTab('video');setMessage(`Audio nakłada się na A${(added.track??0)+1}. Możesz przenieść je na wolną ścieżkę w panelu właściwości.`);}};
   const gap = !visuals(project,Math.min(time,Math.max(0,duration-1e-7))).length;
   const undo = () => {playback.pause();history.undo();};
@@ -235,7 +245,7 @@ export default function App() {
         if(!result)return;
         const p=parseProject(result.json),prepared:Record<string,string>={},missing:string[]=[];
         for(const m of [...(p.media?[p.media]:[]),...p.assets]){try{prepared[m.path]=await preview.prepare(m.path);}catch{missing.push(m.name);}}
-        setSources(prepared);setSourceViewerId('');sourceRanges.current.clear();resetPlayback();latestProject.current=p;history.reset(p);setSelectedIds([]);setSelectedClip('');setSelectedCaption('');setMarkedCaption('');setSelectedTransition('');recovered.current=false;saver.accept(p,result.path,result.session);setSource(Object.values(prepared)[0]??'');setHomeMode('closed');
+        setSources(prepared);setSourceViewerId('');sourceRanges.current.clear();resetPlayback();latestProject.current=p;history.reset(p);setSelectedIds([]);setSelectedClip('');clearCaptionSelection();setSelectedTransition('');recovered.current=false;saver.accept(p,result.path,result.session);setSource(Object.values(prepared)[0]??'');setHomeMode('closed');
         void recent.refresh();setMessage(missing.length?`Projekt otwarty. Niedostępne pliki: ${missing.join(', ')}`:'Projekt otwarty.');
       }catch(e){setStartError(String(e));throw e;}finally{resumeRecovery();}
     });
@@ -243,7 +253,7 @@ export default function App() {
   const createNew=()=>run(async()=>{
     if(saver.saving||!replace())return;
     recovery.update(null);try{await recovery.flush();}catch{}const session=await backend.newProject();const p=newProject();
-    setSourceViewerId('');sourceRanges.current.clear();recovered.current=false;resetPlayback();latestProject.current=p;history.reset(p);setSelectedIds([]);setSelectedClip('');setSelectedCaption('');setMarkedCaption('');setSelectedTransition('');pristineRevision.current=projectRevision(p);saver.accept(p,'',session);setSource('');setSources({});setHomeMode('closed');setStartError('');
+    setSourceViewerId('');sourceRanges.current.clear();recovered.current=false;resetPlayback();latestProject.current=p;history.reset(p);setSelectedIds([]);setSelectedClip('');clearCaptionSelection();setSelectedTransition('');pristineRevision.current=projectRevision(p);saver.accept(p,'',session);setSource('');setSources({});setHomeMode('closed');setStartError('');
   });
   const save=async(saveAs=false)=>{
     if(saver.saving)return;
@@ -259,7 +269,7 @@ export default function App() {
       if(result){
         const p=parseProject(result.json),prepared:Record<string,string>={},missing:string[]=[];
         for(const m of [...(p.media?[p.media]:[]),...p.assets]){try{prepared[m.path]=await preview.prepare(m.path);}catch{missing.push(m.name);}}
-        setSourceViewerId('');sourceRanges.current.clear();resetPlayback();latestProject.current=p;history.reset(p);setSelectedIds([]);setSelectedClip('');setSelectedCaption('');setMarkedCaption('');setSelectedTransition('');pristineRevision.current=projectRevision(p);recovered.current=action==='recover';setHomeMode('closed');saver.accept(p,result.path,result.session);setSources(prepared);setSource(Object.values(prepared)[0]??'');
+        setSourceViewerId('');sourceRanges.current.clear();resetPlayback();latestProject.current=p;history.reset(p);setSelectedIds([]);setSelectedClip('');clearCaptionSelection();setSelectedTransition('');pristineRevision.current=projectRevision(p);recovered.current=action==='recover';setHomeMode('closed');saver.accept(p,result.path,result.session);setSources(prepared);setSource(Object.values(prepared)[0]??'');
         if(action==='saved')void recent.refresh();
         setMessage(`${action==='recover'?'Odzyskano projekt. Zapisz go jako nowy plik.':'Otworzono zapisany projekt.'}${missing.length?' Niedostępne pliki: '+missing.join(', '):''}`);
       }else setMessage('Odrzucono kopię odzyskiwania.');
@@ -499,21 +509,18 @@ export default function App() {
           </div>
           <div className="panelbody">
             {displayedSegments.length ? (
-              displayedSegments.map((s) => (
+              <div className="caption-list" role="group" aria-label="Lista napisów" tabIndex={0} data-caption-selection onKeyDown={captionKeys}>{displayedSegments.map((s) => (
                 <article
-                  className={
-                    s.start <= time && time < s.end
-                      ? "segment active"
-                      : "segment"
-                  }
-                  key={s.id}
+                  className={`segment ${s.start<=time&&time<s.end?'active':''} ${selectedCaptionSet.has(s.id)?'selected':''}`}
+                  key={s.id} data-caption-id={s.id} data-selected={selectedCaptionSet.has(s.id)}
+                  onClick={e=>markCaption(s.id,e)} onDoubleClick={()=>selectCaption(s.id)}
                 >
-                  <button onClick={() => {seek(s.start);selectCaption(s.id);}}>
+                  <button onClick={() => seek(s.start)}>
                     {formatTime(s.start)} — {formatTime(s.end)}
                   </button>
-                  <button className="caption-list-text" onClick={()=>selectCaption(s.id)}>{s.text}</button>
+                  <button className="caption-list-text" aria-pressed={selectedCaptionSet.has(s.id)}>{s.text}</button>
                 </article>
-              ))
+              ))}</div>
             ) : (
               <div className="empty">
                 <div className="symbol"><Icon name="captions" size={34}/></div>
@@ -598,14 +605,15 @@ export default function App() {
             {inspectorTab==='video'&&<MasterAudioCard project={project} locked={locked||!project.media||!duration} onMeasure={()=>void exportMp4(true)} onReset={()=>changeProject({...project,masterAudio:{gainDb:0}})}/>}
             {inspectorTab==='video'&&<VideoProperties project={project} clip={selected} locked={locked||!!selected&&clipLocked(project,selected)} transitionId={selectedTransition} onChange={changeProject}/>}
             <div hidden={inspectorTab!=='captions'}>
-            {caption&&<div className="caption-editor"><h3>Edycja zaznaczonego napisu</h3><textarea ref={captionInput} aria-label="Tekst zaznaczonego napisu" value={caption.text} disabled={locked} onChange={e=>changeProject(editCaption(project,caption,{text:e.target.value}))}/><div><label>Początek<input aria-label="Początek napisu" type="number" step={.01} value={Number(caption.start.toFixed(3))} disabled={locked} onChange={e=>{if(Number.isFinite(e.target.valueAsNumber))changeProject(resizeCaption(project,caption,'left',e.target.valueAsNumber-caption.start));}}/></label><label>Koniec<input aria-label="Koniec napisu" type="number" step={.01} value={Number(caption.end.toFixed(3))} disabled={locked} onChange={e=>{if(Number.isFinite(e.target.valueAsNumber))changeProject(resizeCaption(project,caption,'right',e.target.valueAsNumber-caption.end));}}/></label></div></div>}
-            <CaptionStyleInspector key={saveState.session} project={project} selectedId={markedCaption||selectedCaption} visible={inspectorTab==='captions'&&!homeVisible&&!settings&&!studioSnapshot} locked={locked} onChange={changeProject}/>
+            {selectedCaptionIds.length>1&&<p className="caption-multiple-note">Wybierz jeden napis, aby edytować tekst</p>}
+            {caption&&<div className="caption-editor"><h3>Edycja zaznaczonego napisu</h3><textarea ref={captionInput} aria-label="Tekst zaznaczonego napisu" value={caption.text} disabled={locked||!!project.tracks.T?.locked} onChange={e=>changeProject(editCaption(project,caption,{text:e.target.value}))}/><div><label>Początek<input aria-label="Początek napisu" type="number" step={.01} value={Number(caption.start.toFixed(3))} disabled={locked||!!project.tracks.T?.locked} onChange={e=>{if(Number.isFinite(e.target.valueAsNumber))changeProject(resizeCaption(project,caption,'left',e.target.valueAsNumber-caption.start));}}/></label><label>Koniec<input aria-label="Koniec napisu" type="number" step={.01} value={Number(caption.end.toFixed(3))} disabled={locked||!!project.tracks.T?.locked} onChange={e=>{if(Number.isFinite(e.target.valueAsNumber))changeProject(resizeCaption(project,caption,'right',e.target.valueAsNumber-caption.end));}}/></label></div></div>}
+            <CaptionStyleInspector key={saveState.session} project={project} selectedIds={selectedCaptionIds} visible={inspectorTab==='captions'&&!homeVisible&&!settings&&!studioSnapshot} locked={locked} onChange={changeProject}/>
 
             </div>
           </div>
         </section>
-      <Timeline session={saveState.session} selectedIds={selectedIds} onSelectionChange={setSelectedIds} onSmartCut={request=>{if(locked)return;playback.pause();setSourceViewerId('');setSmartcut({project:latestProject.current,request});}} solo={solo} onSolo={id=>setSolo(old=>{const next=new Set(old);next.has(id)?next.delete(id):next.add(id);return next;})} onClearSolo={()=>setSolo(new Set())} project={project} time={time} locked={locked||settings||homeVisible} onError={setMessage} onSeek={t=>{setSourceViewerId('');seek(t);}}
-        onChange={(clips,mode)=>{if(mode!=='volume')playback.pause();changeProject({...latestProject.current,clips,transitions:reconcileTransitions(latestProject.current,clips)});}} onPreviewVolume={playback.previewVolume} onBeginAudio={playback.pause} onSelect={id=>{setSelectedClip(id);setSelectedTransition('');setInspectorTab('video');}} onCaptionSelect={selectCaption} onCaptionMark={setMarkedCaption}
+      <Timeline selectedCaptionIds={selectedCaptionIds} onCaptionSelectionChange={ids=>{setSelectedCaptionIds(ids);setSelectedCaption('');setSelectedIds([]);setSelectedClip('');setInspectorTab('captions');captionAnchor.current=ids[0]??'';}} onCaptionClear={clearCaptionSelection} onCaptionDelete={deleteCaptions} session={saveState.session} selectedIds={selectedIds} onSelectionChange={ids=>{setSelectedIds(ids);if(ids.length)clearCaptionSelection();}} onSmartCut={request=>{if(locked)return;playback.pause();setSourceViewerId('');setSmartcut({project:latestProject.current,request});}} solo={solo} onSolo={id=>setSolo(old=>{const next=new Set(old);next.has(id)?next.delete(id):next.add(id);return next;})} onClearSolo={()=>setSolo(new Set())} project={project} time={time} locked={locked||settings||homeVisible} onError={setMessage} onSeek={t=>{setSourceViewerId('');seek(t);}}
+        onChange={(clips,mode)=>{if(mode!=='volume')playback.pause();changeProject({...latestProject.current,clips,transitions:reconcileTransitions(latestProject.current,clips)});}} onPreviewVolume={playback.previewVolume} onBeginAudio={playback.pause} onSelect={id=>{setSelectedClip(id);setSelectedTransition('');setInspectorTab('video');}} onCaptionSelect={selectCaption} onCaptionMark={markCaption}
         onMediaDrop={(id,at,track,range,kind)=>{try{playback.pause();setSourceViewerId('');const next=insertLibraryItem(latestProject.current,id,at,track,range,kind);changeProject(next);setMessage('Dodano plik na oś czasu.');adviseAddedAudio(next);}catch(e){setMessage(String(e));}}}
         onCaptionChange={p=>changeProject(p)} effectChoice={effectChoice} onTransition={(a,b,choice)=>{try{playback.pause();const next=applyTransition(project,a,b,choice.kind,choice.duration);changeProject(next);setSelectedTransition(next.transitions.find(t=>t.toId===b)!.id);setInspectorTab('video');}catch(e){setMessage(String(e));}}} onTransitionSelect={id=>{setSelectedTransition(id);setInspectorTab('video');}}
         undo={undo} redo={redo} canUndo={history.canUndo} canRedo={history.canRedo}/>
