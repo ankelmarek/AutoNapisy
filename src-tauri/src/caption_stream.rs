@@ -321,7 +321,7 @@ mod tests {
             serde_json::from_str(include_str!("../../tests/fixtures/smartcut030.json")).unwrap();
         let mut p = base["input"].clone();
         let old = crate::project::parse(&p.to_string()).unwrap();
-        assert_eq!(old.schema_version, 16);
+        assert_eq!(old.schema_version, 17);
         assert!(old.styles["default"].animation.is_none());
         let a = serde_json::json!({"preset":"karaoke-flow","version":1,"accentColor":"#ffe600","speed":1,"intensity":0.8});
         p["styles"]["default"]["animation"] = a.clone();

@@ -248,3 +248,5 @@ footer{display:flex;gap:12px;align-items:center;justify-content:space-between}fo
 .caption-preset-dialog footer { display:flex; justify-content:flex-end; gap:8px; margin-top:18px; }
 .caption-font-warning { padding:8px; color:#ffe49a; background:#35301f; border-radius:7px; font-size:11px; line-height:1.5; }
 .caption-font-warning button { margin-top:5px; font-size:11px; }
+
+.caption-text-actions,.caption-timing-actions{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}.caption-text-actions small{flex-basis:100%;color:#aeb8cd;font-size:11px}.caption-timing-status{padding:8px 10px;border:1px solid #434b60;border-radius:7px;font-size:12px;line-height:1.5}.caption-timing-status small{display:block;color:#bac5d8;font-size:11px}.caption-timing-status.inherited{border-color:#657f66}.caption-timing-status.uncertain{border-color:#93722d}.caption-timing-badge{display:block;margin:5px 0;color:#b8c3d6;font-size:10px}.caption-timing-badge[data-timing=uncertain]{color:#e5c16d}

@@ -35,7 +35,8 @@ import {ProjectSaver,projectRevision,saveStatus} from './projectSaving';
 import EffectsLibrary,{type EffectChoice} from './EffectsLibrary';
 import VideoProperties from './VideoProperties';
 import {visuals,videoFilter,reconcileTransitions,applyTransition} from './effects';
-import {editCaption,resizeCaption} from './captionEditing';
+import CaptionTextEditor,{type CaptionEditorHandle} from './CaptionTextEditor';
+import {captionTimingState,captionTimingLabel} from './captionTiming';
 
 
 import SourceReplacementDialog from './SourceReplacementDialog';
@@ -92,6 +93,8 @@ export default function App() {
     [exportStatus, setExportStatus] = useState<ExportStatus | null>(null);
   const latestProject = useRef(project);
   latestProject.current = project;
+  const captionEditor=useRef<CaptionEditorHandle|null>(null);
+  const commitPendingCaption=()=>{const current=latestProject.current,next=captionEditor.current?.commit(current)??current;if(next!==current){assertUnlockedEdit(current,next);writeProject(next);latestProject.current=next;}return next;};
   const [,refreshSave]=useReducer((n:number)=>n+1,0);
   const saverRef=useRef<ProjectSaver|null>(null);
   if(!saverRef.current)saverRef.current=new ProjectSaver(backend.save,refreshSave);
@@ -143,7 +146,7 @@ export default function App() {
     if(busy||transcribing||exporting||saver.saving){setMessage('Poczekaj na zakończenie operacji przed zamknięciem.');return false;}
     if(recoveryInfo||!recoveryReady)return true;
     if(titleEditor.current&&!titleEditor.current.commit())return false;
-    const p=latestProject.current,r=projectRevision(p),needed=saveState.baseline===null?(recovered.current||r!==pristineRevision.current):saveState.baseline!==r;
+    const p=commitPendingCaption(),r=projectRevision(p),needed=saveState.baseline===null?(recovered.current||r!==pristineRevision.current):saveState.baseline!==r;
     recovery.update({session:saveState.session,json:needed?r:null});
     try{await recovery.flush();return true;}
     catch(e){if(!needed)return true;setMessage(`Nie udało się zapisać kopii odzyskiwania: ${String(e)}. Zapisz projekt ręcznie przed zamknięciem.`);return false;}
@@ -221,7 +224,7 @@ export default function App() {
   const replace = () => {
     // Shortcuts may run before passive effects replace the previous key handler.
     // The saver and project refs are authoritative immediately after a save/title commit.
-    const state=saver.state,current=projectRevision(latestProject.current);
+    const state=saver.state,current=projectRevision(commitPendingCaption());
     return !(state.baseline===null?current!==pristineRevision.current:current!==state.baseline) || window.confirm("Projekt ma niezapisane zmiany. Kontynuować?");
   };
   const importMedia = (kind:'video'|'audio') => run(async()=>{
@@ -258,7 +261,7 @@ export default function App() {
   const save=async(saveAs=false)=>{
     if(saver.saving)return;
     if(titleEditor.current&&!titleEditor.current.commit())return;
-    try{recovery.update(null);try{await recovery.flush();}catch{}const path=await saver.save(latestProject.current,saveAs);if(path){recovered.current=false;void recent.refresh();setMessage(`Zapisano projekt: ${path}`);}}
+    try{commitPendingCaption();recovery.update(null);try{await recovery.flush();}catch{}const path=await saver.save(latestProject.current,saveAs);if(path){recovered.current=false;void recent.refresh();setMessage(`Zapisano projekt: ${path}`);}}
     catch(e){setMessage(`Błąd zapisu: ${e instanceof Error?e.message:String(e)} Użyj „Zapisz jako”, aby zapisać kopię.`);}
     finally{resumeRecovery();}
   };
@@ -337,10 +340,10 @@ export default function App() {
   };
   const exportSrt = () =>
     run(async () => {
-      await ensureCaptionFonts(project);
+      const current=commitPendingCaption();await ensureCaptionFonts(current);
       const path = await backend.exportSrt(
-        serializeProject(project),
-        JSON.stringify(captionExport(displayed).segments),
+        serializeProject(current),
+        JSON.stringify(captionExport(compositionProject(current)).segments),
       );
       if (path) setMessage(`Zapisano napisy SRT: ${path}`);
     });
@@ -372,7 +375,7 @@ export default function App() {
   const exportMp4=(autoAnalyze=false)=>run(async()=>{
     if(exportController.current||locked)return;
     playback.pause();setSourceViewerId('');setHighlightSource('');
-    const current=latestProject.current;
+    const current=commitPendingCaption();
     const checks=await invoke<SourceCheck[]>('check_project_sources',{json:serializeProject(current)});
     setSources(prev=>{const next={...prev};for(const m of libraryItems(current)){if(!checks.find(c=>c.id===m.id)?.available)delete next[m.path];}return next;});
     if(latestProject.current!==current)throw Error("Projekt zmienił się podczas sprawdzania. Uruchom sprawdzenie ponownie.");
@@ -520,6 +523,7 @@ export default function App() {
                     {formatTime(s.start)} — {formatTime(s.end)}
                   </button>
                   <button className="caption-list-text" aria-pressed={selectedCaptionSet.has(s.id)}>{s.text}</button>
+                  {project.captionEdits[s.id]?.text!==undefined&&<small className="caption-timing-badge" data-timing={captionTimingState(project,s)}>{captionTimingLabel(captionTimingState(project,s))}</small>}
                 </article>
               ))}</div>
             ) : (
@@ -607,7 +611,7 @@ export default function App() {
             {inspectorTab==='video'&&<VideoProperties project={project} clip={selected} locked={locked||!!selected&&clipLocked(project,selected)} transitionId={selectedTransition} onChange={changeProject}/>}
             <div hidden={inspectorTab!=='captions'}>
             {selectedCaptionIds.length>1&&<p className="caption-multiple-note">Wybierz jeden napis, aby edytować tekst</p>}
-            {caption&&<div className="caption-editor"><h3>Edycja zaznaczonego napisu</h3><textarea ref={captionInput} aria-label="Tekst zaznaczonego napisu" value={caption.text} disabled={locked||!!project.tracks.T?.locked} onChange={e=>changeProject(editCaption(project,caption,{text:e.target.value}))}/><div><label>Początek<input aria-label="Początek napisu" type="number" step={.01} value={Number(caption.start.toFixed(3))} disabled={locked||!!project.tracks.T?.locked} onChange={e=>{if(Number.isFinite(e.target.valueAsNumber))changeProject(resizeCaption(project,caption,'left',e.target.valueAsNumber-caption.start));}}/></label><label>Koniec<input aria-label="Koniec napisu" type="number" step={.01} value={Number(caption.end.toFixed(3))} disabled={locked||!!project.tracks.T?.locked} onChange={e=>{if(Number.isFinite(e.target.valueAsNumber))changeProject(resizeCaption(project,caption,'right',e.target.valueAsNumber-caption.end));}}/></label></div></div>}
+            {caption&&<CaptionTextEditor key={saveState.session+':'+caption.id} project={project} caption={caption} inputRef={captionInput} handleRef={captionEditor} locked={locked||!!project.tracks.T?.locked} onChange={changeProject}/>}
             <CaptionStyleInspector key={saveState.session} project={project} selectedIds={selectedCaptionIds} visible={inspectorTab==='captions'&&!homeVisible&&!settings&&!studioSnapshot} locked={locked} onChange={changeProject}/>
 
             </div>

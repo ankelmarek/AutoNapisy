@@ -1,3 +1,15 @@
+# RolVixa 0.35a — korekta tekstu 1:1 (weryfikacja)
+
+Po dwukliku napisu wpisz poprawkę i wybierz **Zapisz tekst** lub **Ctrl+Enter**. Wyjście z edytora także zatwierdza tekst; Ctrl+S zatwierdza go przed zapisem projektu. Esc albo **Anuluj tekst** odrzuca bieżący draft. Pisanie nie zmienia montażu po każdym znaku; zatwierdzenie daje jeden Undo/Redo.
+
+Jednoznaczna korekta z taką samą liczbą słów zachowuje istniejące przedziały czasu, zmieniając tylko tekst odpowiadających im tokenów. Status **Korekta zachowała czasy** oznacza czasy odziedziczone z projektu, **bez ponownego sprawdzenia z nagraniem**. Obsługiwane są polskie litery/NFC/NFD, wielkość liter, odstępy, przełamania wierszy, interpunkcja oraz pojedyncze zamiany słów. Wykryte przestawienie istniejących słów, zmiana ich liczby, całkowite przepisanie wielowyrazowej frazy, brak/sporność starych czasów lub zmieniona podstawa źródłowa dają **Wymaga dopasowania** i dotychczasowy bezpieczny fallback planszy. Przycięcie samego napisu zachowuje dotychczasową ostrożną regułę.
+
+**Animacja całej planszy** to jawna decyzja, zachowywana także po dalszej edycji. **Zachowaj czasy 1:1** pozwala świadomie wrócić do odziedziczonych czasów wyłącznie przy pewnej odpowiedniości pozycji. Po zmianie znaczenia tekstu wybierz planszę, jeśli stare czasy nie odpowiadają mowie. Algorytm nie rozpoznaje semantyki ani nie potwierdza słów w nagraniu. Nie uruchamia ASR, nie dodaje interpolowanych czasów, nie dopasowuje nowych/usuniętych słów. Lokalny forced alignment i ręczne dopasowanie są osobnym 0.35b, po jego POC dla polskiego; pełny odbiór rzeczywistego polskiego nagrania pozostaje 0.35c.
+
+Projekt ma **schemat v17**, z opcjonalnym `captionEdits[id].textTiming`: `inherited` z podstawą `sourceText` albo świadome `board`. Nowych timestampów nie zapisuje się w tym polu: pozostają w surowej transkrypcji i są mapowane wspólnie po czasie źródła. Migrowane v1–v16 nie odzyskują automatycznie timingów starych korekt. Zachowaj kopię przed zapisem — wersja 0.34 nie otworzy v17. Styl, font, surowe słowa, inne napisy, obraz i miks pozostają niezależne od poprawki. Biblioteka Moje style pozostaje w katalogu v1, poza projektem.
+
+Lokalnie: **435 TS, 123 core Rust, 27 rzeczywistych integracji** i build. Pełny Windows/WebView2 oraz odbiór instalatora tego etapu są w toku. Polskie dane nowego scenariusza są jawnie syntetyczne; poprzednia referencja rzeczywistej mowy/Whisper pozostaje angielska. Nie przedstawiać etapu a jako ukończonego pełnego 0.35. Poniżej wcześniejsze sprawdzone wydanie.
+
 # RolVixa 0.34 — Moje style i fonty (a/b/c)
 
 **[Pobierz instalator Windows x64 — ZIP](https://github.com/ankelmarek/AutoNapisy/actions/runs/39430603694/artifacts/12268104824)**. Zaloguj się na GitHub, pobierz i rozpakuj ZIP, zamknij aplikację i uruchom `RolVixa_0.34.0_x64-setup.exe`. To kompletne 0.34a/b/c. Schemat pozostaje v16, zgodny z projektami 0.34a/b.

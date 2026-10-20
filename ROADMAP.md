@@ -1,5 +1,12 @@
 # Kolejne etapy RolVixa
 
+## P0 — RolVixa 0.35a: korekta 1:1 (implementacja i odbiór w toku)
+
+Po ukończonym 0.34a/b/c użytkownik zatwierdził budowę etapu a z [issue #27](https://github.com/ankelmarek/AutoNapisy/issues/27). Korekta zachowuje istniejące czasy tylko przy jednoznacznych pozycjach; UI wskazuje odziedziczone pochodzenie bez deklaracji nowej zgodności z nagraniem. Ręcznie wybrana plansza jest trwała, a niepewne zmiany zachowują fallback. Lokalny draft i jeden Undo, schemat v17/migracje TS/Rust, zegary źródła oraz wspólne preview/MP4/SRT/A-B. Lokalnie 435 TS, 123 core Rust, 27 integracji i build. Windows/WebView2/instalator w weryfikacji.
+
+To **tylko etap a**. 0.35b (zmiana liczby słów, POC lokalnego alignment PL/manualny fallback) i 0.35c (rzeczywisty polski materiał/pełny odbiór) pozostają osobnymi etapami. Nie uruchamiać ASR podczas pisania ani tworzyć czasów niewypowiedzianych słów. W nowym UI użyto syntetycznych polskich napisów; prawdziwa referencja mowy/Whisper w regresji pozostaje angielska.
+
+
 ## RolVixa 0.34a/b/c wdrożone — następny plan: 0.35a
 
 **Decyzja użytkownika 20.10.2026.** Po scalonym 0.33a/b/c najbliższy priorytet UX to **uporządkowanie całej obsługi napisów**, przed kolejnymi dużymi nowościami. Pełne wymagania, scenariusze i testy: **[issue #24 — 0.34 Caption Styles UX](https://github.com/ankelmarek/AutoNapisy/issues/24)**. Etapy 0.34a/b/c wdrożono i sprawdzono osobno. **Odbiór użytkownika 20.10.2026:** użytkownik potwierdził praktyczny test wersji 0.33 na rzeczywistym polskim materiale: „wszystko działa idealnie”. Odbiór manualny jest pozytywny. To relacja użytkownika, nie nowy raport z CI ani osobno udokumentowany przebieg polskiego Whisper. Etapy 0.34a/b/c wykonano na podstawie tego odbioru.

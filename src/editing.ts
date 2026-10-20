@@ -2,6 +2,7 @@ import {routedAudio,trackId,tracksOf,videoRank} from './trackModel';
 import type { Project } from './model';
 import type {AudioEnvelope} from './audioEnvelope';
 import {presentationClips} from './effects';
+import {inheritCaptionWords} from './captionTiming';
 export type Clip = { id: string; sourceIn: number; sourceOut: number; start: number; assetId?: string; track?: number; audioRoute?:string; kind?: "video"|"audio"; volume?: number; audio?:AudioEnvelope; audioDetached?:boolean; syncGroup?:string; crossfade?:{fadeIn?:import("./audioEnvelope").Fade;fadeOut?:import("./audioEnvelope").Fade}; transform?: {scale:number;x:number;y:number}; adjustments?: {brightness:number;contrast:number;saturation:number} };
 export const MIN_CLIP = 0.05;
 export const clipEnd = (c: Clip) => c.start + c.sourceOut - c.sourceIn;
@@ -81,7 +82,9 @@ export function compositionSegments(p: Project): EditedSegment[] {
   })).flatMap(s=>{
     const patch=p.captionEdits[s.id];if(patch?.hidden)return [];
     const offset=patch?.offset??0,start=Math.max(0,s.start+(patch?.trimStart??0)+offset),end=Math.min(total,s.end-(patch?.trimEnd??0)+offset);if(end<=start||(patch&&end-start<.049999))return [];
-    const words=patch&&(patch.text!==undefined||patch.trimStart>0||patch.trimEnd>0)?[]:s.words.map(w=>({...w,start:w.start+offset,end:w.end+offset})).filter(w=>w.start<end&&w.end>start).map(w=>({...w,start:Math.max(start,w.start),end:Math.min(end,w.end)}));
+    const inherited=patch?.text!==undefined&&patch.textTiming?.mode==='inherited'&&patch.textTiming.sourceText===s.text?inheritCaptionWords(s,patch.text):null;
+    const timed=patch&&(patch.trimStart>0||patch.trimEnd>0||patch.textTiming?.mode==='board')?[]:patch?.text!==undefined?(inherited??[]):s.words;
+    const words=timed.map(w=>({...w,start:w.start+offset,end:w.end+offset})).filter(w=>w.start<end&&w.end>start).map(w=>({...w,start:Math.max(start,w.start),end:Math.min(end,w.end)}));
     return [{...s,styleId:patch?.styleId??s.styleId,start,end,words,text:patch?.text??s.text}];
   });
 }
