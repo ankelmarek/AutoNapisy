@@ -8,7 +8,7 @@ Jednoznaczna korekta z taką samą liczbą słów zachowuje istniejące przedzia
 
 Projekt ma **schemat v17**, z opcjonalnym `captionEdits[id].textTiming`: `inherited` z podstawą `sourceText` albo świadome `board`. Nowych timestampów nie zapisuje się w tym polu: pozostają w surowej transkrypcji i są mapowane wspólnie po czasie źródła. Migrowane v1–v16 nie odzyskują automatycznie timingów starych korekt. Zachowaj kopię przed zapisem — wersja 0.34 nie otworzy v17. Styl, font, surowe słowa, inne napisy, obraz i miks pozostają niezależne od poprawki. Biblioteka Moje style pozostaje w katalogu v1, poza projektem.
 
-Lokalnie: **435 TS, 123 core Rust, 27 rzeczywistych integracji** i build. Pełny Windows/WebView2 oraz odbiór instalatora tego etapu są w toku. Polskie dane nowego scenariusza są jawnie syntetyczne; poprzednia referencja rzeczywistej mowy/Whisper pozostaje angielska. Nie przedstawiać etapu a jako ukończonego pełnego 0.35. Poniżej wcześniejsze sprawdzone wydanie.
+Lokalnie: **437 TS, 123 core Rust, 27 rzeczywistych integracji** i build. Pełny Windows/WebView2 oraz odbiór instalatora tego etapu są w toku. Polskie dane nowego scenariusza są jawnie syntetyczne; poprzednia referencja rzeczywistej mowy/Whisper pozostaje angielska. Nie przedstawiać etapu a jako ukończonego pełnego 0.35. Poniżej wcześniejsze sprawdzone wydanie.
 
 # RolVixa 0.34 — Moje style i fonty (a/b/c)
 

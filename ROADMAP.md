@@ -2,7 +2,7 @@
 
 ## P0 — RolVixa 0.35a: korekta 1:1 (implementacja i odbiór w toku)
 
-Po ukończonym 0.34a/b/c użytkownik zatwierdził budowę etapu a z [issue #27](https://github.com/ankelmarek/AutoNapisy/issues/27). Korekta zachowuje istniejące czasy tylko przy jednoznacznych pozycjach; UI wskazuje odziedziczone pochodzenie bez deklaracji nowej zgodności z nagraniem. Ręcznie wybrana plansza jest trwała, a niepewne zmiany zachowują fallback. Lokalny draft i jeden Undo, schemat v17/migracje TS/Rust, zegary źródła oraz wspólne preview/MP4/SRT/A-B. Lokalnie 435 TS, 123 core Rust, 27 integracji i build. Windows/WebView2/instalator w weryfikacji.
+Po ukończonym 0.34a/b/c użytkownik zatwierdził budowę etapu a z [issue #27](https://github.com/ankelmarek/AutoNapisy/issues/27). Korekta zachowuje istniejące czasy tylko przy jednoznacznych pozycjach; UI wskazuje odziedziczone pochodzenie bez deklaracji nowej zgodności z nagraniem. Ręcznie wybrana plansza jest trwała, a niepewne zmiany zachowują fallback. Lokalny draft i jeden Undo, schemat v17/migracje TS/Rust, zegary źródła oraz wspólne preview/MP4/SRT/A-B. Lokalnie 437 TS, 123 core Rust, 27 integracji i build. Windows/WebView2/instalator w weryfikacji.
 
 To **tylko etap a**. 0.35b (zmiana liczby słów, POC lokalnego alignment PL/manualny fallback) i 0.35c (rzeczywisty polski materiał/pełny odbiór) pozostają osobnymi etapami. Nie uruchamiać ASR podczas pisania ani tworzyć czasów niewypowiedzianych słów. W nowym UI użyto syntetycznych polskich napisów; prawdziwa referencja mowy/Whisper w regresji pozostaje angielska.
 

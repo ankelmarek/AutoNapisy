@@ -7,6 +7,8 @@ import {captionExport} from '../src/captions';
 import {captionMotion,synchronizedWords} from '../src/captionAnimation';
 import {presetStyle,animatedPresets} from '../src/captionPresets';
 import {historyReducer} from '../src/useHistory';
+import {captionRipple} from '../src/ripple';
+import {planSmartCut} from '../src/smartCut';
 const phrase='Dzisiaj otwieramy nową drogę';
 const segment=(text=phrase)=>({id:'pl',text,start:0,end:4,styleId:'default',words:text.split(' ').map((text,i)=>({text,start:i+.1,end:i+.8}))});
 function sample():Project{const p=newProject();return {...p,media:{path:'Łódź.mp4',name:'Łódź',duration:12},clips:[{id:'video',sourceIn:0,sourceOut:6,start:0}],timelineSegments:[segment()],styles:{default:presetStyle(p.styles.default,'karaoke-flow')}};}
@@ -56,6 +58,13 @@ describe('0.35a positional correction, not forced alignment',()=>{
   expect(()=>parseProject(JSON.stringify({...p,captionEdits:{x:{trimStart:0,trimEnd:0,textTiming:{mode:'board'}}}}))).toThrow();
  });
  it('protects track lock for correction and explicit timing mode',()=>{const p=sample();p.tracks.T={locked:true};const s=compositionSegments(p)[0];expect(()=>editCaption(p,s,{text:'Poprawione'})).toThrow();expect(()=>setCaptionTiming(p,s,'board')).toThrow();});
+ it('materializes a translated caption through Ripple without losing correction provenance or shifting words twice',()=>{
+  let p=sample();p=editCaption(p,compositionSegments(p)[0],{text:'Dzisiaj rozpoczynamy nową drogę'});p=moveCaption(p,compositionSegments(p)[0],2);p={...p,clips:p.clips!.map(c=>({...c,sourceOut:5}))};const q=captionRipple(p,.5,1.5,-1),s=compositionSegments(q)[0];expect(s.text).toBe('Dzisiaj rozpoczynamy nową drogę');expect(s.words[1].start).toBeCloseTo(2.1);expect(captionTimingState(q,s)).toBe('inherited');expect(q.timelineSegments![0].text).toBe(phrase);expect(parseProject(serializeProject(q)).captionEdits[s.id].textTiming?.mode).toBe('inherited');
+  const board=setCaptionTiming(p,compositionSegments(p)[0],'board'),b=captionRipple(board,.5,1.5,-1);expect(captionTimingState(b,compositionSegments(b)[0])).toBe('board');
+ });
+ it('retains the explicit timing decision when SmartCut remaps an unchanged source phrase',()=>{
+  let p=sample();p.timelineSegments=null;p.rippleEnabled=true;p.clips![0].sourceOut=8;p.segments=[{...segment(),start:2,end:6,words:segment().words.map(w=>({...w,start:w.start+2,end:w.end+2}))}];p=editCaption(p,compositionSegments(p)[0],{text:'Dzisiaj rozpoczynamy nową drogę'});const plan=planSmartCut(p,{kind:'range',id:'video',from:0,to:1},{ripple:true,captions:true,token:'correction'});expect(plan.conflicts).toEqual([]);const s=compositionSegments(plan.next)[0];expect(s.text).toBe('Dzisiaj rozpoczynamy nową drogę');expect(s.words[1].start).toBeCloseTo(2.1);expect(captionTimingState(plan.next,s)).toBe('inherited');
+ });
  it.each(animatedPresets)('retains $name and its Off/On word clock after an inherited correction',preset=>{
   const p=sample();p.styles.default=presetStyle(p.styles.default,preset.id);const q=editCaption(p,compositionSegments(p)[0],{text:'Dzisiaj rozpoczynamy nową drogę'}),s=compositionSegments(q)[0],exported=captionExport(compositionProject(q)).segments[0];expect(synchronizedWords(exported,q.styles.default)).toBe(true);expect(captionMotion(s,q.styles.default,1.2)).toMatchObject({active:1,fallback:false});expect(captionMotion(s,{...q.styles.default,animation:{...q.styles.default.animation!,enabled:false}},1.2)).toMatchObject({active:-1,fallback:false});expect(q.styles).toBe(p.styles);
  });

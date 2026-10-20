@@ -8,7 +8,7 @@ Schemat v17: opcjonalne `captionEdits.textTiming` = `{mode:'inherited',sourceTex
 
 `CaptionTextEditor` ma lokalny draft, zatwierdzenie Ctrl+Enter/przyciskiem/wyjściem, Esc/Anuluj, jeden Undo; Ctrl+S/Open/New/export/close pobierają bieżący draft przez commitPendingCaption. Reset draftu po zmianie tekstu odbywa się przed kolejnymi zdarzeniami, także po Undo. Open/New/recovery mają nowy key sesji. T lock chroni korektę i tryb czasowania. Fabryki/renderer, style, miks i własna biblioteka 0.34 bez zmiany. Testy starych fixture'ów nadal oznaczają ich historyczne wersje, oczekują migracji do v17.
 
-Lokalnie 435 TS, 123 core Rust, 27 integracji i build. Windows, MP4/A-B/SRT, ekran laptop/FHD oraz instalator 0.35.0-alpha.1 wymagają pełnego sprawdzenia. **0.35a jest w weryfikacji; 0.35b/c nie wdrożono.**
+Lokalnie 437 TS, 123 core Rust, 27 integracji i build. Windows, MP4/A-B/SRT, ekran laptop/FHD oraz instalator 0.35.0-alpha.1 wymagają pełnego sprawdzenia. **0.35a jest w weryfikacji; 0.35b/c nie wdrożono.**
 
 
 ## Aktualny stan — 0.34a/b/c wdrożone; następny plan to 0.35a (20.10.2026)
