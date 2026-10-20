@@ -232,3 +232,19 @@ footer{display:flex;gap:12px;align-items:center;justify-content:space-between}fo
 .caption-selection-count { margin: 0 0 6px; color: #eee; font-size: 12px; }
 .caption-mixed-note,.caption-multiple-note { padding: 8px 10px; border: 1px solid #555344; border-radius: 7px; background: #29291e; color: #eee3b1; font-size: 12px; }
 .caption-options-preview[hidden] { display: none; }
+
+.caption-own-card { min-width:0; border:1px solid #384052; border-radius:9px; overflow:hidden; }
+.caption-own-card>button { width:100%; border:0; border-radius:0; }
+.caption-own-actions { display:flex; gap:4px; justify-content:flex-end; padding:5px; background:#151b29; }
+.caption-own-actions button { padding:5px 9px; }
+.caption-own-presets>.hint { padding:10px; border:1px dashed #43495c; border-radius:8px; }
+.caption-library-save { margin:10px 0; }
+.caption-library-save>button { width:100%; display:flex; align-items:center; justify-content:center; gap:7px; }
+.caption-preset-dialog { width:min(420px,calc(100vw - 40px)); padding:22px; color:#e9edf5; background:#171c28; border:1px solid #59627b; border-radius:12px; }
+.caption-preset-dialog::backdrop { background:#05070bc9; }
+.caption-preset-dialog h2 { margin:0 0 18px; font-size:18px; }
+.caption-preset-dialog label { display:grid; gap:7px; }
+.caption-preset-dialog input { width:100%; box-sizing:border-box; }
+.caption-preset-dialog footer { display:flex; justify-content:flex-end; gap:8px; margin-top:18px; }
+.caption-font-warning { padding:8px; color:#ffe49a; background:#35301f; border-radius:7px; font-size:11px; line-height:1.5; }
+.caption-font-warning button { margin-top:5px; font-size:11px; }

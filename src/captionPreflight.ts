@@ -1,3 +1,4 @@
+import {captionFontFamily,knownCaptionFont,fontFallbackMessage} from './captionFonts';
 import type {Project} from './model';
 import {compositionProject} from './editing';
 import {captionExport} from './captions';
@@ -10,7 +11,7 @@ export type CaptionBounds={left:number;top:number;right:number;bottom:number};
 /** Uses the same wrapping, font metrics and baseline as the actual PNG renderer. */
 export function captionBounds(text:string,style:Project['styles'][string],width:number,height:number):CaptionBounds{
  const box=layoutCaption(text,style,width,height),canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');if(!ctx)throw Error('Nie można zmierzyć napisów');
- ctx.font=`${box.fontSize}px "${style.fontFamily}"`;ctx.textAlign='center';ctx.textBaseline='alphabetic';ctx.fontKerning='normal';
+ ctx.font=`${box.fontSize}px ${captionFontFamily(style.fontFamily)}`;ctx.textAlign='center';ctx.textBaseline='alphabetic';ctx.fontKerning='normal';
  const x=(width-box.boxWidth)/2,y=style.position==='top'?height*style.marginPercent/100:style.position==='center'?(height-box.boxHeight)/2:height*(1-style.marginPercent/100)-box.boxHeight;
  const metrics=ctx.measureText('Mg'),ascent=metrics.fontBoundingBoxAscent??box.fontSize*.8,descent=metrics.fontBoundingBoxDescent??box.fontSize*.2,lineHeight=box.fontSize*1.04,baseline=y+box.paddingY+(lineHeight-ascent-descent)/2+ascent;
  const result=style.effect==='outline'?{left:Infinity,right:-Infinity,top:Infinity,bottom:-Infinity}:{left:x,right:x+box.boxWidth,top:y,bottom:y+box.boxHeight};
@@ -36,6 +37,7 @@ export function animatedCaptionBounds(card:CaptionCard,style:Project['styles'][s
 }
 export function captionPreflight(p:Project,width:number,height:number,margins:Margins|null):PreflightIssue[]{
  if(!width||!height)return[];const snapshot=captionExport(compositionProject(p)),out:PreflightIssue[]=[],cache=new Map<string,CaptionBounds>();
+ const families=new Set(snapshot.segments.map(s=>snapshot.styles[s.styleId].fontFamily));for(const f of families)if(knownCaptionFont(f)?.available===false)out.push({severity:'warning',kind:'caption',message:fontFallbackMessage(f)});
  for(const s of snapshot.segments){const style=snapshot.styles[s.styleId],key=JSON.stringify([s.text,s.words,style]);let b=cache.get(key);if(!b){b=animatedCaptionBounds(s,style,width,height);cache.set(key,b);}
   if(b.left< -.5||b.top< -.5||b.right>width+.5||b.bottom>height+.5)out.push({severity:'warning',kind:'caption',time:s.start,end:s.end,message:'Napis wychodzi poza kadr i może zostać ucięty.'});
   else if(margins&&(b.left<width*margins.left/100||b.right>width*(1-margins.right/100)||b.top<height*margins.top/100||b.bottom>height*(1-margins.bottom/100)))out.push({severity:'warning',kind:'caption',time:s.start,end:s.end,message:'Napis wychodzi poza wybraną strefę bezpieczną.'});

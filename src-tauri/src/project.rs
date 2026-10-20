@@ -394,6 +394,40 @@ fn valid_time(t: f64) -> bool {
 fn color(c: &str) -> bool {
     c.len() == 7 && c.starts_with('#') && c[1..].bytes().all(|b| b.is_ascii_hexdigit())
 }
+pub fn validate_style(s: &Style) -> Result<(), String> {
+        if let Some(a) = &s.animation {
+            if a.version != 1 || !["karaoke-flow", "pop-beat", "impact", "neon", "slide-reveal", "marker", "editorial", "type-flow"].contains(&a.preset.as_str()) || !color(&a.accent_color) || !a.speed.is_finite() || !(0.5..=2.).contains(&a.speed) || !a.intensity.is_finite() || !(0.0..=1.).contains(&a.intensity) { return Err("Nieprawidłowa animacja napisów".into()); }
+        }
+        if s.effect
+            .as_ref()
+            .is_some_and(|e| !["box", "outline", "highlight"].contains(&e.as_str()))
+            || s.outline_color.as_ref().is_some_and(|c| !color(c))
+            || s.outline_width
+                .is_some_and(|v| !v.is_finite() || !(0.0..=8.0).contains(&v))
+        {
+            return Err("Nieprawidłowy efekt napisów".into());
+        }
+        if s.font_family.is_empty()
+            || s.font_family.chars().count() > 100
+            || !s.font_size.is_finite()
+            || !(12.0..=100.0).contains(&s.font_size)
+            || !(1..=3).contains(&s.max_lines)
+            || !(12..=48).contains(&s.chars_per_line)
+            || !(3..=16).contains(&s.words_per_card)
+            || !s.box_width.is_finite()
+            || !(40.0..=95.0).contains(&s.box_width)
+            || !s.corner_radius.is_finite()
+            || !(0.0..=60.0).contains(&s.corner_radius)
+            || !s.margin_percent.is_finite()
+            || !(0.0..=30.0).contains(&s.margin_percent)
+            || !color(&s.color)
+            || !color(&s.background)
+            || !["bottom", "center", "top"].contains(&s.position.as_str())
+        {
+            return Err("Niepoprawny styl".into());
+        }
+    Ok(())
+}
 pub fn parse(json: &str) -> Result<Project, String> {
     let raw: serde_json::Value =
         serde_json::from_str(json).map_err(|e| format!("Niepoprawny JSON projektu: {e}"))?;
@@ -694,39 +728,7 @@ pub fn parse(json: &str) -> Result<Project, String> {
             return Err("Niepoprawne dane filmu".into());
         }
     }
-    for s in p.styles.values() {
-        if let Some(a) = &s.animation {
-            if a.version != 1 || !["karaoke-flow", "pop-beat", "impact", "neon", "slide-reveal", "marker", "editorial", "type-flow"].contains(&a.preset.as_str()) || !color(&a.accent_color) || !a.speed.is_finite() || !(0.5..=2.).contains(&a.speed) || !a.intensity.is_finite() || !(0.0..=1.).contains(&a.intensity) { return Err("Nieprawidłowa animacja napisów".into()); }
-        }
-        if s.effect
-            .as_ref()
-            .is_some_and(|e| !["box", "outline", "highlight"].contains(&e.as_str()))
-            || s.outline_color.as_ref().is_some_and(|c| !color(c))
-            || s.outline_width
-                .is_some_and(|v| !v.is_finite() || !(0.0..=8.0).contains(&v))
-        {
-            return Err("Nieprawidłowy efekt napisów".into());
-        }
-        if s.font_family.is_empty()
-            || s.font_family.chars().count() > 100
-            || !s.font_size.is_finite()
-            || !(12.0..=100.0).contains(&s.font_size)
-            || !(1..=3).contains(&s.max_lines)
-            || !(12..=48).contains(&s.chars_per_line)
-            || !(3..=16).contains(&s.words_per_card)
-            || !s.box_width.is_finite()
-            || !(40.0..=95.0).contains(&s.box_width)
-            || !s.corner_radius.is_finite()
-            || !(0.0..=60.0).contains(&s.corner_radius)
-            || !s.margin_percent.is_finite()
-            || !(0.0..=30.0).contains(&s.margin_percent)
-            || !color(&s.color)
-            || !color(&s.background)
-            || !["bottom", "center", "top"].contains(&s.position.as_str())
-        {
-            return Err("Niepoprawny styl".into());
-        }
-    }
+    for s in p.styles.values() { validate_style(s)?; }
     if !p.styles.contains_key("default") {
         return Err("Brak stylu domyślnego".into());
     }

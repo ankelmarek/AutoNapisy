@@ -18,6 +18,7 @@ export default function ExportComparison({project,options,time,onClose,onChoose,
   if(controller.current)return;cancel();const abort=new AbortController();controller.current=abort;const key=crypto.randomUUID();session.current=key;setReport(null);setError('');setBusy(true);setProgress(null);setMessage('Sprawdzanie źródeł i zakresu…');
   const check=()=>{if(abort.signal.aborted)throw new DOMException('Anulowano','AbortError');};
   try{
+   await ensureCaptionFonts(project);check();
    const captions=captionExport(compositionProject(project));
    const prepared=await invoke<{width:number;height:number;frames:number[];totalFrames:number;animation?:CaptionUpload|null}>('studio_sample_begin',{key,json:serializeProject(project),captions:JSON.stringify(captions.segments),options,start,duration});check();
    if(prepared.totalFrames!==captions.segments.length)throw Error('Niezgodne napisy próbki');

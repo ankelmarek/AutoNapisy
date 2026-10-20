@@ -1,15 +1,11 @@
+import {captionFontFamily,inspectCaptionFont} from './captionFonts';
 import type {CaptionStyle} from "./captions";
 import {layoutCaption} from "./captionLayout";
 export {layoutCaption} from "./captionLayout";
 import {createAnimatedCaptionRenderer} from "./animatedCaptionCanvas";
 import type { Project } from "./model";
 export async function ensureCaptionFonts(project: Project) {
-  await Promise.all(
-    Object.values(project.styles).map((style) =>
-      document.fonts.load(`24px "${style.fontFamily}"`).catch(() => []),
-    ),
-  );
-  await document.fonts.ready;
+  await Promise.all([...new Set(Object.values(project.styles).map(s=>s.fontFamily))].map(inspectCaptionFont));
 }
 export function createFrameRenderer(width: number, height: number) {
   const canvas = document.createElement("canvas");
@@ -71,7 +67,7 @@ export function drawStaticCaption(canvas:HTMLCanvasElement,text:string,style:Cap
     ctx.arcTo(x, y, x + box.boxWidth, y, radius);
     ctx.closePath();
     if(style.effect!=='outline')ctx.fill();
-    ctx.font = `${box.fontSize}px "${style.fontFamily}"`;
+    ctx.font = `${box.fontSize}px ${captionFontFamily(style.fontFamily)}`;
     ctx.fillStyle = style.color;
     ctx.textAlign = "center";
     ctx.textBaseline = "alphabetic";

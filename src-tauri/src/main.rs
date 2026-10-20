@@ -1,4 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+mod caption_presets;
+mod caption_preset_commands;
 mod caption_stream;
 mod caption_upload_commands;
 mod caption_poc_commands;
@@ -234,6 +236,8 @@ fn main() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            caption_preset_commands::caption_presets,
+            caption_preset_commands::mutate_caption_preset,
             caption_upload_commands::upload_caption_rgba,
             caption_poc_commands::caption_poc_begin,
             caption_poc_commands::caption_poc_frame,

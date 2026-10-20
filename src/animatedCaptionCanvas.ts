@@ -1,3 +1,4 @@
+import {captionFontFamily} from './captionFonts';
 import {layoutCaption} from './captionLayout';
 import type {CaptionCard,CaptionStyle} from './captions';
 import {captionMotion,captionEase} from './captionAnimation';
@@ -26,7 +27,7 @@ export function createAnimatedCaptionRenderer(canvas:HTMLCanvasElement){
    const enter=captionEase((t-groupStart)/Math.max(.1,Math.min(.22,.16/speed))),scale=1-.14*(1-enter)*intensity;
    ctx.translate(width/2,y+box.boxHeight/2);ctx.scale(scale,scale);ctx.translate(-width/2,-y-box.boxHeight/2);
   }
-  ctx.font=`${box.fontSize}px "${style.fontFamily}"`;ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.fontKerning='normal';ctx.lineJoin='round';
+  ctx.font=`${box.fontSize}px ${captionFontFamily(style.fontFamily)}`;ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.fontKerning='normal';ctx.lineJoin='round';
   const metrics=ctx.measureText('Mg'),ascent=metrics.fontBoundingBoxAscent??box.fontSize*.8,descent=metrics.fontBoundingBoxDescent??box.fontSize*.2,lh=box.fontSize*1.04,baseline=y+box.paddingY+(lh-ascent-descent)/2+ascent;
   const started=card.words?.some(w=>w.start<=t)??false;
   if(style.effect!=='outline'&&(preset!=='type-flow'||!moving||motion.fallback||started)){

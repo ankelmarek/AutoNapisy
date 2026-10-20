@@ -1,3 +1,4 @@
+import {captionFontFamily} from './captionFonts';
 import {wrapCaption,type CaptionStyle} from "./captions";
 /** Shared font metrics and layout for DOM preview and video bitmaps. */
 export function layoutCaption(
@@ -11,7 +12,7 @@ export function layoutCaption(
   const canvas = document.createElement("canvas"),
     ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Nie można uruchomić renderowania plansz");
-  ctx.font = `${base}px "${style.fontFamily}"`;
+  ctx.font = `${base}px ${captionFontFamily(style.fontFamily)}`;
   const measure = (s: string) => ctx.measureText(s).width;
   const paddingX = Math.min(base * (style.effect==='highlight'?.25:.55), width * 0.06),
     paddingY = Math.min(base * (style.effect==='highlight'?.08:.4), height * 0.1);
@@ -25,7 +26,7 @@ export function layoutCaption(
       (base * Math.max(lines.length, 1) * 1.04),
   );
   const fontSize = base * fontScale;
-  ctx.font = `${fontSize}px "${style.fontFamily}"`;
+  ctx.font = `${fontSize}px ${captionFontFamily(style.fontFamily)}`;
   const lineWidths = lines.map((s) => ctx.measureText(s).width);
   return {
     lines,

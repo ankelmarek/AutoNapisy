@@ -1,3 +1,6 @@
+import {useCaptionPresetLibrary,CaptionPresetDialog,type PresetDialogAction} from './CaptionPresetManager';
+import CaptionFontSelect,{CaptionFontNotice} from './CaptionFontSelect';
+import type {PresetMutation} from './captionPresetLibrary';
 import {mixedCaptionStyles} from './captionSelection';
 import {useEffect,useMemo,useRef,useState,useId} from 'react';
 import type {Project} from './model';
@@ -9,28 +12,31 @@ import CaptionPresetPreview from './CaptionPresetPreview';
 import Icon from './Icons';
 
 export default function CaptionStyleInspector({project,selectedIds,visible,locked,onChange}:{project:Project;selectedIds:string[];visible:boolean;locked:boolean;onChange:(p:Project)=>void}){
+ const library=useCaptionPresetLibrary(),[presetDialog,setPresetDialog]=useState<PresetDialogAction|null>(null),[notice,setNotice]=useState(''),[choice,setChoice]=useState<string|null>(null);
  const segments=useMemo(()=>compositionSegments(project),[project]),selected=useMemo(()=>{const ids=new Set(selectedIds);return segments.filter(s=>ids.has(s.id));},[segments,selectedIds]),selectionKey=JSON.stringify(selectedIds);
  const [scope,setScope]=useState<'all'|'selected'>('selected'),[draft,setDraft]=useState<CaptionStyle>(selected[0]?project.styles[selected[0].styleId]:project.styles.default),[dirty,setDirty]=useState(false),[error,setError]=useState(''),[active,setActive]=useState<string|null>(null),[demos,setDemos]=useState(true),[reduced,setReduced]=useState(false),[pageHidden,setPageHidden]=useState(document.hidden),[intersecting,setIntersecting]=useState(true),[pane,setPane]=useState<'styles'|'options'>('styles');
- const baseStyles=useMemo(()=>Object.fromEntries([...classicPresets.map(p=>[p.id,classicPresetStyle(p.id)]),...animatedPresets.map(p=>[p.id,presetStyle(project.styles.default,p.id)])]),[project.styles.default]);
+ const baseStyles=useMemo(()=>Object.fromEntries([...classicPresets.map(p=>[p.id,classicPresetStyle(p.id)]),...animatedPresets.map(p=>[p.id,presetStyle(project.styles.default,p.id)]),...(library.catalog?.entries??[]).map(p=>[p.id,p.style])]),[project.styles.default,library.catalog]);
  const gallery=useRef<HTMLDivElement>(null),tabs=useRef<HTMLDivElement>(null),drafts=useRef(new Map<string,CaptionStyle>()),instance=useId(),targets=scope==='all'?segments:selected,actual=targets[0]?project.styles[targets[0].styleId]:project.styles.default,actualKey=JSON.stringify(actual),lastSelection=useRef(selectionKey),mixed=useMemo(()=>mixedCaptionStyles(targets.map(s=>project.styles[s.styleId])),[targets,project.styles]);
- useEffect(()=>{if(lastSelection.current!==selectionKey){lastSelection.current=selectionKey;drafts.current.clear();setScope('selected');setDraft(selected[0]?project.styles[selected[0].styleId]:project.styles.default);setDirty(false);setError('');}},[selectionKey]);
- useEffect(()=>{if(!dirty){setDraft(actual);drafts.current.clear();}},[actualKey,dirty]);
+ useEffect(()=>{if(lastSelection.current!==selectionKey){lastSelection.current=selectionKey;drafts.current.clear();setScope('selected');setChoice(null);setDraft(selected[0]?project.styles[selected[0].styleId]:project.styles.default);setDirty(false);setError('');}},[selectionKey]);
+ useEffect(()=>{if(!dirty){setDraft(actual);setChoice(null);drafts.current.clear();}},[actualKey,dirty]);
  useEffect(()=>{const media=matchMedia('(prefers-reduced-motion: reduce)'),update=()=>setReduced(media.matches),visibility=()=>setPageHidden(document.hidden);update();media.addEventListener('change',update);document.addEventListener('visibilitychange',visibility);return()=>{media.removeEventListener('change',update);document.removeEventListener('visibilitychange',visibility);};},[]);
  useEffect(()=>{if(!gallery.current){setIntersecting(true);return;}const o=new IntersectionObserver(([entry])=>setIntersecting(entry.isIntersecting));o.observe(gallery.current);return()=>o.disconnect();},[pane]);
  useEffect(()=>{if(!visible)setActive(null);},[visible]);
- const disabled=locked||!!project.tracks.T?.locked,canAnimate=visible&&!disabled&&intersecting&&!pageHidden&&!reduced&&demos,currentId=mixed&&!dirty?null:visualCaptionPreset(draft);
- const update=(patch:Partial<CaptionStyle>)=>{setDraft(s=>{const next={...s,...patch},id=visualCaptionPreset(s);if(id)drafts.current.set(id,next);return next;});setDirty(true);setError('');};
+ const disabled=locked||!!project.tracks.T?.locked,canAnimate=visible&&!disabled&&intersecting&&!pageHidden&&!reduced&&demos,currentId=mixed&&!dirty?null:choice??library.catalog?.entries.find(e=>!mixedCaptionStyles([e.style,draft]))?.id??visualCaptionPreset(draft);
+ const update=(patch:Partial<CaptionStyle>)=>{setDraft(s=>{const next={...s,...patch},id=currentId??visualCaptionPreset(s);if(id)drafts.current.set(id,next);return next;});setDirty(true);setError('');};
  const animation=(patch:Partial<NonNullable<CaptionStyle['animation']>>)=>{if(draft.animation)update({animation:{...draft.animation,...patch}});};
- const choose=(id:string)=>{if(currentId)drafts.current.set(currentId,draft);setDraft(drafts.current.get(id)??baseStyles[id]);setDirty(true);setError('');};
+ const choose=(id:string)=>{if(currentId)drafts.current.set(currentId,draft);setChoice(id);setDraft(drafts.current.get(id)??baseStyles[id]);setDirty(true);setError('');};
  const apply=()=>{if(!dirty||(scope==='selected'&&!targets.length))return;try{onChange(applyCaptionStyle(project,draft,scope==='all'?null:targets.map(s=>s.id)));setDirty(false);setError('');drafts.current.clear();}catch(e){setError(String(e));}};
+ const savePreset=async(op:PresetMutation)=>{const c=await library.mutate(op);if(op.kind==='create'){setChoice(c.entries.at(-1)!.id);setNotice('Zapisano styl w bibliotece. Zastosuj go osobno do napisów.');}else setNotice(op.kind==='delete'?'Usunięto szablon. Napisy zachowały swój styl.':'Zapisano zmianę w bibliotece.');};
  const fallback=useMemo(()=>hasCaptionMotion(draft)?targets.filter(s=>!synchronizedWords(s,draft)).length:0,[draft,segments,scope,selectionKey]);
- const tile=(p:{id:string;name:string;description:string})=>{const chosen=currentId===p.id,s=chosen?draft:drafts.current.get(p.id)??baseStyles[p.id];return <button type="button" key={p.id} data-caption-preset={p.id} aria-label={p.name} aria-pressed={chosen} disabled={disabled} title={p.description} onMouseEnter={()=>setActive(p.id)} onMouseLeave={e=>{if(document.activeElement!==e.currentTarget)setActive(null);}} onFocus={()=>setActive(p.id)} onBlur={()=>setActive(null)} onClick={()=>choose(p.id)}>
+ const tile=(p:{id:string;name:string;description?:string})=>{const chosen=currentId===p.id,s=chosen?draft:drafts.current.get(p.id)??baseStyles[p.id];return <button type="button" key={p.id} data-caption-preset={p.id} aria-label={p.name} aria-pressed={chosen} disabled={disabled} title={p.description} onMouseEnter={()=>setActive(p.id)} onMouseLeave={e=>{if(document.activeElement!==e.currentTarget)setActive(null);}} onFocus={()=>setActive(p.id)} onBlur={()=>setActive(null)} onClick={()=>choose(p.id)}>
   <CaptionPresetPreview style={s} active={canAnimate&&active===p.id} height={150}/><span>{p.name}{chosen&&<Icon name="check" size={14}/>}</span>
  </button>;};
  return <section className="caption-style-inspector" aria-label="Style napisów">
   <p className="caption-selection-count" role="status">Zaznaczono {selected.length} napisów</p>
   <label>Zastosuj do<select aria-label="Zakres stylu napisów" value={scope} onChange={e=>{setScope(e.target.value as typeof scope);setDirty(false);setError('');drafts.current.clear();}} disabled={disabled}><option value="selected">Zaznaczone ({selected.length})</option><option value="all">Wszystkie ({segments.length})</option></select></label>
   {mixed&&!dirty&&<p className="caption-mixed-note" role="status">Różne style · wybierz kafelek, aby nadać wspólny wygląd.</p>}
+  {pane==='styles'&&!(mixed&&!dirty)&&<CaptionFontNotice family={draft.fontFamily}/>}
   <div className="caption-inspector-tabs" ref={tabs} role="tablist" aria-label="Widok inspektora napisów" onKeyDown={e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();const next=e.key==='Home'?'styles':e.key==='End'?'options':pane==='styles'?'options':'styles';setPane(next);setActive(null);tabs.current?.querySelector<HTMLButtonElement>(`[data-pane=${next}]`)?.focus();}}>
    {(['styles','options'] as const).map(p=><button key={p} id={`${instance}-${p}-tab`} data-pane={p} role="tab" aria-selected={pane===p} aria-controls={`${instance}-${p}-panel`} tabIndex={pane===p?0:-1} onClick={()=>{setPane(p);setActive(null);}}>{p==='styles'?'Style napisów':'Opcje napisów'}</button>)}
   </div>
@@ -40,12 +46,13 @@ export default function CaptionStyleInspector({project,selectedIds,visible,locke
    <div ref={gallery} className="caption-preset-groups" role="group" aria-label="Galeria stylów napisów">
     <h4>Klasyczne</h4><div className="caption-preset-grid" role="group" aria-label="Style klasyczne">{classicPresets.map(tile)}</div>
     <h4>Animowane</h4><div className="caption-preset-grid" role="group" aria-label="Galeria animowanych stylów">{animatedPresets.map(tile)}</div>
+    <h4>Moje style</h4><div className="caption-own-presets" role="group" aria-label="Moje style">{library.catalog?.entries.length?<div className="caption-preset-grid">{library.catalog.entries.map(p=><div className="caption-own-card" key={p.id}>{tile(p)}<div className="caption-own-actions">{(['rename','duplicate','delete'] as const).map(kind=><button key={kind} type="button" disabled={library.busy} aria-label={`${kind==='rename'?'Zmień nazwę stylu':kind==='duplicate'?'Duplikuj styl':'Usuń styl'} ${p.name}`} title={kind==='rename'?'Zmień nazwę':kind==='duplicate'?'Duplikuj':'Usuń'} onClick={()=>setPresetDialog({kind,id:p.id,name:p.name})}><Icon name={kind==='rename'?'rename':kind==='duplicate'?'layers':'trash'} size={15}/></button>)}</div></div>)}</div>:<p className="hint">{library.catalog?'Zapisz dopracowany styl, aby używać go w kolejnych projektach.':library.error?'Biblioteka jest niedostępna. Możesz nadal edytować napisy.':'Wczytywanie biblioteki…'}</p>}</div>
    </div>
    {reduced&&<small>Podglądy nieruchome zgodnie z ustawieniem ograniczonego ruchu.</small>}
   </>:mixed&&!dirty?<p className="caption-mixed-note">Wybierz wspólny styl w galerii przed zmianą jego opcji. <button type="button" onClick={()=>setPane('styles')}>Wybierz styl</button></p>:<div className="caption-options-layout">
-   <div className="caption-options-preview" hidden={mixed&&!dirty}><CaptionPresetPreview style={draft} active={canAnimate} label="Podgląd bieżącego stylu"/><small>Tekst przykładowy · {classicPresets.find(p=>p.id===currentId)?.name??animatedPresets.find(p=>p.id===currentId)?.name??'Styl z projektu'}</small></div>
+   <div className="caption-options-preview" hidden={mixed&&!dirty}><CaptionPresetPreview style={draft} active={canAnimate} label="Podgląd bieżącego stylu"/><small>Tekst przykładowy · {classicPresets.find(p=>p.id===currentId)?.name??animatedPresets.find(p=>p.id===currentId)?.name??library.catalog?.entries.find(e=>e.id===currentId)?.name??'Styl z projektu'}</small></div>
    <fieldset disabled={disabled||(mixed&&!dirty)} className="style-fields">
-    <label>Krój pisma<select aria-label="Krój pisma napisów" value={draft.fontFamily} onChange={e=>update({fontFamily:e.target.value})}>{[...new Set(['Bebas Neue','Arial','Segoe UI','Georgia',draft.fontFamily])].map(f=><option key={f}>{f}</option>)}</select></label>
+    <CaptionFontSelect value={draft.fontFamily} onChange={fontFamily=>update({fontFamily})}/>
     <label>Rozmiar <b>{draft.fontSize}</b><input aria-label="Rozmiar napisów" type="range" min={12} max={100} value={draft.fontSize} onChange={e=>update({fontSize:Number(e.target.value)})}/></label>
     <div className="caption-style-colors"><label>Tekst<input aria-label="Kolor tekstu napisów" type="color" value={draft.color} onChange={e=>update({color:e.target.value})}/></label><label>Tło<input aria-label="Tło napisów" type="color" value={draft.background} onChange={e=>update({background:e.target.value})}/></label><label>Obrys<input aria-label="Kolor obrysu" type="color" value={draft.outlineColor??'#080808'} onChange={e=>update({outlineColor:e.target.value})}/></label></div>
     <label>Wygląd<select aria-label="Wygląd napisów" value={draft.effect??'box'} onChange={e=>update({effect:e.target.value as CaptionStyle['effect']})}><option value="outline">Obrys / przezroczyste tło</option><option value="box">Plansza</option><option value="highlight">Podświetlenie</option></select></label>
@@ -71,6 +78,9 @@ export default function CaptionStyleInspector({project,selectedIds,visible,locke
   </div>
   {fallback>0&&!(mixed&&!dirty)&&<p className="caption-sync-note" role="status">Brak synchronizacji słów — użyto animacji planszy ({fallback} napisów).</p>}
   {disabled&&<p className="hint">Odblokuj ścieżkę napisów, aby zmienić styl.</p>}{error&&<p role="alert" className="error">{error}</p>}
+  <div className="caption-library-save"><button type="button" disabled={disabled||library.busy||!library.catalog||(mixed&&!dirty)} onClick={()=>setPresetDialog({kind:'create',style:structuredClone(draft)})}><Icon name="save" size={15}/> Zapisz jako mój styl…</button></div>
+  {library.error&&<p className="error" role="alert">Biblioteka: {library.error} <button type="button" disabled={library.busy} onClick={()=>void library.refresh().catch(()=>{})}>Odśwież bibliotekę</button></p>}{notice&&<p className="hint" role="status">{notice}</p>}
+  {presetDialog&&<CaptionPresetDialog action={presetDialog} busy={library.busy} onSubmit={savePreset} onClose={()=>setPresetDialog(null)}/>}
   <div className="caption-style-apply"><button className="primary" disabled={disabled||!dirty||(scope==='selected'&&!targets.length)} onClick={apply}><Icon name="check" size={16}/> {pane==='styles'?'Zastosuj styl':'Zastosuj zmiany'}{targets.length?` (${targets.length})`:''}</button>{dirty&&<button onClick={()=>{setDraft(actual);setDirty(false);setError('');drafts.current.clear();}}>Cofnij podgląd</button>}</div>
  </section>;
 }
