@@ -180,7 +180,8 @@ jobs:
       - name: Build instrumented WebView2 test executable
         run: npm run tauri -- build --target x86_64-pc-windows-msvc --no-bundle --features tauri/devtools,ui-tests --config src-tauri/tauri.bundled.conf.json --config src-tauri/tauri.ui-tests.conf.json
       - name: Test real installed Tauri WebView2 editor
-        timeout-minutes: 8
+        # Eight real caption renders plus Full HD export and legacy regressions.
+        timeout-minutes: 15
         run: ./scripts/test-webview.ps1
       - name: Preserve WebView2 screenshots
         if: always() && steps.installation.outcome == 'success'

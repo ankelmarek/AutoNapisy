@@ -1,33 +1,31 @@
 # Kolejne etapy RolVixa
 
-## PRIORYTET NR 1 — RolVixa 0.33: animowane napisy / Animated Captions (DO WDROŻENIA)
+## P0 — RolVixa 0.33 Animated Captions: wdrożone a/b/c, ostatni odbiór PL przed zamknięciem
 
-**Decyzja użytkownika z 19.10.2026:** bezpośrednio po ukończonym 0.32 rozpoczynamy prace nad **efektownymi animowanymi napisami**. To **pierwszy następny etap**, przed kolejnymi nowymi funkcjami audio, kadrowania, AI Assist i kodeków. Szczegółowy projekt i kryteria odbioru w **[GitHub issue #20 — 0.33 Animated Captions](https://github.com/ankelmarek/AutoNapisy/issues/20)**. Nie oznaczać jako ukończone przed pełnym odbiorem Windows, podglądu i eksportu.
+Decyzję użytkownika z 19.10.2026 zrealizowano w trzech osobnych PR: [#21 — silnik i dwa style](https://github.com/ankelmarek/AutoNapisy/pull/21), [#22 — osiem stylów i galeria](https://github.com/ankelmarek/AutoNapisy/pull/22), [#23 — produkcyjny eksport i regresje](https://github.com/ankelmarek/AutoNapisy/pull/23). [Issue #20](https://github.com/ankelmarek/AutoNapisy/issues/20) pozostaje otwarte wyłącznie dla końcowego scenariusza na rzeczywistym polskim nagraniu. Nie zaczynać równocześnie kolejnych dużych rozbudów ani przedstawiać tego scenariusza jako wykonanego.
 
-**Cel użytkownika:** nie kilka zwykłych kombinacji koloru/czcionki, lecz **8 naprawdę różnych, atrakcyjnych presetów**, łatwo wybieranych z galerii w zakładce Napisy, z czytelną animacją podczas mowy i identycznym wynikiem w gotowym MP4.
+| Styl | Efekt |
+| --- | --- |
+| Karaoke Flow | Akcent bieżącego słowa z rzeczywistych czasów ASR |
+| Pop Beat | Sprężysty akcent wypowiadanego słowa |
+| Impact | Mocne hasła po 1–3 słowa i kontrolowany zoom |
+| Neon Pulse | Cyjan/fiolet, glow i subtelny puls |
+| Slide Reveal | Maska i płynny ruch od dołu |
+| Marker | Rosnący zakreślacz pod słowem |
+| Editorial Clean | Elegancka typografia, fade i dyskretny ruch |
+| Type Flow | Kolejne słowa w stałym układzie |
 
-| Styl | Efekt | Dla jakich filmów |
-| --- | --- | --- |
-| **Karaoke Flow** | Biały tekst, bieżące słowo podświetlane żywym żółtym kolorem w rytmie realnej mowy | Rolki i wywiady |
-| **Pop Beat** | Krótki sprężysty pop/bounce wypowiadanego słowa, wyraźny akcent | Dynamiczne rolki |
-| **Impact** | Duże, mocne hasła po 1–3 słowa, energiczny ale nie migający zoom-in | Najważniejsze komunikaty |
-| **Neon Pulse** | Subtelnie pulsujący akcent cyjan/fiolet, lekki glow, bez strobowania | Nowoczesne wideo |
-| **Slide Reveal** | Płynne odsłanianie tekstu od dołu | Reportaże i relacje |
-| **Marker** | Kolorowy zakreślacz rosnący pod bieżącym słowem/frazą | Liczby, nazwy i informacje |
-| **Editorial Clean** | Minimalistyczna elegancka typografia, krótki fade i delikatny ruch | Oficjalne materiały i rozmowy |
-| **Type Flow** | Słowa pojawiają się kolejno, ale nie przesuwają już widocznego tekstu | Storytelling |
+Wspólny deterministyczny renderer 30 FPS działa w podglądzie, MP4, Export Studio i A/B. Galeria ma rzeczywiste demo, jeden aktywny kafelek, klawiaturę i ograniczony ruch. Parametry i jawny zakres cały montaż / zaznaczony napis są jednym Undo. Ręczne zmiany bez pewnego dopasowania słów dają animację całej planszy, bez zgadywania. Schemat v15, migracje v1–v14 zachowują statyczny wygląd; SRT to tekst i timing. Style pozostają po offset/Ripple, razor/copy i SmartCut.
 
-**Interfejs:** kompaktowa galeria 2-kolumnowych kafelków z rzeczywistymi animowanymi demo (tylko jedno aktywne), nazwą i wyraźnym stanem zaznaczenia; zastosowanie stylu do całego montażu lub do zaznaczonego fragmentu; regulacja koloru akcentu, szybkości, intensywności, czcionki, rozmiaru, pozycji i kolorystyki. Te zmiany nie zmieniają transkrypcji ani czasu napisów. Obsługa klawiatury i ograniczonego ruchu.
+**Potwierdzone:** 0.33a Windows 39306125331 i stabilizacja atomowego odczytu klatek na main 39308598494; 0.33b pełny zielony Windows 39367021466; 0.33c pełny zielony Windows 39367692306 — 366 TS, 116 Rust, 27 rzeczywistych integracji, build, instalacja, WebView2 1366×700 / Full HD i crash/restart. Osiem MP4 na rzeczywistej angielskiej mowie z rzeczywistym Whisper: 104 identyczne klatki alfa, odpowiadające piksele H.264 i zachowany dźwięk. Produkcyjny interfejs: Karaoke Full HD, Pop i Editorial, trzy A/B od niezerowego czasu, cancel i niezmieniony miks/tekst. Obejrzane zrzuty i klatki. Head `3b19dab1d7d07cee72961c5c37f317d0c5bd6fb7`, tree `daa1e2b4e8135ca9f491bf1c3ec14e40898c4714`; scalony PR #23 ma identyczne drzewo.
 
-**Warunek bezwzględny:** dziś `CaptionOverlay` pokazuje statyczny tekst, `captionCanvas`/eksport przekazują pojedyncze bitmapy PNG na planszę, a `captionExport` usuwa czasy słów (`words:[]`). **Nie robić animacji jedynie w CSS/WebView2.** Wspólny deterministyczny renderer zależny od czasu montażu i prawdziwych czasów `words`, wyjście do pełnego MP4 30 FPS oraz wszystkich wariantów Export Studio (łącznie z A/B). Strumieniować animowaną warstwę bez generowania tysięcy niezależnych pełnych PNG/base64 w Tauri IPC. Na start POC z Karaoke Flow + Pop Beat i rzeczywistym eksportem. Dla napisów z ręcznie zmienionym tekstem bez pewnych czasów poszczególnych słów przejść jawnie na animację całej planszy — nigdy nie udawać precyzyjnej synchronizacji. Stare projekty mają mieć niezmieniony statyczny wygląd. W przypadku SRT pozostaje tylko tekst i czas, bez animacji.
+**Instalator kandydata:** [12241090738](https://github.com/ankelmarek/AutoNapisy/actions/runs/39367692306/artifacts/12241090738); [MP4](https://github.com/ankelmarek/AutoNapisy/actions/runs/39367692306/artifacts/12240761709), instrukcja i ograniczenia w README. Nie promować wcześniejszych alpha.1/alpha.2 jako pełnego wydania.
 
-**Podział 0.33:** `0.33a` wspólny silnik/czasy słów i prawdziwy MP4 dla 2 presetów → `0.33b` pozostałe 6, galeria i personalizacja → `0.33c` Export Studio, preflight, migracje TS/Rust, długie renderowanie, Undo/Redo, wydajność, pełne testy Windows/WebView2 i instalator. Wszystko jako rozdzielone, weryfikowalne PR. Dopiero po odbiorze 0.33 wrócić do następnych dużych propozycji.
+**Ostatnia kontrola:** prawdziwa wypowiedź po polsku → import i bieżący Whisper → Karaoke → eksport i zgodność klatek → Pop i Editorial, bez zmiany tekstu/miksu. Obecny polski scenariusz UI jest jawnie syntetyczny, a referencyjne prawdziwe ASR jest angielskie. Po tej kontroli zamknąć issue #20 i oznaczyć pełne wydanie jako odebrane.
 
-**0.33a — fundament odebrany / PR #21 połączony.** Schemat v15 z migracją statycznych v1–v14; dwa presety we wspólnym Canvas i binarny RGBA → FFV1 alpha → rzeczywisty MP4. Pełny zielony Windows run 39306125331: 336 TS, 115 Rust, 24 rzeczywiste integracje, instalacja i WebView2. POC na rzeczywistej mowie i wyniku Whisper: identyczne hashe 20 klatek alfy, kontrola pikseli H.264 i dźwięku, pause/seek/play, ręczny polski fallback i cleanup; zrzuty/klatki sprawdzone. [Dwa MP4](https://github.com/ankelmarek/AutoNapisy/actions/runs/39306125331/artifacts/12214686503), artefakt 12214686503. Techniczne alpha.1 nie jest pełnym wydaniem 0.33. **Następnie 0.33b:** sześć pozostałych stylów, galeria, zakres i personalizacja; **0.33c nadal obowiązkowe** przed pełnym wydaniem — normalny burn animacji jest dotąd jawnie blokowany, SRT/none i stare statyczne style zachowane.
+**Pamięć/czas/cancel:** Windows 60 s / 720p / 1800 klatek: 5,74 MB warstwy, 28,28 s. Próbka 110 klatek 1080×1920 przez UI: 71 s, ok. +79,3 MiB JS/ArrayBuffer; anulowanie ok. 9 s. Testy ograniczonego kanału, blokującego producenta, reap, tokenów i własności katalogu przeszły. To pomiary konkretnych próbek, nie benchmark typowych filmów. Limity ochronne: 16 777 216 px / 24 h / 4 GiB warstwy. Długie złożone montaże mogą dojść do limitu; nie deklarować testu 24 h.
 
-**0.33b w implementacji / alpha.2:** osiem rzeczywistych presetów, galeria 2-kolumnowa, pojedynczy aktywny podgląd, reduce-motion, parametry i zastosowanie do całości/wybranego napisu jednym Undo. Opcjonalne captionEdits.styleId w v15, zachowanie przy offset/Ripple. Lokalnie 352 TS / 113 Rust core / frontend build. Osiem technicznych MP4 i natywna galeria wymagają odbioru Windows; nie deklarować go przed zakończeniem. 0.33c pozostaje obowiązkowym oddzielnym PR.
-
-**0.33c w implementacji — osobny kandydat do odbioru:** produkcyjny strumień RGBA/FFV1 dla zwykłego MP4, kolejki i A/B; wspólne globalne czasy zakresu, zachowanie statycznych plansz/SRT/none, obwiednie preflight, backpressure, cancel/reap oraz własność tempów do końca żądania. Lokalnie 366 TS, 113 Rust core i rzeczywiste testy eksportów, minutowego strumienia 720p oraz przerwania producenta Full HD. Pełny odbiór Windows i wydanie nadal obowiązkowe. Nie promować kandydata jako stabilnego przed zielonym przebiegiem.
+**CI:** równoległy PR 39367696790 przerwano po 8 min w późniejszej regresji, już po pomyślnych nowych eksportach. Nie oznaczać go jako zielonego. Podniesienie budżetu kroku do 15 min jest zmianą CI, bez zmiany asercji ani kodu sprawdzonego instalatora.
 
 ## Wykonane w 0.32 — Export Studio 0.2: próbki A/B i limit MB
 
