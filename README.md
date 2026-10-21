@@ -1,7 +1,22 @@
-# RolVixa 0.35b — korekta i czasy słów
+# RolVixa 0.35c — kandydat po testach polskich napisów
+
+## Instalator 0.35.0-alpha.3 (Windows x64)
+
+**[Pobierz ZIP instalatora](https://github.com/ankelmarek/AutoNapisy/actions/runs/39574521961/artifacts/12335486123)**. Zaloguj się na GitHub, pobierz i rozpakuj ZIP. Zamknij RolVixa i uruchom `RolVixa_0.35.0-alpha.3_x64-setup.exe`.
+
+**21.10.2026 użytkownik odłożył swój test i zatwierdził kontynuację. Zbudowano kandydata 0.35c, ale pełny odsłuch granic słów i odbiór jakości polskiej mowy pozostają otwarte. Issue #27 nie jest zamknięte; to nie stabilny release całego 0.35 ani kolejny forced aligner.**
+
+Gest trimu bez zmiany i przesunięcie o zero nie kasują zaakceptowanych czasów ani nie dodają Undo. Faktyczny trim nadal daje bezpieczny fallback. Głowica mieści ręczny czas w dokładnej długości; ręczna walidacja i propozycja ASR normalizują wyłącznie resztę arytmetyki na końcu przedziału, z uwzględnieniem dużych zegarów (test przy 20. godzinie). Nie tolerują rzeczywistego przekroczenia, ujemnych czasów ani nakładania. Schemat nadal v18, oryginały oraz pochodzenie/odwracalna plansza z b pozostają bez zmian.
+
+Pełny zielony [Windows 39574521961](https://github.com/ankelmarek/AutoNapisy/actions/runs/39574521961), także [PR 39574527469](https://github.com/ankelmarek/AutoNapisy/actions/runs/39574527469): **473 TS, 132 Rust i 30 rzeczywistych integracji**, produkcyjny build, instalacja i rzeczywisty WebView2. Head `5d5b97518a6baebd71f0978a1f61fa79296b13e4`, tree `927378506ee4695fb9891d814d94659b29323d21`; merge `d33935325bda19a30782d67cadf3886c6dedd653` ma identyczne drzewo. Lokalnie **473 TS, 130 core Rust, 28 integracji i build**. [Instalator 0.35.0-alpha.3](https://github.com/ankelmarek/AutoNapisy/actions/runs/39574521961/artifacts/12335486123), ZIP **81659915 B**, SHA-256 `0e675a431f360fe2f71c5ce0b78ef45bc25145579a34c8ed63f6f25476b75826`.
+
+Sprawdzone nowe dwa wiersze w podglądzie z rzeczywistym obrazem filmu, MP4/Off/SRT i trzy próbki A/B; zachowane style, miks, montaż, odzyskiwanie i wcześniejsze regresje. Trzy dodatkowe ludzkie wypowiedzi Google FLEURS PL, przypięta rewizja/CC BY 4.0/hash: 4,26 / 9,60 / 19,14 s, odrębne ID. Polski PCM po źródłowym trim/split i niezerowej pozycji klipu musi być identyczny próbka w próbkę z referencją. Prawdziwy Whisper tiny dał **WER 63,6% / 50,0% / 47,2%**; raport nie ma progu akceptacji jakości. To nie potwierdzenie dobrego ASR ani precyzji granic. Korpus nie ma ręcznych granic każdego słowa. Czasy 13,38 / 20,17 / 31,95 s dotyczą jednego runnera CPU, nie komputerów użytkowników. JS heap 27,25→16,93 MB podczas 30,81 s nowego scenariusza nie obejmuje Rust/MLT/Whisper/GPU i nie dowodzi braku wycieku. Materiały/model badawczy nie są w instalatorze. [Raport i późniejszy odbiór](docs/0.35c-polish-validation.md).
+
+Przed zapisem zachowaj kopię projektu v18; wersja 0.35a i starsze go nie otworzą. [Zmiany i pliki — PR #31](https://github.com/ankelmarek/AutoNapisy/pull/31).
 
 
-## Wersja 0.35b — czasy słów
+
+## Historia 0.35b — czasy słów
 
 [Windows 39560112980](https://github.com/ankelmarek/AutoNapisy/actions/runs/39560112980): **461 TS, 132 Rust i 29 rzeczywistych integracji**, produkcyjny build, instalacja i rzeczywisty WebView2. [Pobierz instalator 0.35.0-alpha.2 (Windows x64 ZIP)](https://github.com/ankelmarek/AutoNapisy/actions/runs/39560112980/artifacts/12328322678), rozpakuj i uruchom `RolVixa_0.35.0-alpha.2_x64-setup.exe`. Kod i odbiór: [PR #30](https://github.com/ankelmarek/AutoNapisy/pull/30). Pełne 0.35 nadal czeka na etap c.
 

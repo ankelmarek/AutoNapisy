@@ -1,6 +1,22 @@
 # Kolejne etapy RolVixa
 
-## RolVixa 0.35b wdrożone — następny osobny etap to 0.35c
+## RolVixa 0.35c — kandydat zbudowany i sprawdzony, odbiór odsłuchowy otwarty
+
+**21.10.2026 użytkownik odłożył swój test i zatwierdził kontynuację. Zbudowano kandydata 0.35c, ale pełny odsłuch granic słów i odbiór jakości polskiej mowy pozostają otwarte. Issue #27 nie jest zamknięte; to nie stabilny release całego 0.35 ani kolejny forced aligner.**
+
+Pełny zielony [Windows 39574521961](https://github.com/ankelmarek/AutoNapisy/actions/runs/39574521961), także [PR 39574527469](https://github.com/ankelmarek/AutoNapisy/actions/runs/39574527469): **473 TS, 132 Rust i 30 rzeczywistych integracji**, produkcyjny build, instalacja i rzeczywisty WebView2. Head `5d5b97518a6baebd71f0978a1f61fa79296b13e4`, tree `927378506ee4695fb9891d814d94659b29323d21`; merge `d33935325bda19a30782d67cadf3886c6dedd653` ma identyczne drzewo. Lokalnie **473 TS, 130 core Rust, 28 integracji i build**. [Instalator 0.35.0-alpha.3](https://github.com/ankelmarek/AutoNapisy/actions/runs/39574521961/artifacts/12335486123), ZIP **81659915 B**, SHA-256 `0e675a431f360fe2f71c5ce0b78ef45bc25145579a34c8ed63f6f25476b75826`.
+
+Gest trimu bez zmiany i przesunięcie o zero nie kasują zaakceptowanych czasów ani nie dodają Undo. Faktyczny trim nadal daje bezpieczny fallback. Głowica mieści ręczny czas w dokładnej długości; ręczna walidacja i propozycja ASR normalizują wyłącznie resztę arytmetyki na końcu przedziału, z uwzględnieniem dużych zegarów (test przy 20. godzinie). Nie tolerują rzeczywistego przekroczenia, ujemnych czasów ani nakładania. Schemat nadal v18, oryginały oraz pochodzenie/odwracalna plansza z b pozostają bez zmian.
+
+Nowy rzeczywisty WebView2: dwa wiersze na polskiej mowie, retained/origin:reanalyzed, no-op trim, zdekodowane piksele filmu i zegar montażu przed zrzutem, 1366×700/Full HD, polski SRT, MP4/Off, trzy A/B od niezerowego czasu, zmiana znaczenia i fallback, Undo/reopen. Obejrzano zrzuty z gotowym obrazem i klatki dwóch pełnych MP4 (po 135 klatek) i trzech A/B (po 90), H.264/AAC 30 FPS. Pełna wcześniejsza regresja, 104 klatki alfa, style/restart, montaż/miks i crash/recovery zachowane. Pierwszy scenariusz zatrzymał się na zamkniętym po kliknięciu T edytorze; naprawiono dwuklik w teście bez usuwania asercji. Późniejszy zielony build miał zrzuty podczas przygotowania MLT; dodatkowy guard gotowego dekodera/pikseli i ponowny pełny Windows dały obecny odbiór. Nie przedstawiać wcześniejszych prób jako dowodu obecnego gotowego podglądu.
+
+Trzy dodatkowe ludzkie wypowiedzi Google FLEURS PL, przypięta rewizja/CC BY 4.0/hash: 4,26 / 9,60 / 19,14 s, odrębne ID. Polski PCM po źródłowym trim/split i niezerowej pozycji klipu musi być identyczny próbka w próbkę z referencją. Prawdziwy Whisper tiny dał **WER 63,6% / 50,0% / 47,2%**; raport nie ma progu akceptacji jakości. To nie potwierdzenie dobrego ASR ani precyzji granic. Korpus nie ma ręcznych granic każdego słowa. Czasy 13,38 / 20,17 / 31,95 s dotyczą jednego runnera CPU, nie komputerów użytkowników. JS heap 27,25→16,93 MB podczas 30,81 s nowego scenariusza nie obejmuje Rust/MLT/Whisper/GPU i nie dowodzi braku wycieku. Materiały/model badawczy nie są w instalatorze. [Raport i późniejszy odbiór](docs/0.35c-polish-validation.md).
+
+- [x] Implementacja a/b i automatyczna regresja c, publiczne polskie próbki, nowe SRT/A-B, zapis/reopen/Undo, Windows/instalacja/WebView2.
+- [ ] Odsłuch granic i znaczenia na własnym polskim nagraniu oraz pełny odbiór #27; porównanie jakości większego modelu pozostaje do wykonania. Nie ogłaszać pełnego 0.35 jako odebranego.
+
+
+## Historia odbioru 0.35b — późniejszy kandydat c opisany wyżej
 
 PR #30 połączony. Bezsporne punkty po zmianie liczby słów, ręczny edytor czasów/głowica, ograniczona ponowna analiza Whisper z pełnym porównaniem tekstu, podgląd/odrzucenie i osobny Apply/Undo. Bez fikcyjnych czasów. Schemat v18 zachowuje oryginały, rozróżnia ręczne/ponownie rozpoznane/odziedziczone czasy i odwracalną planszę; stare wersje nie odzyskują automatycznie synchronizacji. POC rzeczywistego MMS_FA PL: [39555141732](https://github.com/ankelmarek/AutoNapisy/actions/runs/39555141732); [wynik i granice](docs/0.35b-alignment-poc.md). Silnik forced alignment nie jest dołączany.
 
