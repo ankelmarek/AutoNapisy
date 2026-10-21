@@ -1,7 +1,10 @@
-# RolVixa 0.35a — korekta tekstu 1:1 (etap a)
+# RolVixa 0.35b — korekta i czasy słów
 
 
-## Wersja 0.35b — czasy słów (w przygotowaniu)
+## Wersja 0.35b — czasy słów
+
+[Windows 39560112980](https://github.com/ankelmarek/AutoNapisy/actions/runs/39560112980): **461 TS, 132 Rust i 29 rzeczywistych integracji**, produkcyjny build, instalacja i rzeczywisty WebView2. [Pobierz instalator 0.35.0-alpha.2 (Windows x64 ZIP)](https://github.com/ankelmarek/AutoNapisy/actions/runs/39560112980/artifacts/12328322678), rozpakuj i uruchom `RolVixa_0.35.0-alpha.2_x64-setup.exe`. Kod i odbiór: [PR #30](https://github.com/ankelmarek/AutoNapisy/pull/30). Pełne 0.35 nadal czeka na etap c.
+
 
 Po zapisaniu korekty wybierz **Ustaw czasy ręcznie**: sekundy są liczone od początku napisu. Pewne tekstowe punkty odniesienia są wypełnione, nowe/niejednoznaczne słowa pozostają puste. Uzupełnij wszystkie początki i końce bez nakładania. „Idź” ustawia głowicę, „Od/Do głowicy” wpisują jej czas, spacja odtwarza montaż poza polem tekstowym. **Zastosuj czasy słów** tworzy osobny Undo; **Odrzuć czasy** nie zmienia projektu. Same pola/propozycja nie są zapisywane przez Ctrl+S przed akceptacją.
 
@@ -9,6 +12,8 @@ Po zapisaniu korekty wybierz **Ustaw czasy ręcznie**: sekundy są liczone od po
 
 Format projektu v18 zachowuje migracje starszych wersji. Przed zapisaniem zachowaj kopię — 0.35a i starsze wersje nie otworzą v18. Trim napisu lub zmiana podstawy może usunąć nieaktualne czasowanie; nie dopisujemy fikcyjnych czasów. Do 256 słów w jednym edytorze; fragment przecinający kilka źródeł wymaga ręcznej decyzji. Wynik POC i granice rozwiązania: [badanie alignment PL](docs/0.35b-alignment-poc.md). Etap c i pełny odbiór 0.35 nie są zakończone.
 
+
+## Historia etapu 0.35a
 
 **[Pobierz instalator Windows x64 — ZIP](https://github.com/ankelmarek/AutoNapisy/actions/runs/39480735671/artifacts/12292347141)**. Zaloguj się na GitHub, pobierz i rozpakuj ZIP, zamknij RolVixa i uruchom `RolVixa_0.35.0-alpha.1_x64-setup.exe`. To ukończony etap **a**, nie całe 0.35. Przed zapisem v17 zachowaj kopię projektu.
 
