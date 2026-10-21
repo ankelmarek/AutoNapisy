@@ -16,7 +16,7 @@ export function applyCaptionWords(p:Project,s:EditedSegment,rows:readonly WordDr
  const current=compositionSegments(p).find(c=>c.id===s.id),source=sourceCaption(p,s.id);
  if(!current||!source||current.text!==s.text||current.start!==s.start||current.end!==s.end)throw Error('Napis zmienił się. Otwórz dopasowanie ponownie.');
  if(source.text.length>100000)throw Error('Tekst źródłowy przekracza limit korekty. Podziel napis.');
- const duration=s.end-s.start,words=checkedWordDraft(rows,s.text,duration),e=p.captionEdits[s.id]??{trimStart:0,trimEnd:0};
+ const duration=s.end-s.start,words=checkedWordDraft(rows,s.text,duration,Math.max(Math.abs(s.start),Math.abs(s.end))),e=p.captionEdits[s.id]??{trimStart:0,trimEnd:0};
  return {...p,captionEdits:{...p.captionEdits,[s.id]:{...e,text:s.text,textTiming:{mode,sourceText:source.text,duration,words}}}};
 }
 export function editCaption(p:Project,s:EditedSegment,patch:Partial<Project['captionEdits'][string]>):Project{
