@@ -16,6 +16,19 @@ Trzy dodatkowe ludzkie wypowiedzi Google FLEURS PL, przypięta rewizja/CC BY 4.0
 - [ ] Odsłuch granic i znaczenia na własnym polskim nagraniu oraz pełny odbiór #27; porównanie jakości większego modelu pozostaje do wykonania. Nie ogłaszać pełnego 0.35 jako odebranego.
 
 
+## Backlog - pomysł na później: Voice Enhance / Ratowanie dźwięku AI
+
+**Status: ODŁOŻONE, bez wersji, priorytetu i terminu. Decyzja użytkownika 21.10.2026:** koncepcja jest interesująca, ale integracja silnika AI do naprawy trudnych nagrań jest na ten moment zbyt skomplikowana. **Nie rozpoczynać prac, nie uruchamiać Codexa i nie mieszać tego z 0.35 ani planami usprawnienia Whispera.** Wrócić do tematu tylko na wyraźne życzenie użytkownika.
+
+**Cel:** poprawa słyszalności głosu przez widza w *gotowym filmie*, a nie tylko zwiększenie skuteczności transkrypcji. Przykłady: szum wentylacji, wiatr, ulica, cichy głos z telefonu, pogłos, materiały archiwalne. Efekt ma być słyszalny w podglądzie i MP4, a nie tylko w roboczym WAV dla ASR.
+
+**Zachowana koncepcja rozwiązania:**
+- Porównać **RNNoise** (lekki, prostsza integracja), **DeepFilterNet** (potencjalnie dobra integracja z Rust) i **Resemble Enhance** (mocniejsze, ale bardziej zasobożerne przetwarzanie); sprawdzić aktualne licencje *kodu i konkretnych wag*, wymagania sprzętowe oraz warunki dystrybucji przed wyborem.
+- Trzy opcjonalne poziomy: `Oczyść głos` (naturalnie), `Wyizoluj mowę` (mocniej), `Odtwórz jakość AI` (zaawansowane odtwarzanie barwy/zmniejszanie zniekształceń z ostrzeżeniem o artefaktach). Nie obiecywać rekonstrukcji niezarejestrowanych słów ani separacji nakładających się głosów.
+- **Niedestrukcyjny workflow:** zachować oryginalne audio i miks; przetwarzać na osobnej kopii/cache z kontrolą czasu, odsłuchem **Przed/Po** przy wyrównanej głośności, świadomą akceptacją i możliwością cofnięcia jednym Undo. Po zatwierdzeniu stosować wynik do preview i końcowego MP4; zachować synchronizację klipu i audio.
+- Dla jakości odsłuchu końcowego nie używać bezrefleksyjnie pliku 16 kHz mono przygotowanego do Whispera. Przetwarzać audio na jakości dostosowanej do modelu, a dalej zachowywać parametry projektu i eksportu. Działanie lokalne na Windows x64, bez opłat per minuta i bez wysyłania nagrań na serwer.
+- **Warunek ewentualnego wznowienia:** najpierw mały offline POC na 3-5 własnych trudnych nagraniach z porównaniem oryginału/RNNoise/Resemble, ocenić zrozumiałość, naturalność głosu, artefakty, czas CPU i rozmiar wdrożenia. Dopiero pozytywny odsłuch oraz weryfikacja licencji uzasadniają osobną wersję i pełną integrację.
+
 ## Historia odbioru 0.35b — późniejszy kandydat c opisany wyżej
 
 PR #30 połączony. Bezsporne punkty po zmianie liczby słów, ręczny edytor czasów/głowica, ograniczona ponowna analiza Whisper z pełnym porównaniem tekstu, podgląd/odrzucenie i osobny Apply/Undo. Bez fikcyjnych czasów. Schemat v18 zachowuje oryginały, rozróżnia ręczne/ponownie rozpoznane/odziedziczone czasy i odwracalną planszę; stare wersje nie odzyskują automatycznie synchronizacji. POC rzeczywistego MMS_FA PL: [39555141732](https://github.com/ankelmarek/AutoNapisy/actions/runs/39555141732); [wynik i granice](docs/0.35b-alignment-poc.md). Silnik forced alignment nie jest dołączany.
