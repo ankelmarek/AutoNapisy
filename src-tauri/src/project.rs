@@ -265,7 +265,10 @@ pub struct Adjustments {
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag="mode",rename_all="camelCase",deny_unknown_fields)]
-pub enum CaptionTextTiming { Inherited { #[serde(rename="sourceText")] source_text:String }, Board {} }
+pub enum CaptionTextTiming { Inherited { #[serde(rename="sourceText")] source_text:String }, Board {}, Manual { #[serde(rename="sourceText")] source_text:String, duration:f64, words:Vec<Word>, #[serde(default,skip_serializing_if="Option::is_none")] disabled:Option<bool> }, Reanalyzed { #[serde(rename="sourceText")] source_text:String, duration:f64, words:Vec<Word>, #[serde(default,skip_serializing_if="Option::is_none")] disabled:Option<bool> }, Retained { origin:CaptionTimingOrigin, #[serde(rename="sourceText")] source_text:String, duration:f64, words:Vec<Word>, #[serde(default,skip_serializing_if="Option::is_none")] disabled:Option<bool> } }
+#[derive(Clone,Debug,Serialize,Deserialize)]
+#[serde(rename_all="camelCase")]
+pub enum CaptionTimingOrigin {Manual,Reanalyzed}
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CaptionEdit {
@@ -449,16 +452,19 @@ pub fn parse(json: &str) -> Result<Project, String> {
     if raw["styles"].as_object().is_some_and(|styles|styles.values().any(|s|s.get("animation").and_then(|a|a.get("enabled")).is_some_and(|e|!e.is_boolean() || raw["schemaVersion"].as_u64().is_some_and(|v|v<=15)))) { return Err("Stan animacji wymaga logicznej wartości i schematu v16".into()); }
     if raw["schemaVersion"].as_u64().is_some_and(|v|v<=14) && raw["styles"].as_object().is_some_and(|styles|styles.values().any(|s|s.get("animation").is_some())) { return Err("Animowane napisy wymagają schematu v15".into()); }
     if raw["styles"].as_object().is_some_and(|styles|styles.values().any(|s|s.get("animation").is_some_and(|a|a.is_null()))) { return Err("Nieprawidłowa animacja napisów".into()); }
+    if raw["schemaVersion"].as_u64().is_some_and(|v|v<=17) && raw["captionEdits"].as_object().is_some_and(|edits|edits.values().any(|e|e["textTiming"]["mode"].as_str().is_some_and(|m|matches!(m,"manual"|"reanalyzed"|"retained")))) {return Err("Nowe czasy słów wymagają schematu v18".into());}
     if raw["captionEdits"].as_object().is_some_and(|edits|edits.values().any(|e|e.get("styleId").is_some_and(|v|v.as_str().is_none_or(|s|s.is_empty()||s.chars().count()>100)))) {return Err("Nieprawidłowy styl napisu".into());}
     if raw["schemaVersion"].as_u64().is_some_and(|v|v<=14) && raw["captionEdits"].as_object().is_some_and(|edits|edits.values().any(|e|e.get("styleId").is_some())) {return Err("Styl pojedynczego napisu wymaga v15".into());}
     if raw["captionEdits"].as_object().is_some_and(|edits|edits.values().any(|e|e.get("textTiming").is_some_and(|t|t.is_null()||raw["schemaVersion"].as_u64().is_some_and(|v|v<=16)))) {return Err("Pochodzenie czasów wymaga schematu v17 i poprawnej konfiguracji".into());}
+    if raw["captionEdits"].as_object().is_some_and(|edits|edits.values().any(|e|e["textTiming"].get("disabled").is_some_and(|v|!v.is_boolean()))){return Err("Stan czasowania wymaga wartości logicznej".into());}
+    if raw["captionEdits"].as_object().is_some_and(|edits|edits.values().any(|e|e["textTiming"]["mode"]=="retained"&&!e["textTiming"]["origin"].as_str().is_some_and(|s|matches!(s,"manual"|"reanalyzed")))){return Err("Nieprawidłowe pochodzenie zachowanych czasów".into());}
     let legacy = raw["schemaVersion"].as_u64().is_some_and(|v| v <= 10);
     if legacy && raw.get("trackLayout").is_some() {
         return Err("Starszy projekt nie może definiować nowych ścieżek".into());
     }
     let mut p: Project =
         serde_json::from_value(raw).map_err(|e| format!("Niepoprawny JSON projektu: {e}"))?;
-    if ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17].contains(&p.schema_version) {
+    if ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18].contains(&p.schema_version) {
         return Err("Nieobsługiwana wersja projektu".into());
     }
     if p.schema_version < 3 {
@@ -512,7 +518,7 @@ pub fn parse(json: &str) -> Result<Project, String> {
     }
     // Before v13 array order had no meaning; preserve historical numeric stacking.
     if p.schema_version <= 12 { p.track_layout.sort_by_key(|t| (if t.kind=="video" {0} else {1},t.index)); }
-    p.schema_version = 17;
+    p.schema_version = 18;
     let master=&p.master_audio;
     if !master.gain_db.is_finite()|| !(-60.0..=24.0).contains(&master.gain_db)||master.normalization.as_ref().is_some_and(|n|!n.target_lufs.is_finite()|| !(-30.0..=-9.0).contains(&n.target_lufs)||n.basis.len()!=16||!n.basis.bytes().all(|b|b.is_ascii_digit()||(b'a'..=b'f').contains(&b))){return Err("Nieprawidłowa normalizacja miksu".into());}
     let mut track_ids = HashSet::new();
@@ -674,8 +680,11 @@ pub fn parse(json: &str) -> Result<Project, String> {
             e.style_id.as_ref().is_some_and(|id| !p.styles.contains_key(id)) || !valid_time(e.trim_start)
                 || !valid_time(e.trim_end)
                 || e.offset.is_some_and(|t| !t.is_finite() || t.abs()>86400.)
-                || e.text.as_ref().is_some_and(|t| t.len() > 400000)
-                || e.text_timing.as_ref().is_some_and(|t|e.text.is_none()||match t {CaptionTextTiming::Inherited{source_text}=>source_text.is_empty()||source_text.encode_utf16().count()>100000,CaptionTextTiming::Board{..}=>false})
+                || e.text.as_ref().is_some_and(|t| t.encode_utf16().count() > 100000)
+                || e.text_timing.as_ref().is_some_and(|t|e.text.is_none()||match t {CaptionTextTiming::Inherited{source_text}=>source_text.is_empty()||source_text.encode_utf16().count()>100000,CaptionTextTiming::Board{..}=>false,CaptionTextTiming::Manual{source_text,duration,words,..}|CaptionTextTiming::Reanalyzed{source_text,duration,words,..}|CaptionTextTiming::Retained{source_text,duration,words,..}=>{
+                    let parts:Vec<_>=e.text.as_deref().unwrap_or("").split_whitespace().collect();
+                    source_text.is_empty()||source_text.encode_utf16().count()>100000||!duration.is_finite()||*duration<=0.||*duration>86400.||words.is_empty()||words.len()>256||parts.len()!=words.len()||words.iter().enumerate().any(|(i,w)|!valid_time(w.start)||!valid_time(w.end)||w.end<=w.start||w.end>*duration||parts.get(i).is_none_or(|t|*t!=w.text)||(i>0&&w.start<words[i-1].end))
+                }})
         })
     {
         return Err("Nieprawidłowe zmiany napisów".into());
@@ -849,7 +858,7 @@ mod tests {
     #[test]
     fn migrate_v1_and_validate_layout() {
         let project = parse(&json()).unwrap();
-        assert_eq!(project.schema_version, 17);
+        assert_eq!(project.schema_version, 18);
         assert!(!project.styles["default"].uppercase);
         assert_eq!(project.styles["default"].max_lines, 2);
         let mut value = serde_json::to_value(project).unwrap();
@@ -956,7 +965,7 @@ mod edit018_tests {
         assert!(p.ripple_enabled && p.tracks.v1.locked);
         assert!(p.tracks.audio_muted(&p.clips.as_ref().unwrap()[0]));
         let q = parse(&serde_json::to_string(&p).unwrap()).unwrap();
-        assert_eq!(q.schema_version, 17);
+        assert_eq!(q.schema_version, 18);
         assert_eq!(q.tracks.v1.ripple, "on");
         assert_eq!(q.clips.unwrap()[1].sync_group.as_deref(), Some("pair"));
     }
@@ -1004,7 +1013,7 @@ mod dynamic022_tests {
             parse(&serde_json::to_string(&p).unwrap())
                 .unwrap()
                 .schema_version,
-            17
+            18
         );
     }
     #[test]
@@ -1079,7 +1088,7 @@ mod dynamic022_tests {
 #[cfg(test)]mod master024_tests {
  use super::*;
  fn legacy()->serde_json::Value {serde_json::from_str(include_str!("../../tests/fixtures/three-tracks-v11.json")).unwrap()}
- #[test]fn migrate_v11_keeps_tracks_and_master_roundtrips(){let mut p=parse(&legacy().to_string()).unwrap();assert_eq!(p.schema_version,17);assert_eq!(p.master_audio.gain_db,0.);p.master_audio=MasterAudio{gain_db:1.9,normalization:Some(Normalization{target_lufs:-14.,basis:"0123456789abcdef".into(),stale:false})};let q=parse(&serde_json::to_string(&p).unwrap()).unwrap();assert_eq!(q.master_audio.gain_db,1.9);assert_eq!(q.track_layout.len(),6);assert_eq!(q.master_audio.normalization.unwrap().target_lufs,-14.);}
+ #[test]fn migrate_v11_keeps_tracks_and_master_roundtrips(){let mut p=parse(&legacy().to_string()).unwrap();assert_eq!(p.schema_version,18);assert_eq!(p.master_audio.gain_db,0.);p.master_audio=MasterAudio{gain_db:1.9,normalization:Some(Normalization{target_lufs:-14.,basis:"0123456789abcdef".into(),stale:false})};let q=parse(&serde_json::to_string(&p).unwrap()).unwrap();assert_eq!(q.master_audio.gain_db,1.9);assert_eq!(q.track_layout.len(),6);assert_eq!(q.master_audio.normalization.unwrap().target_lufs,-14.);}
  #[test]fn master_bounds_and_legacy_injection_rejected(){for master in [serde_json::json!({"gainDb":25}),serde_json::json!({"gainDb":-61}),serde_json::json!({"gainDb":0,"normalization":{"targetLufs":-8,"basis":"0123456789abcdef"}}),serde_json::json!({"gainDb":0,"normalization":{"targetLufs":-14,"basis":"wrong"}}),serde_json::json!({"gainDb":0,"execute":"x"})]{let mut v=legacy();v["schemaVersion"]=12.into();v["masterAudio"]=master;assert!(parse(&v.to_string()).is_err());}let mut v=legacy();v["masterAudio"]=serde_json::json!({"gainDb":0});assert!(parse(&v.to_string()).is_err());}
 }
 
@@ -1093,7 +1102,7 @@ mod order027_tests {
  #[test] fn legacy_numeric_stacking_and_v13_roundtrip(){
  let mut p=parse(include_str!("../../tests/fixtures/three-tracks-v11.json")).unwrap();
  p.track_layout.reverse();p.schema_version=12;
- let old=parse(&serde_json::to_string(&p).unwrap()).unwrap();assert_eq!(old.video_rank(0),0);assert_eq!(old.video_rank(2),2);assert_eq!(old.schema_version,17);
+ let old=parse(&serde_json::to_string(&p).unwrap()).unwrap();assert_eq!(old.video_rank(0),0);assert_eq!(old.video_rank(2),2);assert_eq!(old.schema_version,18);
  p.schema_version=13;let new=parse(&serde_json::to_string(&p).unwrap()).unwrap();assert_eq!(new.video_rank(2),0);assert_eq!(new.video_rank(0),2);assert_eq!(serde_json::to_value(new.clips).unwrap(),serde_json::to_value(old.clips).unwrap());
  }
  #[test] fn rank_supports_stable_non_contiguous_ids(){let mut p=parse(include_str!("../../tests/fixtures/three-tracks-v11.json")).unwrap();p.track_layout.insert(0,TrackDescriptor{id:"V16".into(),kind:"video".into(),index:15});assert_eq!(p.video_rank(15),0);assert_eq!(p.video_rank(0),1);}
@@ -1103,15 +1112,23 @@ mod order027_tests {
 mod captions034_tests {
  use super::*;
  fn seed()->serde_json::Value{let p=parse(include_str!("../../tests/fixtures/three-tracks-v11.json")).unwrap();let mut v=serde_json::to_value(p).unwrap();v["styles"]["default"]["animation"]=serde_json::json!({"preset":"type-flow","version":1,"accentColor":"#ffe600","speed":1.7,"intensity":0.4});v}
- #[test]fn motion_switch_roundtrips_without_losing_preset_or_parameters(){let mut v=seed();v["styles"]["default"]["animation"]["enabled"]=false.into();let p=parse(&v.to_string()).unwrap();assert_eq!(p.schema_version,17);let a=p.styles["default"].animation.as_ref().unwrap();assert_eq!(a.enabled,Some(false));assert_eq!(a.preset,"type-flow");assert_eq!(a.speed,1.7);assert_eq!(a.intensity,0.4);let restored=parse(&serde_json::to_string(&p).unwrap()).unwrap();assert_eq!(restored.styles["default"].animation.as_ref().unwrap().enabled,Some(false));}
- #[test]fn v15_migrates_unchanged_but_rejects_new_state_and_v16_rejects_wrong_types(){let mut v=seed();v["schemaVersion"]=15.into();let p=parse(&v.to_string()).unwrap();assert_eq!(p.schema_version,17);assert_eq!(p.styles["default"].animation.as_ref().unwrap().enabled,None);assert!(!serde_json::to_value(&p).unwrap()["styles"]["default"]["animation"].as_object().unwrap().contains_key("enabled"));v["styles"]["default"]["animation"]["enabled"]=false.into();assert!(parse(&v.to_string()).is_err());v["schemaVersion"]=16.into();for bad in [serde_json::Value::Null,serde_json::json!("false"),serde_json::json!(0),serde_json::json!({})]{v["styles"]["default"]["animation"]["enabled"]=bad;assert!(parse(&v.to_string()).is_err());}}
+ #[test]fn motion_switch_roundtrips_without_losing_preset_or_parameters(){let mut v=seed();v["styles"]["default"]["animation"]["enabled"]=false.into();let p=parse(&v.to_string()).unwrap();assert_eq!(p.schema_version,18);let a=p.styles["default"].animation.as_ref().unwrap();assert_eq!(a.enabled,Some(false));assert_eq!(a.preset,"type-flow");assert_eq!(a.speed,1.7);assert_eq!(a.intensity,0.4);let restored=parse(&serde_json::to_string(&p).unwrap()).unwrap();assert_eq!(restored.styles["default"].animation.as_ref().unwrap().enabled,Some(false));}
+ #[test]fn v15_migrates_unchanged_but_rejects_new_state_and_v16_rejects_wrong_types(){let mut v=seed();v["schemaVersion"]=15.into();let p=parse(&v.to_string()).unwrap();assert_eq!(p.schema_version,18);assert_eq!(p.styles["default"].animation.as_ref().unwrap().enabled,None);assert!(!serde_json::to_value(&p).unwrap()["styles"]["default"]["animation"].as_object().unwrap().contains_key("enabled"));v["styles"]["default"]["animation"]["enabled"]=false.into();assert!(parse(&v.to_string()).is_err());v["schemaVersion"]=16.into();for bad in [serde_json::Value::Null,serde_json::json!("false"),serde_json::json!(0),serde_json::json!({})]{v["styles"]["default"]["animation"]["enabled"]=bad;assert!(parse(&v.to_string()).is_err());}}
 }
 
 #[cfg(test)]
 mod caption_correction_tests {
  use super::*;
  fn seed()->serde_json::Value{serde_json::json!({"schemaVersion":17,"name":"Korekta Łódź","media":null,"clips":null,"segments":[],"styles":{"default":{"fontFamily":"Bebas Neue","fontSize":56,"color":"#ffffff","background":"#000000","position":"bottom"}},"captionEdits":{"timeline:pl":{"trimStart":0,"trimEnd":0,"text":"Dzisiaj rozpoczynamy nową drogę","textTiming":{"mode":"inherited","sourceText":"Dzisiaj otwieramy nową drogę"}}},"createdAt":"2026-10-20T00:00:00Z","updatedAt":"2026-10-20T00:00:00Z"})}
- #[test]fn correction_provenance_roundtrips_and_board_is_explicit(){let mut v=seed();let p=parse(&v.to_string()).unwrap();assert_eq!(p.schema_version,17);assert!(matches!(&p.caption_edits["timeline:pl"].text_timing,Some(CaptionTextTiming::Inherited{source_text}) if source_text=="Dzisiaj otwieramy nową drogę"));let q=parse(&serde_json::to_string(&p).unwrap()).unwrap();assert_eq!(serde_json::to_value(q.caption_edits).unwrap(),serde_json::to_value(p.caption_edits).unwrap());v["captionEdits"]["timeline:pl"]["textTiming"]=serde_json::json!({"mode":"board"});assert!(matches!(parse(&v.to_string()).unwrap().caption_edits["timeline:pl"].text_timing,Some(CaptionTextTiming::Board{..})));}
- #[test]fn old_documents_cannot_inject_provenance_and_v16_edits_keep_fallback(){for version in 1..=16{let mut v=seed();v["schemaVersion"]=version.into();assert!(parse(&v.to_string()).is_err());}let mut v=seed();v["schemaVersion"]=16.into();v["captionEdits"]["timeline:pl"].as_object_mut().unwrap().remove("textTiming");let p=parse(&v.to_string()).unwrap();assert_eq!(p.schema_version,17);assert!(p.caption_edits["timeline:pl"].text_timing.is_none());assert_eq!(p.caption_edits["timeline:pl"].text.as_deref(),Some("Dzisiaj rozpoczynamy nową drogę"));assert!(!serde_json::to_value(p).unwrap()["captionEdits"]["timeline:pl"].as_object().unwrap().contains_key("textTiming"));}
+ #[test]fn correction_provenance_roundtrips_and_board_is_explicit(){let mut v=seed();let p=parse(&v.to_string()).unwrap();assert_eq!(p.schema_version,18);assert!(matches!(&p.caption_edits["timeline:pl"].text_timing,Some(CaptionTextTiming::Inherited{source_text}) if source_text=="Dzisiaj otwieramy nową drogę"));let q=parse(&serde_json::to_string(&p).unwrap()).unwrap();assert_eq!(serde_json::to_value(q.caption_edits).unwrap(),serde_json::to_value(p.caption_edits).unwrap());v["captionEdits"]["timeline:pl"]["textTiming"]=serde_json::json!({"mode":"board"});assert!(matches!(parse(&v.to_string()).unwrap().caption_edits["timeline:pl"].text_timing,Some(CaptionTextTiming::Board{..})));}
+ #[test]fn old_documents_cannot_inject_provenance_and_v16_edits_keep_fallback(){for version in 1..=16{let mut v=seed();v["schemaVersion"]=version.into();assert!(parse(&v.to_string()).is_err());}let mut v=seed();v["schemaVersion"]=16.into();v["captionEdits"]["timeline:pl"].as_object_mut().unwrap().remove("textTiming");let p=parse(&v.to_string()).unwrap();assert_eq!(p.schema_version,18);assert!(p.caption_edits["timeline:pl"].text_timing.is_none());assert_eq!(p.caption_edits["timeline:pl"].text.as_deref(),Some("Dzisiaj rozpoczynamy nową drogę"));assert!(!serde_json::to_value(p).unwrap()["captionEdits"]["timeline:pl"].as_object().unwrap().contains_key("textTiming"));}
  #[test]fn malformed_or_null_provenance_never_becomes_verified_times(){for bad in [serde_json::Value::Null,serde_json::json!({}),serde_json::json!("inherited"),serde_json::json!({"mode":"asr"}),serde_json::json!({"mode":"board","sourceText":"x"}),serde_json::json!({"mode":"inherited","sourceText":""}),serde_json::json!({"mode":"inherited","sourceText":"x","words":[]})]{let mut v=seed();v["captionEdits"]["timeline:pl"]["textTiming"]=bad;assert!(parse(&v.to_string()).is_err());}let mut v=seed();v["captionEdits"]["timeline:pl"].as_object_mut().unwrap().remove("text");assert!(parse(&v.to_string()).is_err());let mut v=seed();v["captionEdits"]["timeline:pl"]["textTiming"]["sourceText"]="x".repeat(100001).into();assert!(parse(&v.to_string()).is_err());}
+}
+
+#[cfg(test)]mod caption_manual_tests{
+ use super::*;
+ fn seed()->serde_json::Value{serde_json::json!({"schemaVersion":18,"name":"Ręczne czasy","media":null,"clips":null,"segments":[],"styles":{"default":{"fontFamily":"Bebas Neue","fontSize":56,"color":"#ffffff","background":"#000000","position":"bottom"}},"captionEdits":{"timeline:pl":{"trimStart":0,"trimEnd":0,"text":"Łódź dziś","textTiming":{"mode":"manual","sourceText":"Łódź","duration":2.,"words":[{"text":"Łódź","start":0.1,"end":0.8},{"text":"dziś","start":1.,"end":1.5}]}}},"createdAt":"2026-10-21T00:00:00Z","updatedAt":"2026-10-21T00:00:00Z"})}
+ #[test]fn explicit_times_roundtrip_both_provenances(){for mode in ["manual","reanalyzed","retained"]{let mut v=seed();if mode=="retained"{v["captionEdits"]["timeline:pl"]["textTiming"]["origin"]="manual".into();}v["captionEdits"]["timeline:pl"]["textTiming"]["disabled"]=true.into();v["captionEdits"]["timeline:pl"]["textTiming"]["mode"]=mode.into();let p=parse(&v.to_string()).unwrap();assert_eq!(p.schema_version,18);assert_eq!(serde_json::to_value(parse(&serde_json::to_string(&p).unwrap()).unwrap().caption_edits).unwrap(),serde_json::to_value(p.caption_edits).unwrap());}}
+ #[test]fn old_schemas_reject_new_timestamps_and_v17_migrates_unchanged(){for version in 1..=17{let mut v=seed();v["schemaVersion"]=version.into();assert!(parse(&v.to_string()).is_err());}let mut v=seed();v["schemaVersion"]=17.into();v["captionEdits"]["timeline:pl"]["textTiming"]=serde_json::json!({"mode":"board"});let p=parse(&v.to_string()).unwrap();assert_eq!(p.schema_version,18);assert!(matches!(p.caption_edits["timeline:pl"].text_timing,Some(CaptionTextTiming::Board{..})));}
+ #[test]fn manual_tokens_are_complete_strict_positive_ordered_and_bounded(){for patch in [serde_json::json!({"words":null}),serde_json::json!({"unknown":true}),serde_json::json!({"mode":"retained","origin":{"manual":null}}),serde_json::json!({"mode":"retained","origin":null}),serde_json::json!({"duration":null}),serde_json::json!({"disabled":null}),serde_json::json!({"duration":0}),serde_json::json!({"words":[]}),serde_json::json!({"words":[{"text":"zły","start":0,"end":1}]}),serde_json::json!({"words":[{"text":"Łódź","start":0.,"end":1.},{"text":"dziś","start":0.5,"end":1.5}]}),serde_json::json!({"words":[{"text":"Łódź","start":0.,"end":0.},{"text":"dziś","start":1.,"end":1.5}]})]{let mut v=seed();v["captionEdits"]["timeline:pl"]["textTiming"].as_object_mut().unwrap().extend(patch.as_object().unwrap().clone());assert!(parse(&v.to_string()).is_err(),"{patch}");}}
 }

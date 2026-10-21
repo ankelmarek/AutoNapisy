@@ -14,7 +14,7 @@ describe('0.34a unified caption styles and persistent motion switch',()=>{
  });
  it.each(animatedPresets)('$name Off survives save/reopen and On restores all original parameters',p=>{
   const base=presetStyle(newProject().styles.default,p.id),custom={...base,fontFamily:'Georgia',animation:{...base.animation!,speed:1.7,intensity:.4}},off=setCaptionAnimation(custom,false),project={...newProject(),styles:{default:off}};
-  const loaded=parseProject(serializeProject(project));expect(loaded.schemaVersion).toBe(17);expect(loaded.styles.default).toEqual(off);expect(visualCaptionPreset(off)).toBe(p.id);expect(hasCaptionMotion(off)).toBe(false);
+  const loaded=parseProject(serializeProject(project));expect(loaded.schemaVersion).toBe(18);expect(loaded.styles.default).toEqual(off);expect(visualCaptionPreset(off)).toBe(p.id);expect(hasCaptionMotion(off)).toBe(false);
   expect(setCaptionAnimation(loaded.styles.default,true)).toEqual({...custom,animation:{...custom.animation,enabled:true}});
   const card={id:'a',text:'Zażółć gęślą',start:0,end:3,styleId:'default',words:[{text:'Zażółć',start:0,end:1},{text:'gęślą',start:1,end:3}]};
   for(const t of [.1,.8,1.5,2.9])expect(captionMotion(card,off,t)).toMatchObject({active:-1,scale:1,opacity:1,fallback:false});

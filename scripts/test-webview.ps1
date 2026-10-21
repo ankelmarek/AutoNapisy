@@ -5,6 +5,7 @@ Copy-Item 'src-tauri/target/x86_64-pc-windows-msvc/release/rolvixa.exe' (Join-Pa
 $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = '--remote-debugging-port=9222 --disable-gpu'
 $env:ROLVIXA_WEBVIEW_CDP = 'http://127.0.0.1:9222'
 $env:AUTONAPISY_FFMPEG = Join-Path $destination 'vendor/ffmpeg.exe'
+$env:ROLVIXA_TEST_WHISPER_MODEL = (Resolve-Path '.tools/caption035b-ggml-tiny.bin').Path
 $env:ROLVIXA_TEST_PROJECT = Join-Path $env:RUNNER_TEMP 'RolVixa prawdziwy podgląd Łódź/projekt.json'
 $env:ROLVIXA_TEST_REPLACEMENT = Join-Path $env:RUNNER_TEMP 'RolVixa prawdziwy podgląd Łódź/Zamiennik Łódź.mp4'
 $env:ROLVIXA_TEST_HISTORY = Join-Path $env:RUNNER_TEMP 'RolVixa historia Łódź'

@@ -50,6 +50,12 @@ pub fn load_tools(app: &tauri::AppHandle) -> Tools {
     if let Ok(resources) = app.path().resource_dir() {
         crate::bundled::apply_defaults(&mut settings, &resources);
     }
+    // The instrumented Windows suite uses a real multilingual model downloaded
+    // by CI. Production builds never read this test-only selector or download it.
+    #[cfg(feature="ui-tests")]
+    if let Some(path)=std::env::var_os("ROLVIXA_TEST_WHISPER_MODEL"){
+        if let Ok(model)=transcription::validate_tool("model",std::path::Path::new(&path)){settings.model=Some(model);}
+    }
     settings
 }
 #[tauri::command]

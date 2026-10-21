@@ -1,5 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod caption_presets;
+mod caption_alignment;
+mod caption_alignment_commands;
 mod caption_preset_commands;
 mod caption_stream;
 mod caption_upload_commands;
@@ -296,6 +298,8 @@ fn main() {
             commands::component_licenses,
             commands::choose_component,
             commands::start_transcription,
+            caption_alignment_commands::start_caption_reanalysis,
+            caption_alignment_commands::validate_caption_reanalysis,
             commands::transcription_status,
             commands::cancel_transcription,
             commands::export_srt,
