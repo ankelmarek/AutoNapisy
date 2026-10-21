@@ -55,10 +55,14 @@ export function hideCaptions(p:Project,ids:readonly string[]):Project{
  return changed?{...p,captionEdits:edits}:p;
 }
 export function resizeCaption(p:Project,s:EditedSegment,edge:'left'|'right',delta:number):Project{
+ if(p.tracks.T?.locked)throw Error('Ścieżka napisów jest zablokowana.');
+ if(!Number.isFinite(delta))throw Error('Nieprawidłowe przycięcie napisu.');
  const old=p.captionEdits[s.id]??{trimStart:0,trimEnd:0},length=s.end-s.start;
+ if(delta===0)return p;
+ const field=edge==='left'?'trimStart':'trimEnd',value=Math.max(0,Math.min(old[field]+(edge==='left'?delta:-delta),old[field]+Math.max(0,length-.05)));
+ if(value===old[field])return p;
  const timing=old.textTiming?.mode==='manual'||old.textTiming?.mode==='reanalyzed'||old.textTiming?.mode==='retained'?{textTiming:undefined}:{};
- if(edge==='left')return editCaption(p,s,{...timing,trimStart:Math.max(0,Math.min(old.trimStart+delta,old.trimStart+length-.05))});
- return editCaption(p,s,{...timing,trimEnd:Math.max(0,Math.min(old.trimEnd-delta,old.trimEnd+length-.05))});
+ return editCaption(p,s,{...timing,[field]:value});
 }
 
 /** Translation keeps source/word identity and is committed as one edit after the gesture. */
@@ -66,5 +70,6 @@ export function moveCaption(p:Project,s:EditedSegment,delta:number):Project{
  if(p.tracks.T?.locked)throw Error('Ścieżka napisów jest zablokowana.');
  if(!Number.isFinite(delta))throw Error('Nieprawidłowe przesunięcie napisu.');
  const bounded=Math.max(-s.start,Math.min(delta,editDuration(p)-s.end));
+ if(bounded===0)return p;
  return editCaption(p,s,{offset:(p.captionEdits[s.id]?.offset??0)+bounded});
 }

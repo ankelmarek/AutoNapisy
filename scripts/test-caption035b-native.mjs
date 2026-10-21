@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
+import {testCaption035c} from './test-caption035c-native.mjs';
 
 export async function testCaption035b(page,projectPath,{seed,open,save,edit,exportMp4}){
  const button=name=>page.getByRole('button',{name,exact:true}),status=()=>page.locator('.caption-timing-status'),text=()=>page.getByRole('textbox',{name:'Tekst zaznaczonego napisu',exact:true}),word=(edge,i)=>page.getByRole('spinbutton',{name:`${edge} słowa ${i}`,exact:true}),invoke=(cmd,args={})=>page.evaluate(({cmd,args})=>window.__TAURI_INTERNALS__.invoke(cmd,args),{cmd,args});
@@ -44,5 +45,6 @@ export async function testCaption035b(page,projectPath,{seed,open,save,edit,expo
  await page.locator('.header-save').focus();await page.keyboard.press('Control+z');assert.equal(await status().getAttribute('data-timing'),'board');await page.keyboard.press('Control+y');assert.equal(await status().getAttribute('data-timing'),'reanalyzed');await save();
  await seek.fill('2');await page.waitForFunction(()=>document.querySelector('.animated-caption-canvas')?.dataset.fallback==='false');await page.screenshot({path:'.tools/caption035b-real-polish.png'});await exportMp4('reanalyzed-polish');
  await text().fill(actual+' nigdy');await text().press('Control+Enter');const changed=await save();await button('Dopasuj do nagrania').click();await page.getByRole('alert').filter({hasText:'inną treść'}).waitFor({timeout:90000});assert.equal(await page.locator('.caption-word-table').count(),0);assert.deepEqual((await save()).captionEdits,changed.captionEdits);
+ await testCaption035c(page,projectPath,{open,save,edit,exportMp4,real:matched});
  console.log('0.35b native: insertion anchors/empty unknown times, manual validation/review/discard/one Undo/Redo/reopen/lock/preview/MP4; real Polish human speech + actual whisper.cpp short reanalysis, cancel, explicit proposal, source-stamp refusal, separate Apply/Undo, real Polish MP4 and absent-word rejection: OK');
 }

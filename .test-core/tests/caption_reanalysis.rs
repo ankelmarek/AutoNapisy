@@ -173,3 +173,44 @@ fn real_polish_fragment_is_recognized_without_edited_text_prompt() {
     }
     println!("REAL_PL_REANALYSIS {}", json);
 }
+
+#[test]
+#[ignore = "requires three real FLEURS Polish utterances and multilingual whisper.cpp"]
+fn varied_polish_fragments_report_actual_recognition_and_source_clocks() {
+    let records: Vec<serde_json::Value> = serde_json::from_slice(
+        &std::fs::read("../.tools/caption035c-samples.json").unwrap(),
+    ).unwrap();
+    assert_eq!(records.len(), 3);
+    let tools = Tools {
+        ffmpeg: std::env::var_os("AUTONAPISY_FFMPEG").map(Into::into),
+        whisper: std::env::var_os("AUTONAPISY_WHISPER").map(Into::into),
+        model: std::env::var_os("AUTONAPISY_MODEL").map(Into::into),
+    }.validated().unwrap();
+    let mut output = Vec::new();
+    for mut record in records {
+        let source = PathBuf::from(record["path"].as_str().unwrap());
+        let duration = record["duration"].as_f64().unwrap();
+        let mut p = seed(&source);
+        p.media.as_mut().unwrap().duration = Some(duration);
+        let c = &mut p.clips.as_mut().unwrap()[0];
+        c.start = 2.5;
+        c.source_in = 0.;
+        c.source_out = duration;
+        let s = &mut p.timeline_segments.as_mut().unwrap()[0];
+        s.start = 2.5;
+        s.end = 2.5 + duration;
+        let started = std::time::Instant::now();
+        let (segments, actual_duration) = alignment::execute(
+            Arc::new(Job::new(0)), tools.clone(),
+            alignment::fragment(&p, "timeline:s", 2.5, 2.5 + duration).unwrap(),
+        ).unwrap();
+        assert!((actual_duration-duration).abs()<0.03);
+        assert!(!segments.is_empty());
+        assert!(segments.iter().all(|s| s.start>=0. && s.end<=duration+0.03));
+        assert!(segments.iter().any(|s| !s.words.is_empty()));
+        record["elapsedSeconds"] = serde_json::json!(started.elapsed().as_secs_f64());
+        record["segments"] = serde_json::to_value(segments).unwrap();
+        output.push(record);
+    }
+    std::fs::write("../.tools/caption035c-recognized.json", serde_json::to_vec_pretty(&output).unwrap()).unwrap();
+}

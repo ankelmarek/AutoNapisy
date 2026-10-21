@@ -177,6 +177,17 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Existing media regressions failed' }
           cargo test --locked --manifest-path .test-core/Cargo.toml --test caption_reanalysis bounded_pcm -- --ignored --nocapture
           if ($LASTEXITCODE -ne 0) { throw 'Caption PCM fragment failed' }
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Prepare three varied public Polish utterances
+        env:
+          AUTONAPISY_FFMPEG: ${{ github.workspace }}/src-tauri/.bundled/vendor/ffmpeg.exe
+        run: |
+          python -m pip install pyarrow==19.0.1
+          if ($LASTEXITCODE -ne 0) { throw 'PyArrow preparation failed' }
+          python scripts/prepare-caption035c-polish.py
+          if ($LASTEXITCODE -ne 0) { throw 'Polish public corpus preparation failed' }
       - name: Test short reanalysis on real Polish speech
         env:
           AUTONAPISY_FFMPEG: ${{ github.workspace }}/src-tauri/.bundled/vendor/ffmpeg.exe
@@ -188,6 +199,10 @@ jobs:
           ./scripts/prepare-caption035b-polish.ps1
           cargo test --locked --manifest-path .test-core/Cargo.toml --test caption_reanalysis real_polish -- --ignored --nocapture
           if ($LASTEXITCODE -ne 0) { throw 'Real Polish reanalysis failed' }
+          cargo test --locked --manifest-path .test-core/Cargo.toml --test caption_reanalysis varied_polish -- --ignored --nocapture
+          if ($LASTEXITCODE -ne 0) { throw 'Varied Polish reanalysis failed' }
+          python scripts/report-caption035c-polish.py
+          if ($LASTEXITCODE -ne 0) { throw 'Polish quality report failed' }
       - run: npm run tauri -- build --target x86_64-pc-windows-msvc --config src-tauri/tauri.bundled.conf.json
       - name: Test actual installation and bundled tools
         id: installation
@@ -195,8 +210,8 @@ jobs:
       - name: Build instrumented WebView2 test executable
         run: npm run tauri -- build --target x86_64-pc-windows-msvc --no-bundle --features tauri/devtools,ui-tests --config src-tauri/tauri.bundled.conf.json --config src-tauri/tauri.ui-tests.conf.json
       - name: Test real installed Tauri WebView2 editor
-        # Eight real caption renders, Full HD, legacy regressions and five actual Polish ASR passes.
-        timeout-minutes: 20
+        # Eight real caption renders, Full HD, legacy regressions and actual Polish ASR passes plus two-line PL MP4/A-B/Off.
+        timeout-minutes: 25
         run: ./scripts/test-webview.ps1
       - name: Preserve WebView2 screenshots
         if: always() && steps.installation.outcome == 'success'
@@ -208,6 +223,7 @@ jobs:
             .tools/caption034-*.png
             .tools/caption035-*.png
             .tools/caption035b-*.png
+            .tools/caption035c-*.png
             docs/editor029-*.png
             .tools/native-editor029.png
             docs/export032-*.png
@@ -264,6 +280,7 @@ jobs:
             .tools/caption035-*.mp4
             .tools/caption035b-recognized.json
             .tools/caption035b-preview-recognized.json
+            .tools/caption035c-*.json
             .tools/caption035-*.srt
           include-hidden-files: true
           if-no-files-found: ignore
