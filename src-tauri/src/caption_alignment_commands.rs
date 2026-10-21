@@ -6,6 +6,30 @@ use crate::{
 };
 use std::sync::{atomic::Ordering, Arc};
 use tauri::State;
+fn authorized_fragment(
+    json: &str,
+    caption_id: &str,
+    from: f64,
+    to: f64,
+    access: &Access,
+) -> Result<caption_alignment::Fragment, String> {
+    if json.len() > 16 * 1024 * 1024 {
+        return Err("Projekt przekracza 16 MB".into());
+    }
+    let p = crate::project::parse(json)?;
+    let mut fragment = caption_alignment::fragment(&p, caption_id, from, to)?;
+    let path = crate::media_path(&fragment.path)?;
+    if !access
+        .0
+        .lock()
+        .map_err(|_| "Błąd uprawnień")?
+        .contains(&path)
+    {
+        return Err("Najpierw zaimportuj źródło napisu".into());
+    }
+    fragment.path = path;
+    Ok(fragment)
+}
 #[derive(serde::Serialize)]
 pub struct Started {
     id: u64,
@@ -21,8 +45,7 @@ pub fn start_caption_reanalysis(
     tools: State<'_, ToolState>,
     tasks: State<'_, Tasks>,
 ) -> Result<Started, String> {
-    let p = crate::mlt_commands::authorized(&json, &access)?;
-    let fragment = caption_alignment::fragment(&p, &caption_id, from, to)?;
+    let fragment = authorized_fragment(&json, &caption_id, from, to, &access)?;
     let stamp = caption_alignment::stamp(&fragment.path)?;
     let original_stamp = stamp.clone();
     let tools = tools.0.lock().unwrap().validated()?;
@@ -81,8 +104,7 @@ pub fn validate_caption_reanalysis(
     stamp: String,
     access: State<'_, Access>,
 ) -> Result<(), String> {
-    let p = crate::mlt_commands::authorized(&json, &access)?;
-    let f = caption_alignment::fragment(&p, &caption_id, from, to)?;
+    let f = authorized_fragment(&json, &caption_id, from, to, &access)?;
     if caption_alignment::stamp(&f.path)? != stamp {
         return Err("Plik zmienił się po analizie. Uruchom dopasowanie ponownie".into());
     }

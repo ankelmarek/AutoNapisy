@@ -30,7 +30,8 @@ export async function testCaption035b(page,projectPath,{seed,open,save,edit,expo
  // AAC encoding may change an ASR token relative to the WAV. Establish this
  // exact source's reference by actually recognizing the MP4 through production
  // IPC, then exercise the UI gate with the same source, without synthetic output.
- const task=await invoke('start_caption_reanalysis',{json:JSON.stringify(real),captionId:'timeline:correction',from:0,to:4.5});let result;
+ const missingElsewhere={...real,assets:[{id:'missing',kind:'video',path:path.join(path.dirname(source),'brakujący inny film.mp4'),name:'Brakujący film',duration:2,segments:[]}],clips:[...real.clips,{id:'missing-clip',kind:'video',assetId:'missing',sourceIn:0,sourceOut:2,start:10,audioRoute:'A1'}]};
+ const task=await invoke('start_caption_reanalysis',{json:JSON.stringify(missingElsewhere),captionId:'timeline:correction',from:0,to:4.5});let result;
  for(let i=0;i<225;i++){result=await invoke('transcription_status',{id:task.id});if(['completed','failed','cancelled'].includes(result.state))break;await page.waitForTimeout(400);}assert.equal(result.state,'completed',result.message);assert(result.segments.length);fs.writeFileSync('.tools/caption035b-preview-recognized.json',JSON.stringify(result.segments));actual=result.segments.map(s=>s.text).join(' ');real.timelineSegments[0].text=actual;real.timelineSegments[0].words=result.segments.flatMap(s=>s.words);real.captionEdits['timeline:correction'].text=actual;real.name+=' — MP4';
  await open(real);await edit();const baseline=await save();
  const analyze=async()=>{await button('Dopasuj do nagrania').click();await page.locator('.caption-word-table').waitFor({timeout:90000});};
