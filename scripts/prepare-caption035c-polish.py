@@ -45,7 +45,15 @@ for i, row in enumerate(selected):
     with wave.open(str(wav)) as f:
         duration = f.getnframes() / f.getframerate()
     assert 3 <= duration <= 20
+    padded = root / f'fleurs-{i}-padded.wav'
+    # Source handles around the exact utterance, used to verify nonzero in/out.
+    with wave.open(str(wav)) as f:
+        pcm = f.readframes(f.getnframes())
+    with wave.open(str(padded), 'wb') as f:
+        f.setparams((1, 2, 16000, 0, 'NONE', 'not compressed'))
+        f.writeframes(b'\0' * (2*16000*2) + pcm + b'\0' * (16000*2))
     manifest.append({'id': str(row['id']), 'path': str(wav.resolve()), 'duration': duration,
+                     'paddedPath': str(padded.resolve()),
                      'reference': row['raw_transcription'], 'gender': row['gender'],
                      'sha256': hashlib.sha256(wav.read_bytes()).hexdigest(),
                      'sourceSha256': hashlib.sha256(original.read_bytes()).hexdigest(),
