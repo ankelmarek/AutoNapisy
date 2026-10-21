@@ -20,10 +20,15 @@ export function captionAnchors(source:TimedText,text:string):WordDraft[]{
  for(let i=0;i<n;i++)for(let j=0;j<m;j++)if(a[i]&&a[i]===b[j]&&pre[i][j]+1+post[i+1][j+1]===pre[n][m])candidates[pre[i][j]].push([i,j]);
  const out:WordDraft[]=empty;for(const pairs of candidates)if(pairs.length===1){const [i,j]=pairs[0],w=source.words[i];out[j]={text:to[j],start:w.start-source.start,end:w.end-source.start,origin:'inherited'};}return out;
 }
-export function checkedWordDraft(rows:readonly WordDraft[],text:string,duration:number):TimedText['words']{
+export function checkedWordDraft(rows:readonly WordDraft[],text:string,duration:number,clockMagnitude=duration):TimedText['words']{
  const parts=captionTokens(text);if(!rows.length||rows.length>256||rows.length!==parts.length||!Number.isFinite(duration)||duration<=0)throw Error('Edycja czasów obsługuje od 1 do 256 słów.');
- return rows.map((w,i)=>{if(w.text!==parts[i]||w.start===undefined||w.end===undefined||!Number.isFinite(w.start)||!Number.isFinite(w.end)||w.start<0||w.end<=w.start||w.end>duration||(i>0&&w.start<rows[i-1].end!))throw Error(`Uzupełnij poprawny, niepokrywający się zakres słowa ${i+1}. Czasy są liczone od początku napisu.`);return {text:w.text,start:w.start,end:w.end};});
+ // Subtracting two absolute clocks can lose a few ULPs (4.3 - 1.1 < 3.2).
+ // Canonicalize only that arithmetic residue, never millisecond input errors or overlaps.
+ const epsilon=8*Number.EPSILON*Math.max(1,duration,Math.min(86400,Math.abs(clockMagnitude)));
+ return rows.map((w,i)=>{const end=w.end!==undefined&&w.end>duration&&w.end-duration<=epsilon?duration:w.end;if(w.text!==parts[i]||w.start===undefined||end===undefined||!Number.isFinite(w.start)||!Number.isFinite(end)||w.start<0||end<=w.start||end>duration||(i>0&&w.start<Math.min(rows[i-1].end!,duration)))throw Error(`Uzupełnij poprawny, niepokrywający się zakres słowa ${i+1}. Czasy są liczone od początku napisu.`);return {text:w.text,start:w.start,end};});
 }
+/** Explicit playhead placement: millisecond display precision within the actual span. */
+export const captionPlayheadTime=(time:number,start:number,end:number)=>Math.max(0,Math.min(end-start,Number((time-start).toFixed(3))));
 /** Existing intervals only. This is a positional correction, never audio alignment. */
 export function inheritCaptionWords(source:TimedText,text:string):TimedText['words']|null{
  const words=source.words,from=tokens(source.text),to=text.trim().split(/\s+/u).filter(Boolean);

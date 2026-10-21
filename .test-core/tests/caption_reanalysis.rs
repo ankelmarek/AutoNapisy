@@ -173,3 +173,83 @@ fn real_polish_fragment_is_recognized_without_edited_text_prompt() {
     }
     println!("REAL_PL_REANALYSIS {}", json);
 }
+
+#[test]
+#[ignore = "requires three real FLEURS Polish utterances and multilingual whisper.cpp"]
+fn varied_polish_fragments_report_actual_recognition_and_source_clocks() {
+    let records: Vec<serde_json::Value> =
+        serde_json::from_slice(&std::fs::read("../.tools/caption035c-samples.json").unwrap())
+            .unwrap();
+    assert_eq!(records.len(), 3);
+    let tools = Tools {
+        ffmpeg: std::env::var_os("AUTONAPISY_FFMPEG").map(Into::into),
+        whisper: std::env::var_os("AUTONAPISY_WHISPER").map(Into::into),
+        model: std::env::var_os("AUTONAPISY_MODEL").map(Into::into),
+    }
+    .validated()
+    .unwrap();
+    let mut output = Vec::new();
+    for mut record in records {
+        let reference = PathBuf::from(record["path"].as_str().unwrap());
+        let source = PathBuf::from(record["paddedPath"].as_str().unwrap());
+        let duration = record["duration"].as_f64().unwrap();
+        let mut p = seed(&source);
+        p.media.as_mut().unwrap().duration = Some(duration + 3.);
+        let c = &mut p.clips.as_mut().unwrap()[0];
+        c.start = 2.5;
+        c.source_in = 2.;
+        c.source_out = duration + 2.;
+        // A preceding sibling from the same source touches the selected range;
+        // only the trimmed selected clip may participate in re-recognition.
+        p.clips.as_mut().unwrap().push(project::Clip {
+            id: "before-split".into(),
+            start: 0.5,
+            source_in: 0.,
+            source_out: 2.,
+            volume: 1.,
+            kind: "video".into(),
+            ..Default::default()
+        });
+        let s = &mut p.timeline_segments.as_mut().unwrap()[0];
+        s.start = 2.5;
+        s.end = 2.5 + duration;
+        let fragment = alignment::fragment(&p, "timeline:s", 2.5, 2.5 + duration).unwrap();
+        let scratch = tempfile::tempdir().unwrap();
+        alignment::extract(
+            &Arc::new(Job::new(0)),
+            tools.ffmpeg.as_ref().unwrap(),
+            &fragment,
+            scratch.path(),
+        )
+        .unwrap();
+        let samples = |path: &Path| {
+            hound::WavReader::open(path)
+                .unwrap()
+                .samples::<i16>()
+                .map(Result::unwrap)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            samples(&scratch.path().join("audio.wav")),
+            samples(&reference),
+            "Trim/split clock selected different Polish PCM"
+        );
+        let started = std::time::Instant::now();
+        let (segments, actual_duration) =
+            alignment::execute(Arc::new(Job::new(0)), tools.clone(), fragment).unwrap();
+        assert!((actual_duration - duration).abs() < 0.03);
+        assert!(!segments.is_empty());
+        assert!(segments
+            .iter()
+            .all(|s| s.start >= 0. && s.end <= duration + 0.03));
+        assert!(segments.iter().any(|s| !s.words.is_empty()));
+        record["elapsedSeconds"] = serde_json::json!(started.elapsed().as_secs_f64());
+        record["segments"] = serde_json::to_value(segments).unwrap();
+        output.push(record);
+    }
+    std::fs::write(
+        "../.tools/caption035c-recognized.json",
+        serde_json::to_vec_pretty(&output).unwrap(),
+    )
+    .unwrap();
+}
