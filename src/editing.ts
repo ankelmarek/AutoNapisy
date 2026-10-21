@@ -83,7 +83,7 @@ export function compositionSegments(p: Project): EditedSegment[] {
     const patch=p.captionEdits[s.id];if(patch?.hidden)return [];
     const offset=patch?.offset??0,start=Math.max(0,s.start+(patch?.trimStart??0)+offset),end=Math.min(total,s.end-(patch?.trimEnd??0)+offset);if(end<=start||(patch&&end-start<.049999))return [];
     const inherited=patch?.text!==undefined&&patch.textTiming?.mode==='inherited'&&patch.textTiming.sourceText===s.text?inheritCaptionWords(s,patch.text):null;
-    const t=patch?.textTiming,newWords=t&&(t.mode==='manual'||t.mode==='reanalyzed')&&t.sourceText===s.text&&Math.abs(t.duration-(end-start))<1e-7?t.words.map(w=>({...w,start:w.start+start-offset,end:w.end+start-offset})):null;
+    const t=patch?.textTiming,newWords=t&&(t.mode==='manual'||t.mode==='reanalyzed'||t.mode==='retained')&&!t.disabled&&t.sourceText===s.text&&Math.abs(t.duration-(end-start))<1e-7?t.words.map(w=>({...w,start:w.start+start-offset,end:w.end+start-offset})):null;
     const timed=newWords??(patch&&(patch.trimStart>0||patch.trimEnd>0||patch.textTiming?.mode==='board')?[]:patch?.text!==undefined?(inherited??[]):s.words);
     const words=timed.map(w=>({...w,start:w.start+offset,end:w.end+offset})).filter(w=>w.start<end&&w.end>start).map(w=>({...w,start:Math.max(start,w.start),end:Math.min(end,w.end)}));
     return [{...s,styleId:patch?.styleId??s.styleId,start,end,words,text:patch?.text??s.text}];

@@ -37,10 +37,10 @@ export function inheritCaptionWords(source:TimedText,text:string):TimedText['wor
  if(changed.length===words.length&&words.length>1)return null;
  return words.map((w,i)=>({...w,text:to[i]}));
 }
-export type CaptionTimingState='source'|'inherited'|'uncertain'|'board'|'manual'|'reanalyzed';
+export type CaptionTimingState='source'|'inherited'|'uncertain'|'board'|'manual'|'reanalyzed'|'retained';
 export function captionTimingState(p:Project,s:TimedText&{id:string;styleId:string}):CaptionTimingState{
- const e=p.captionEdits[s.id];if(e?.textTiming?.mode==='board')return 'board';
+ const e=p.captionEdits[s.id];if(e?.textTiming?.mode==='board'||(e?.textTiming&&'disabled' in e.textTiming&&e.textTiming.disabled))return 'board';
  if(!synchronizedWords(s,p.styles[s.styleId]))return 'uncertain';
  return e?.textTiming?.mode??'source';
 }
-export const captionTimingLabel=(state:CaptionTimingState)=>({source:'Czasy z projektu',inherited:'Korekta zachowała czasy',uncertain:'Wymaga dopasowania',board:'Animacja całej planszy',manual:'Ręczne czasy',reanalyzed:'Czasy z ponownej analizy Whisper'})[state];
+export const captionTimingLabel=(state:CaptionTimingState)=>({source:'Czasy z projektu',inherited:'Korekta zachowała czasy',uncertain:'Wymaga dopasowania',board:'Animacja całej planszy',manual:'Ręczne czasy',retained:'Korekta zachowała czasy',reanalyzed:'Czasy z ponownej analizy Whisper'})[state];

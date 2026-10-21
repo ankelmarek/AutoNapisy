@@ -1,19 +1,175 @@
 //! Real PCM source clocks, linked J/L sound, music exclusion and silence refusal.
-use autonapisy_core_tests::{caption_alignment as alignment,project,transcription::{Job,Tools}};
-use std::{path::{Path,PathBuf},sync::Arc};
-fn seed(path:&Path)->project::Project{project::parse(&serde_json::json!({"schemaVersion":18,"name":"Dźwięk Łódź","media":{"path":path.to_str().unwrap(),"name":"głos.wav","duration":8.},"clips":[{"id":"v","sourceIn":2.,"sourceOut":7.,"start":10.,"audioRoute":"A1"}],"timelineSegments":[{"id":"s","text":"A B","start":12.,"end":14.,"words":[],"styleId":"default"}],"segments":[],"styles":{"default":{"fontFamily":"Bebas Neue","fontSize":56,"color":"#ffffff","background":"#000000","position":"bottom"}},"createdAt":"2026-10-21T00:00:00Z","updatedAt":"2026-10-21T00:00:00Z"}).to_string()).unwrap()}
-fn write(path:&Path,silence:bool){let spec=hound::WavSpec{channels:1,sample_rate:16000,bits_per_sample:16,sample_format:hound::SampleFormat::Int};let mut w=hound::WavWriter::create(path,spec).unwrap();for n in 0..8*16000{let t=n as f64/16000.;let hz=if t<3.{300.}else if t<5.{440.}else{880.};w.write_sample(if silence{0i16}else{((t*hz*std::f64::consts::TAU).sin()*12000.) as i16}).unwrap();}w.finalize().unwrap();}
-fn tone(path:&Path,t:f64,hz:f64)->f64{let mut wav=hound::WavReader::open(path).unwrap();let samples:Vec<f64>=wav.samples::<i16>().skip((t*16000.) as usize).take(3200).map(|x|x.unwrap() as f64/32768.).collect();let re=samples.iter().enumerate().map(|(i,x)|x*(i as f64/16000.*hz*std::f64::consts::TAU).cos()).sum::<f64>();let im=samples.iter().enumerate().map(|(i,x)|x*(i as f64/16000.*hz*std::f64::consts::TAU).sin()).sum::<f64>();(re*re+im*im).sqrt()/samples.len() as f64}
-#[test]#[ignore="requires actual FFmpeg"]fn bounded_pcm_uses_real_source_clock_linked_sound_and_rejects_silence(){
- let ff=PathBuf::from(std::env::var_os("AUTONAPISY_FFMPEG").expect("FFmpeg"));let dir=tempfile::tempdir().unwrap();let source=dir.path().join("głos Łódź.wav");write(&source,false);let mut p=seed(&source);let f=alignment::fragment(&p,"timeline:s",12.,14.).unwrap();let job=Arc::new(Job::new(0));alignment::extract(&job,&ff,&f,dir.path()).unwrap();let wav=dir.path().join("audio.wav");assert!(tone(&wav,0.3,440.)>0.1);assert!(tone(&wav,1.3,880.)>0.1);assert!(tone(&wav,0.3,300.)<0.01);
- // An unrelated overlapping music producer must not participate in the fragment.
- let music=project::Clip{id:"music".into(),source_in:0.,source_out:8.,start:10.,kind:"audio".into(),volume:1.,..Default::default()};p.clips.as_mut().unwrap().push(music);alignment::extract(&job,&ff,&alignment::fragment(&p,"timeline:s",12.,14.).unwrap(),dir.path()).unwrap();assert!(tone(&wav,0.3,440.)>0.1);
- // Deliberately offset detached sound: timeline 12 maps to source 3, not source 4.
- p.clips.as_mut().unwrap()[0].audio_detached=true;p.clips.as_mut().unwrap()[0].sync_group=Some("linked".into());p.clips.as_mut().unwrap().push(project::Clip{id:"voice".into(),kind:"audio".into(),start:10.,source_in:1.,source_out:7.,volume:1.,sync_group:Some("linked".into()),track:1,..Default::default()});alignment::extract(&job,&ff,&alignment::fragment(&p,"timeline:s",12.,14.).unwrap(),dir.path()).unwrap();assert!(tone(&wav,1.3,440.)>0.1);assert!(tone(&wav,1.3,880.)<0.01);
- p.tracks.a2.muted=true;assert!(alignment::fragment(&p,"timeline:s",12.,14.).is_err());p.tracks.a2.muted=false;write(&source,true);assert!(alignment::extract(&job,&ff,&alignment::fragment(&p,"timeline:s",12.,14.).unwrap(),dir.path()).unwrap_err().contains("cichy"));
+use autonapisy_core_tests::{
+    caption_alignment as alignment, project,
+    transcription::{Job, Tools},
+};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
+fn seed(path: &Path) -> project::Project {
+    project::parse(&serde_json::json!({"schemaVersion":18,"name":"Dźwięk Łódź","media":{"path":path.to_str().unwrap(),"name":"głos.wav","duration":8.},"clips":[{"id":"v","sourceIn":2.,"sourceOut":7.,"start":10.,"audioRoute":"A1"}],"timelineSegments":[{"id":"s","text":"A B","start":12.,"end":14.,"words":[],"styleId":"default"}],"segments":[],"styles":{"default":{"fontFamily":"Bebas Neue","fontSize":56,"color":"#ffffff","background":"#000000","position":"bottom"}},"createdAt":"2026-10-21T00:00:00Z","updatedAt":"2026-10-21T00:00:00Z"}).to_string()).unwrap()
 }
-#[test]#[ignore="requires real Polish speech and multilingual whisper.cpp"]fn real_polish_fragment_is_recognized_without_edited_text_prompt(){
- let sample=PathBuf::from(std::env::var_os("ROLVIXA_POLISH_SAMPLE").expect("real Polish sample"));let tools=Tools{ffmpeg:std::env::var_os("AUTONAPISY_FFMPEG").map(Into::into),whisper:std::env::var_os("AUTONAPISY_WHISPER").map(Into::into),model:std::env::var_os("AUTONAPISY_MODEL").map(Into::into)}.validated().unwrap();let mut p=seed(&sample);p.media.as_mut().unwrap().duration=Some(4.5);p.clips.as_mut().unwrap().truncate(1);let c=&mut p.clips.as_mut().unwrap()[0];c.start=0.;c.source_in=0.;c.source_out=4.5;let s=&mut p.timeline_segments.as_mut().unwrap()[0];s.start=0.;s.end=4.5;
- let job=Arc::new(Job::new(0));let (segments,duration)=alignment::execute(job,tools,alignment::fragment(&p,"timeline:s",0.,4.5).unwrap()).unwrap();assert!((duration-4.5).abs()<0.03);assert!(!segments.is_empty());assert!(segments.iter().all(|s|s.start>=0.&&s.end<=4.5));
- let actual=segments.iter().map(|s|s.text.as_str()).collect::<Vec<_>>().join(" ");assert!(!actual.contains("A B"),"Edited caption was used as a prompt");let json=serde_json::to_string(&segments).unwrap();if let Some(path)=std::env::var_os("ROLVIXA_PL_RESULT"){std::fs::write(path,&json).unwrap();}println!("REAL_PL_REANALYSIS {}",json);
+fn write(path: &Path, silence: bool) {
+    let spec = hound::WavSpec {
+        channels: 1,
+        sample_rate: 16000,
+        bits_per_sample: 16,
+        sample_format: hound::SampleFormat::Int,
+    };
+    let mut w = hound::WavWriter::create(path, spec).unwrap();
+    for n in 0..8 * 16000 {
+        let t = n as f64 / 16000.;
+        let hz = if t < 3. {
+            300.
+        } else if t < 5. {
+            440.
+        } else {
+            880.
+        };
+        w.write_sample(if silence {
+            0i16
+        } else {
+            ((t * hz * std::f64::consts::TAU).sin() * 12000.) as i16
+        })
+        .unwrap();
+    }
+    w.finalize().unwrap();
+}
+fn tone(path: &Path, t: f64, hz: f64) -> f64 {
+    let mut wav = hound::WavReader::open(path).unwrap();
+    let samples: Vec<f64> = wav
+        .samples::<i16>()
+        .skip((t * 16000.) as usize)
+        .take(3200)
+        .map(|x| x.unwrap() as f64 / 32768.)
+        .collect();
+    let re = samples
+        .iter()
+        .enumerate()
+        .map(|(i, x)| x * (i as f64 / 16000. * hz * std::f64::consts::TAU).cos())
+        .sum::<f64>();
+    let im = samples
+        .iter()
+        .enumerate()
+        .map(|(i, x)| x * (i as f64 / 16000. * hz * std::f64::consts::TAU).sin())
+        .sum::<f64>();
+    (re * re + im * im).sqrt() / samples.len() as f64
+}
+#[test]
+#[ignore = "requires actual FFmpeg"]
+fn bounded_pcm_uses_real_source_clock_linked_sound_and_rejects_silence() {
+    let ff = PathBuf::from(std::env::var_os("AUTONAPISY_FFMPEG").expect("FFmpeg"));
+    let dir = tempfile::tempdir().unwrap();
+    let source = dir.path().join("głos Łódź.wav");
+    write(&source, false);
+    let mut p = seed(&source);
+    let f = alignment::fragment(&p, "timeline:s", 12., 14.).unwrap();
+    let job = Arc::new(Job::new(0));
+    alignment::extract(&job, &ff, &f, dir.path()).unwrap();
+    let wav = dir.path().join("audio.wav");
+    assert!(tone(&wav, 0.3, 440.) > 0.1);
+    assert!(tone(&wav, 1.3, 880.) > 0.1);
+    assert!(tone(&wav, 0.3, 300.) < 0.01);
+    // An unrelated overlapping music producer must not participate in the fragment.
+    let music = project::Clip {
+        id: "music".into(),
+        source_in: 0.,
+        source_out: 8.,
+        start: 10.,
+        kind: "audio".into(),
+        volume: 1.,
+        ..Default::default()
+    };
+    p.clips.as_mut().unwrap().push(music);
+    alignment::extract(
+        &job,
+        &ff,
+        &alignment::fragment(&p, "timeline:s", 12., 14.).unwrap(),
+        dir.path(),
+    )
+    .unwrap();
+    assert!(tone(&wav, 0.3, 440.) > 0.1);
+    // Deliberately offset detached sound: timeline 12 maps to source 3, not source 4.
+    p.clips.as_mut().unwrap()[0].audio_detached = true;
+    p.clips.as_mut().unwrap()[0].sync_group = Some("linked".into());
+    p.clips.as_mut().unwrap().push(project::Clip {
+        id: "voice".into(),
+        kind: "audio".into(),
+        start: 10.,
+        source_in: 1.,
+        source_out: 7.,
+        volume: 1.,
+        sync_group: Some("linked".into()),
+        track: 1,
+        ..Default::default()
+    });
+    alignment::extract(
+        &job,
+        &ff,
+        &alignment::fragment(&p, "timeline:s", 12., 14.).unwrap(),
+        dir.path(),
+    )
+    .unwrap();
+    assert!(tone(&wav, 1.3, 440.) > 0.1);
+    assert!(tone(&wav, 1.3, 880.) < 0.01);
+    p.tracks.a2.muted = true;
+    assert!(alignment::fragment(&p, "timeline:s", 12., 14.).is_err());
+    p.tracks.a2.muted = false;
+    write(&source, true);
+    assert!(alignment::extract(
+        &job,
+        &ff,
+        &alignment::fragment(&p, "timeline:s", 12., 14.).unwrap(),
+        dir.path()
+    )
+    .unwrap_err()
+    .contains("cichy"));
+}
+#[test]
+#[ignore = "requires real Polish speech and multilingual whisper.cpp"]
+fn real_polish_fragment_is_recognized_without_edited_text_prompt() {
+    let sample =
+        PathBuf::from(std::env::var_os("ROLVIXA_POLISH_SAMPLE").expect("real Polish sample"));
+    let tools = Tools {
+        ffmpeg: std::env::var_os("AUTONAPISY_FFMPEG").map(Into::into),
+        whisper: std::env::var_os("AUTONAPISY_WHISPER").map(Into::into),
+        model: std::env::var_os("AUTONAPISY_MODEL").map(Into::into),
+    }
+    .validated()
+    .unwrap();
+    let mut p = seed(&sample);
+    p.media.as_mut().unwrap().duration = Some(4.5);
+    p.clips.as_mut().unwrap().truncate(1);
+    let c = &mut p.clips.as_mut().unwrap()[0];
+    c.start = 0.;
+    c.source_in = 0.;
+    c.source_out = 4.5;
+    let s = &mut p.timeline_segments.as_mut().unwrap()[0];
+    s.start = 0.;
+    s.end = 4.5;
+    let job = Arc::new(Job::new(0));
+    let (segments, duration) = alignment::execute(
+        job,
+        tools,
+        alignment::fragment(&p, "timeline:s", 0., 4.5).unwrap(),
+    )
+    .unwrap();
+    assert!((duration - 4.5).abs() < 0.03);
+    assert!(!segments.is_empty());
+    assert!(segments.iter().all(|s| s.start >= 0. && s.end <= 4.5));
+    let actual = segments
+        .iter()
+        .map(|s| s.text.as_str())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(
+        !actual.contains("A B"),
+        "Edited caption was used as a prompt"
+    );
+    let json = serde_json::to_string(&segments).unwrap();
+    if let Some(path) = std::env::var_os("ROLVIXA_PL_RESULT") {
+        std::fs::write(path, &json).unwrap();
+    }
+    println!("REAL_PL_REANALYSIS {}", json);
 }

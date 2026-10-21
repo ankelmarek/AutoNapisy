@@ -263,6 +263,7 @@ jobs:
             .tools/caption034-*.mp4
             .tools/caption035-*.mp4
             .tools/caption035b-recognized.json
+            .tools/caption035b-preview-recognized.json
             .tools/caption035-*.srt
           include-hidden-files: true
           if-no-files-found: ignore
