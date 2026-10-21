@@ -15,7 +15,12 @@ export async function testCaption035c(page,projectPath,{open,save,edit,exportMp4
  // A single timeline pointer gesture intentionally selects and closes text editing.
  await edit();
  const seek=page.getByRole('slider',{name:'Pozycja odtwarzania',exact:true});await seek.fill('2');await page.waitForFunction(()=>document.querySelector('.animated-caption-canvas')?.dataset.fallback==='false');
- for(const [width,height] of [[1366,700],[1920,1080]]){await page.setViewportSize({width,height});await status().scrollIntoViewIfNeeded();await page.screenshot({path:`.tools/caption035c-polish-${width}.png`});}
+ const decoded=async()=>{
+  await page.waitForFunction(()=>{const v=document.querySelector('video.mlt-video');return v?.readyState>=2&&v.videoWidth>0&&Math.abs(v.currentTime-2)<.1;},{},{timeout:45000});
+  assert(await page.locator('video.mlt-video').evaluate(v=>{const c=document.createElement('canvas');c.width=32;c.height=32;const x=c.getContext('2d');x.drawImage(v,0,0,32,32);return [...x.getImageData(0,0,32,32).data].some((value,i)=>i%4!==3&&value>80);}), 'Polish source preview has no decoded picture pixels');
+ };
+ for(const [width,height] of [[1366,700],[1920,1080]]){await page.setViewportSize({width,height});await page.getByRole('separator',{name:'Wysokość osi czasu',exact:true}).press('Home');await decoded();await status().scrollIntoViewIfNeeded();await page.screenshot({path:`.tools/caption035c-polish-${width}.png`});}
+ await page.getByRole('separator',{name:'Wysokość osi czasu',exact:true}).press('Enter');
  await button('Eksport SRT').click();const srtPath=projectPath.replace(/\.json$/i,'.srt');for(let i=0;i<150;i++){if(fs.existsSync(srtPath)&&fs.readFileSync(srtPath,'utf8').includes('00:00:00,000 --> 00:00:04,500'))break;await page.waitForTimeout(100);}const srt=fs.readFileSync(srtPath,'utf8');assert(srt.includes('00:00:00,000 --> 00:00:04,500'));const strip=s=>s.normalize('NFC').toLocaleLowerCase('pl').replace(/\s+/g,' ').trim();assert.equal(strip(srt.split('\n').slice(2).join(' ')),strip(original));fs.writeFileSync('.tools/caption035-polish-multiline.srt',srt);await page.waitForFunction(()=>!document.querySelector('.header-export').disabled);
  await exportMp4('polish-multiline',{compare:true});
  const off=structuredClone(saved);off.name='0.35c — polska mowa, animacja Off';off.styles.default.animation.enabled=false;await open(off);await edit();assert.equal(await status().getAttribute('data-timing'),'retained');await exportMp4('polish-off');assert.deepEqual((await save()).captionEdits,saved.captionEdits);
