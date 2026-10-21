@@ -1,9 +1,22 @@
 import type {Project} from './model';
 import {compositionSegments,editDuration,type EditedSegment} from './editing';
-import {inheritCaptionWords} from './captionTiming';
-function sourceCaption(p:Project,id:string){
+import {inheritCaptionWords,captionAnchors,checkedWordDraft,type WordDraft} from './captionTiming';
+export function sourceCaption(p:Project,id:string){
  const e=p.captionEdits[id];if(!e)return compositionSegments(p).find(s=>s.id===id);
  const {text:_,textTiming:__,...rest}=e;return compositionSegments({...p,captionEdits:{...p.captionEdits,[id]:rest}}).find(s=>s.id===id);
+}
+export function captionWordDraft(p:Project,s:EditedSegment):WordDraft[]{
+ if(s.words.length)return s.words.map(w=>({...w,start:w.start-s.start,end:w.end-s.start,origin:p.captionEdits[s.id]?.textTiming?.mode==='reanalyzed'?'reanalyzed':p.captionEdits[s.id]?.textTiming?.mode==='manual'?'manual':'inherited'}));
+ const source=sourceCaption(p,s.id);return source?captionAnchors(source,s.text):s.text.trim().split(/\s+/u).filter(Boolean).map(text=>({text}));
+}
+/** One deliberate transaction. Store only new timings relative to this caption;
+ * never overwrite the raw source transcript or shift a repeated source instance. */
+export function applyCaptionWords(p:Project,s:EditedSegment,rows:readonly WordDraft[],mode:'manual'|'reanalyzed'):Project{
+ if(p.tracks.T?.locked)throw Error('Ścieżka napisów jest zablokowana.');
+ const current=compositionSegments(p).find(c=>c.id===s.id),source=sourceCaption(p,s.id);
+ if(!current||!source||current.text!==s.text||current.start!==s.start||current.end!==s.end)throw Error('Napis zmienił się. Otwórz dopasowanie ponownie.');
+ const duration=s.end-s.start,words=checkedWordDraft(rows,s.text,duration),e=p.captionEdits[s.id]??{trimStart:0,trimEnd:0};
+ return {...p,captionEdits:{...p.captionEdits,[s.id]:{...e,text:s.text,textTiming:{mode,sourceText:source.text,duration,words}}}};
 }
 export function editCaption(p:Project,s:EditedSegment,patch:Partial<Project['captionEdits'][string]>):Project{
  if(p.tracks.T?.locked)throw Error('Ścieżka napisów jest zablokowana.');
@@ -30,8 +43,9 @@ export function hideCaptions(p:Project,ids:readonly string[]):Project{
 }
 export function resizeCaption(p:Project,s:EditedSegment,edge:'left'|'right',delta:number):Project{
  const old=p.captionEdits[s.id]??{trimStart:0,trimEnd:0},length=s.end-s.start;
- if(edge==='left')return editCaption(p,s,{trimStart:Math.max(0,Math.min(old.trimStart+delta,old.trimStart+length-.05))});
- return editCaption(p,s,{trimEnd:Math.max(0,Math.min(old.trimEnd-delta,old.trimEnd+length-.05))});
+ const timing=old.textTiming?.mode==='manual'||old.textTiming?.mode==='reanalyzed'?{textTiming:undefined}:{};
+ if(edge==='left')return editCaption(p,s,{...timing,trimStart:Math.max(0,Math.min(old.trimStart+delta,old.trimStart+length-.05))});
+ return editCaption(p,s,{...timing,trimEnd:Math.max(0,Math.min(old.trimEnd-delta,old.trimEnd+length-.05))});
 }
 
 /** Translation keeps source/word identity and is committed as one edit after the gesture. */

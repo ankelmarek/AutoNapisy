@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {execFileSync} from 'node:child_process';
+import {testCaption035b} from './test-caption035b-native.mjs';
 
 // Polish captions are explicit synthetic editing fixtures; no Polish ASR is claimed here.
 export async function testCaption035Correction(page,projectPath){
@@ -27,7 +28,7 @@ export async function testCaption035Correction(page,projectPath){
  };
  let failed=false;
  try{
-  await open(seed);await edit();await text().fill(corrected);assert.equal(await page.locator('[data-caption-id="timeline:correction"] .caption-list-text').innerText(),original);assert.equal(JSON.parse(fs.readFileSync(projectPath,'utf8')).timelineSegments[0].text,original);assert.equal(await status().getAttribute('data-timing'),'source');await text().press('Control+Enter');assert.equal(await status().getAttribute('data-timing'),'inherited');let saved=await save();const edited=saved.captionEdits['timeline:correction'];assert.equal(saved.schemaVersion,17);assert.deepEqual(edited.textTiming,{mode:'inherited',sourceText:original});assert.equal(edited.text,corrected);assert.deepEqual(saved.timelineSegments,seed.timelineSegments);assert.deepEqual(saved.clips,seed.clips);assert.deepEqual(saved.masterAudio,seed.masterAudio);assert.equal(saved.captionEdits['timeline:other'],undefined);
+  await open(seed);await edit();await text().fill(corrected);assert.equal(await page.locator('[data-caption-id="timeline:correction"] .caption-list-text').innerText(),original);assert.equal(JSON.parse(fs.readFileSync(projectPath,'utf8')).timelineSegments[0].text,original);assert.equal(await status().getAttribute('data-timing'),'source');await text().press('Control+Enter');assert.equal(await status().getAttribute('data-timing'),'inherited');let saved=await save();const edited=saved.captionEdits['timeline:correction'];assert.equal(saved.schemaVersion,18);assert.deepEqual(edited.textTiming,{mode:'inherited',sourceText:original});assert.equal(edited.text,corrected);assert.deepEqual(saved.timelineSegments,seed.timelineSegments);assert.deepEqual(saved.clips,seed.clips);assert.deepEqual(saved.masterAudio,seed.masterAudio);assert.equal(saved.captionEdits['timeline:other'],undefined);
   await page.keyboard.press('Control+z');assert.deepEqual((await save()).captionEdits,{});await page.keyboard.press('Control+y');assert.deepEqual((await save()).captionEdits,saved.captionEdits);
   // T pointer-down changes selection before the textarea can blur; preserve that draft too.
   await text().fill(corrected+'!');await page.locator('.caption-timeline-clip[data-caption-id="timeline:other"]').click({position:{x:12,y:10}});assert.equal((await save()).captionEdits['timeline:correction'].text,corrected+'!');await page.keyboard.press('Control+z');assert.equal((await save()).captionEdits['timeline:correction'].text,corrected);await edit();
@@ -42,6 +43,7 @@ export async function testCaption035Correction(page,projectPath){
   await text().fill('Dzisiaj rozpoczynamy budowę trzech nowych dróg');await text().press('Control+Enter');assert.equal(await status().getAttribute('data-timing'),'uncertain');const uncertain=await save();assert.equal(uncertain.captionEdits['timeline:correction'].textTiming,undefined);await exportMp4('uncertain');assert.equal(await status().getAttribute('data-timing'),'uncertain');await page.locator('.header-save').focus();await page.keyboard.press('Control+z');assert.equal((await save()).captionEdits['timeline:correction'].text,corrected);
   await button('Blokada T').click();assert(await text().isDisabled());assert(await button('Animacja całej planszy').isDisabled());await button('Blokada T').click();
   console.log('0.35a native correction: synthetic Polish 1:1 edit, no per-character project changes, inherited provenance, one Undo/Redo, Escape, Ctrl+S, exact raw words/styles/audio, preview active word, real moving H264/AAC captions and three nonzero A/B samples, explicit whole-card override, uncertain-count fallback, locked T, save/reopen and 1366/FHD: OK');
+  await testCaption035b(page,projectPath,{seed,open,save,edit,exportMp4});
  }catch(e){failed=true;console.log('Correction UI failure:',await page.locator('body').innerText());await page.screenshot({path:'.tools/caption035-failure.png'});throw e;}
  finally{try{await open({...before,name:before.name+' — po korekcie'});await button('Napisy').click();await page.getByRole('tab',{name:'Style napisów',exact:true}).click();await save();}catch(e){if(!failed)throw e;console.log('Correction fixture restore failed:',String(e));}}
 }

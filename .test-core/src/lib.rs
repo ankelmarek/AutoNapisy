@@ -76,3 +76,6 @@ pub mod caption_stream;
 
 #[path="../../src-tauri/src/caption_presets.rs"]
 pub mod caption_presets;
+
+#[path="../../src-tauri/src/caption_alignment.rs"]
+pub mod caption_alignment;

@@ -101,6 +101,7 @@ pub struct Status {
     pub output_path: Option<String>,
 }
 pub struct Job {
+    pub deadline: Mutex<Option<std::time::Instant>>,
     pub cancel: AtomicBool,
     pub status: Mutex<Status>,
     pub progress_duration: Mutex<Option<f64>>,
@@ -109,6 +110,7 @@ pub struct Job {
 impl Job {
     pub fn new(id: u64) -> Self {
         Self {
+            deadline: Mutex::new(None),
             cancel: AtomicBool::new(false),
             progress_duration: Mutex::new(None),
             child: Mutex::new(None),
@@ -352,6 +354,7 @@ fn run_process_inner(
     let result = loop {
         let mut slot = job.child.lock().unwrap();
         let child = slot.as_mut().ok_or("Proces nie istnieje")?;
+        if job.deadline.lock().unwrap().is_some_and(|t|std::time::Instant::now()>=t){let _=child.kill();let _=child.wait();slot.take();break Err("Przekroczono limit czasu analizy napisu (10 minut)".into());}
         if limit.is_some_and(|files| {
             files
                 .iter()
@@ -790,7 +793,7 @@ pub fn execute_timeline_mlt_scoped(
         crate::project::composition_duration(&p),
     ))
 }
-fn recognize(job: Arc<Job>, tools: Tools, dir: &Path) -> Result<(Vec<Segment>, f64), String> {
+pub(crate) fn recognize(job: Arc<Job>, tools: Tools, dir: &Path) -> Result<(Vec<Segment>, f64), String> {
     let wav = dir.join("audio.wav");
     let output = dir.join("result");
     job.check()?;

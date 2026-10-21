@@ -612,7 +612,7 @@ export default function App() {
             {inspectorTab==='video'&&<VideoProperties project={project} clip={selected} locked={locked||!!selected&&clipLocked(project,selected)} transitionId={selectedTransition} onChange={changeProject}/>}
             <div hidden={inspectorTab!=='captions'}>
             {selectedCaptionIds.length>1&&<p className="caption-multiple-note">Wybierz jeden napis, aby edytować tekst</p>}
-            {caption&&<CaptionTextEditor key={saveState.session+':'+caption.id} project={project} caption={caption} inputRef={captionInput} handleRef={captionEditor} getProject={()=>latestProject.current} locked={locked||!!project.tracks.T?.locked} onChange={commitCaptionProject}/>}
+            {caption&&<CaptionTextEditor key={saveState.session+':'+caption.id} project={project} caption={caption} inputRef={captionInput} handleRef={captionEditor} getProject={()=>latestProject.current} locked={locked||!!project.tracks.T?.locked} onChange={commitCaptionProject} time={time} onSeek={t=>{setSourceViewerId('');seek(t);}}/>}
             <CaptionStyleInspector key={saveState.session} project={project} selectedIds={selectedCaptionIds} visible={inspectorTab==='captions'&&!homeVisible&&!settings&&!studioSnapshot} locked={locked} onChange={changeProject}/>
 
             </div>

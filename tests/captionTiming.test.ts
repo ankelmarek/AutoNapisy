@@ -33,7 +33,7 @@ describe('0.35a positional correction, not forced alignment',()=>{
   const out=captionExport(compositionProject(q));expect(out.segments[0].text).toContain('ROZPOCZYNAMY');expect(synchronizedWords(out.segments[0],q.styles.default)).toBe(true);expect(parseProject(serializeProject(q)).captionEdits).toEqual(q.captionEdits);
  });
  it('keeps legacy edited captions on the original safe fallback until explicitly changed',()=>{
-  const p=sample();p.captionEdits['timeline:pl']={trimStart:0,trimEnd:0,text:'Dzisiaj rozpoczynamy nową drogę'};const v16={...p,schemaVersion:16};const q=parseProject(JSON.stringify(v16));expect(q.schemaVersion).toBe(17);expect(q.captionEdits).toEqual(p.captionEdits);expect(compositionSegments(q)[0].words).toEqual([]);expect(captionTimingState(q,compositionSegments(q)[0])).toBe('uncertain');
+  const p=sample();p.captionEdits['timeline:pl']={trimStart:0,trimEnd:0,text:'Dzisiaj rozpoczynamy nową drogę'};const v16={...p,schemaVersion:16};const q=parseProject(JSON.stringify(v16));expect(q.schemaVersion).toBe(18);expect(q.captionEdits).toEqual(p.captionEdits);expect(compositionSegments(q)[0].words).toEqual([]);expect(captionTimingState(q,compositionSegments(q)[0])).toBe('uncertain');
   const accepted=setCaptionTiming(q,compositionSegments(q)[0],'inherited');expect(captionTimingState(accepted,compositionSegments(accepted)[0])).toBe('inherited');
  });
  it('keeps an explicit whole-card choice through later edits, reopen and a deliberate return to inherited times',()=>{

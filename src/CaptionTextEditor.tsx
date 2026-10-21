@@ -3,8 +3,9 @@ import type {Project} from './model';
 import {compositionSegments,type EditedSegment} from './editing';
 import {editCaption,resizeCaption,setCaptionTiming,canInheritCaption} from './captionEditing';
 import {captionTimingState,captionTimingLabel} from './captionTiming';
+import CaptionWordEditor from './CaptionWordEditor';
 export type CaptionEditorHandle={commit:(p:Project)=>Project};
-export default function CaptionTextEditor({project,caption,locked,inputRef,handleRef,getProject,onChange}:{project:Project;caption:EditedSegment;locked:boolean;inputRef:RefObject<HTMLTextAreaElement|null>;handleRef:Ref<CaptionEditorHandle>;getProject:()=>Project;onChange:(p:Project)=>void}){
+export default function CaptionTextEditor({project,caption,locked,inputRef,handleRef,getProject,onChange,onSeek,time}:{project:Project;caption:EditedSegment;locked:boolean;inputRef:RefObject<HTMLTextAreaElement|null>;handleRef:Ref<CaptionEditorHandle>;getProject:()=>Project;onChange:(p:Project)=>void;onSeek:(t:number)=>void;time:number}){
  const [draft,setDraft]=useState(caption.text),[error,setError]=useState('');
  useLayoutEffect(()=>{setDraft(caption.text);setError('');},[caption.text]);
  const dirty=draft!==caption.text,state=captionTimingState(project,caption);
@@ -22,6 +23,7 @@ export default function CaptionTextEditor({project,caption,locked,inputRef,handl
   <p className={`caption-timing-status ${state}`} role="status" data-timing={state}>{captionTimingLabel(state)}{state==='inherited'&&<small>Czasy odziedziczone z projektu. Korekta nie została ponownie sprawdzona z nagraniem.</small>}{state==='uncertain'&&<small>Brak pewnej zgodności słów i czasów. Efekty słów użyją animacji całej planszy.</small>}</p>
   {!dirty&&<div className="caption-timing-actions">{state!=='board'&&<button disabled={locked} onClick={()=>onChange(setCaptionTiming(project,caption,'board'))}>Animacja całej planszy</button>}{(state==='board'||state==='uncertain')&&canInheritCaption(project,caption)&&<button disabled={locked} onClick={()=>onChange(setCaptionTiming(project,caption,'inherited'))}>Zachowaj czasy 1:1</button>}</div>}
   {error&&<p className="error" role="alert">{error}</p>}
+  {!dirty&&<CaptionWordEditor project={project} caption={caption} locked={locked} getProject={getProject} onChange={onChange} onSeek={onSeek} time={time}/>}
   <div><label>Początek<input aria-label="Początek napisu" type="number" step={.01} value={Number(caption.start.toFixed(3))} disabled={locked||dirty} onChange={e=>{if(Number.isFinite(e.target.valueAsNumber))onChange(resizeCaption(project,caption,'left',e.target.valueAsNumber-caption.start));}}/></label><label>Koniec<input aria-label="Koniec napisu" type="number" step={.01} value={Number(caption.end.toFixed(3))} disabled={locked||dirty} onChange={e=>{if(Number.isFinite(e.target.valueAsNumber))onChange(resizeCaption(project,caption,'right',e.target.valueAsNumber-caption.end));}}/></label></div>
  </div>;
 }
