@@ -21,4 +21,5 @@ jobs:
         if: always()
         with:
           name: polish-alignment-research
+          retention-days: 2
           path: .tools/alignment035b-poc/result.json

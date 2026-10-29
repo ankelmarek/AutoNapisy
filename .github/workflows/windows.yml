@@ -1,6 +1,8 @@
 name: Windows x64
 on:
   push:
+    # Feature branches are tested by pull_request; avoid a second full Windows run.
+    branches: [main]
     # Roadmap-only pushes must not cancel a running installer build.
     paths-ignore:
       - 'README.md'
@@ -11,31 +13,13 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
-  actions: write
 concurrency:
-  group: windows-${{ github.ref }}
+  group: windows-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 jobs:
   build:
     runs-on: windows-latest
     steps:
-      - name: Cancel older builds of the same branch
-        if: github.event_name == 'push'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const branch = context.ref.replace('refs/heads/', '');
-            const {data} = await github.rest.actions.listWorkflowRuns({
-              owner: context.repo.owner, repo: context.repo.repo,
-              workflow_id: 'windows.yml', branch, status: 'in_progress'
-            });
-            for (const run of data.workflow_runs) {
-              if (run.id < context.runId && run.event === 'push') {
-                await github.rest.actions.cancelWorkflowRun({
-                  owner: context.repo.owner, repo: context.repo.repo, run_id: run.id
-                });
-              }
-            }
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
@@ -88,12 +72,13 @@ jobs:
           path: .tools/vendor-build
           key: ffmpeg-objects-v1-${{ hashFiles('scripts/build-bundled-ffmpeg.sh') }}
           restore-keys: ffmpeg-objects-v1-
-      - uses: msys2/setup-msys2@v2
-        if: steps.ffmpeg-ready.outputs.ready != 'true' 
+      - name: Prepare one MSYS2 environment for FFmpeg and MLT
+        uses: msys2/setup-msys2@v2
+        if: steps.ffmpeg-ready.outputs.ready != 'true' || steps.tools-ready.outputs.ready != 'true'
         with:
           msystem: MINGW64
           update: true
-          install: make diffutils curl mingw-w64-x86_64-gcc mingw-w64-x86_64-pkgconf mingw-w64-x86_64-nasm
+          install: make diffutils curl mingw-w64-x86_64-gcc mingw-w64-x86_64-pkgconf mingw-w64-x86_64-nasm mingw-w64-x86_64-make mingw-w64-x86_64-cmake mingw-w64-x86_64-python
       - name: Build FFmpeg and x264 from pinned sources
         if: steps.ffmpeg-ready.outputs.ready != 'true'
         shell: msys2 {0}
@@ -121,12 +106,6 @@ jobs:
             .tools/vendor-build/prefix
           key: mlt-objects-v1-${{ hashFiles('scripts/build-bundled-ffmpeg.sh') }}-${{ hashFiles('scripts/build-bundled-mlt.sh') }}
           restore-keys: mlt-objects-v1-${{ hashFiles('scripts/build-bundled-ffmpeg.sh') }}-
-      - uses: msys2/setup-msys2@v2
-        if: steps.tools-ready.outputs.ready != 'true'
-        with:
-          msystem: MINGW64
-          update: true
-          install: make diffutils curl mingw-w64-x86_64-gcc mingw-w64-x86_64-pkgconf mingw-w64-x86_64-nasm mingw-w64-x86_64-make mingw-w64-x86_64-cmake mingw-w64-x86_64-python
       - name: Build MLT engine and collect source licenses
         if: steps.tools-ready.outputs.ready != 'true'
         shell: msys2 {0}
@@ -218,6 +197,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: RolVixa-UI-Preview
+          retention-days: 2
           path: |
             .tools/caption033-*.png
             .tools/caption034-*.png
@@ -260,6 +240,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: RolVixa-UI-Diagnostics
+          retention-days: 2
           path: src-tauri/target/x86_64-pc-windows-msvc/release/rolvixa.exe
           if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
@@ -274,6 +255,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: RolVixa-Animated-Captions-POC
+          retention-days: 2
           path: |
             .tools/caption033-*.mp4
             .tools/caption034-*.mp4
