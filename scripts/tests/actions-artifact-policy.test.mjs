@@ -108,3 +108,12 @@ test('cleanup workflow keeps deletion behind approval, trusted event, main and a
   assert.ok(cleanup.includes('inputs.execute')); assert.ok(w.includes('default: false'));
   assert.ok(!w.includes('pull_request_target'));
 });
+test('cold Windows setup installs MSYS2 once with dependencies for either missing toolchain', async () => {
+  const w = await readFile('.github/workflows/windows.yml', 'utf8');
+  assert.equal(w.split('uses: msys2/setup-msys2@v2').length - 1, 1);
+  assert.ok(w.includes("if: steps.ffmpeg-ready.outputs.ready != 'true' || steps.tools-ready.outputs.ready != 'true'"));
+  for (const packageName of ['mingw-w64-x86_64-gcc', 'mingw-w64-x86_64-pkgconf', 'mingw-w64-x86_64-nasm',
+    'mingw-w64-x86_64-make', 'mingw-w64-x86_64-cmake', 'mingw-w64-x86_64-python']) assert.ok(w.includes(packageName));
+  assert.ok(w.indexOf('uses: msys2/setup-msys2@v2') < w.indexOf('run: ./scripts/build-bundled-ffmpeg.sh'));
+  assert.ok(w.indexOf('uses: msys2/setup-msys2@v2') < w.indexOf('run: ./scripts/build-bundled-mlt.sh'));
+});

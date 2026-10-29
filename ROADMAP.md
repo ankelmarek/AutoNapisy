@@ -4,7 +4,7 @@
 
 29.10.2026: przygotowywany osobny PR zgodnie z [issue #32](https://github.com/ankelmarek/AutoNapisy/issues/32). Etapy A/B: pełny audyt 329 runów / 388 artefaktów, raport dry-run, ochrona trzech najnowszych instalatorów i wieku >7 dni, 2-dniowa retencja znanych testów/preview/POC, ograniczenie pushów Windows do main przy zachowaniu pełnych testów PR. [Zasady i obsługa](docs/github-actions-retention.md), [pełna lista decyzji audytu](docs/github-actions-retention-audit.md).
 
-**Etap C wyłączony:** nie usunięto artefaktów, nie aktywowano zmiennej i nie scalono PR. Włączenie kasowania oraz wdrożenie wymagają osobnej akceptacji z #32. Nie traktować zgody na przygotowanie PR jako zgody na usuwanie. Odsłuch/odbiór 0.35 i issue #27 pozostają odrębne i otwarte.
+**29.10.2026 użytkownik osobno zatwierdził rozpoczęcie kasowania zgodnie z #32.** Najpierw sprawdzony PR i aktywacja przełącznika, następnie aktualny plan i wykonanie; raportować wyłącznie rzeczywiście potwierdzone usunięcia. Pierwszy Windows zatrzymał się na drugiej instalacji MSYS2 przy zimnym cache; poprawka łączy przygotowanie środowiska bez usuwania testów. Konektor nie udostępnia zapisu zmiennych ani workflow_dispatch; do aktywacji może być potrzebny krok właściciela w GitHubie. Odsłuch/odbiór 0.35 i issue #27 pozostają odrębne i otwarte.
 
 ## RolVixa 0.35c — kandydat zbudowany i sprawdzony, odbiór odsłuchowy otwarty
 

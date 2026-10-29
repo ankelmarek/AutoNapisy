@@ -72,12 +72,13 @@ jobs:
           path: .tools/vendor-build
           key: ffmpeg-objects-v1-${{ hashFiles('scripts/build-bundled-ffmpeg.sh') }}
           restore-keys: ffmpeg-objects-v1-
-      - uses: msys2/setup-msys2@v2
-        if: steps.ffmpeg-ready.outputs.ready != 'true' 
+      - name: Prepare one MSYS2 environment for FFmpeg and MLT
+        uses: msys2/setup-msys2@v2
+        if: steps.ffmpeg-ready.outputs.ready != 'true' || steps.tools-ready.outputs.ready != 'true'
         with:
           msystem: MINGW64
           update: true
-          install: make diffutils curl mingw-w64-x86_64-gcc mingw-w64-x86_64-pkgconf mingw-w64-x86_64-nasm
+          install: make diffutils curl mingw-w64-x86_64-gcc mingw-w64-x86_64-pkgconf mingw-w64-x86_64-nasm mingw-w64-x86_64-make mingw-w64-x86_64-cmake mingw-w64-x86_64-python
       - name: Build FFmpeg and x264 from pinned sources
         if: steps.ffmpeg-ready.outputs.ready != 'true'
         shell: msys2 {0}
@@ -105,12 +106,6 @@ jobs:
             .tools/vendor-build/prefix
           key: mlt-objects-v1-${{ hashFiles('scripts/build-bundled-ffmpeg.sh') }}-${{ hashFiles('scripts/build-bundled-mlt.sh') }}
           restore-keys: mlt-objects-v1-${{ hashFiles('scripts/build-bundled-ffmpeg.sh') }}-
-      - uses: msys2/setup-msys2@v2
-        if: steps.tools-ready.outputs.ready != 'true'
-        with:
-          msystem: MINGW64
-          update: true
-          install: make diffutils curl mingw-w64-x86_64-gcc mingw-w64-x86_64-pkgconf mingw-w64-x86_64-nasm mingw-w64-x86_64-make mingw-w64-x86_64-cmake mingw-w64-x86_64-python
       - name: Build MLT engine and collect source licenses
         if: steps.tools-ready.outputs.ready != 'true'
         shell: msys2 {0}

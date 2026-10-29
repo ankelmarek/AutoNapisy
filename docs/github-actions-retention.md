@@ -1,8 +1,8 @@
 # GitHub Actions: retencja artefaktów — issue #32
 
-Status: przygotowane do przeglądu w PR. **Kasowanie jest wyłączone.** Nie ustawiono zmiennej aktywującej, nie usunięto istniejących artefaktów i nie scalono tej zmiany do `main`.
+Status: 29.10.2026 użytkownik osobno zatwierdził rozpoczęcie kasowania zgodnie z #32. Aktywacja wymaga scalenia sprawdzonego PR i zapisania zmiennej w GitHubie. Do chwili potwierdzonego wykonania nie przedstawiać potencjalnej oszczędności jako odzyskanej przestrzeni.
 
-Walidacja lokalna: 37 testów reguł/API/gate'ów, poprawny YAML i porównanie wszystkich kroków Windows z bazą. Poza usuniętym krokiem ręcznego anulowania i dodaniem retencji testów kroki kompilacji/testów/instalacji/WebView2 są identyczne. Pełny przebieg Windows oraz raport API z PR należy ocenić oddzielnie.
+Walidacja: 37 początkowych testów i pełny raport API przeszły w CI 40845448998. Wszystkie 388 decyzji porównano z lokalnym raportem. Pierwszy Windows 40845448882 przeszedł 473 TS/132 Rust/build frontend i FFmpeg, ale zatrzymał się na drugim uruchomieniu setup-msys2: istniejący katalog instalacji. Poprawka instaluje jedno środowisko z sumą wymaganych pakietów, dla FFmpeg lub MLT; dodano 38. test tej regresji. Nie usunięto żadnego testu aplikacji, integracji, instalacji ani WebView2. Pełny ponowny Windows należy sprawdzić oddzielnie.
 
 ## Zasady
 
