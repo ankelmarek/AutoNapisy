@@ -1,0 +1,83 @@
+name: Actions artifact retention
+on:
+  schedule:
+    - cron: '23 5 * * *'
+  workflow_dispatch:
+    inputs:
+      execute:
+        description: 'Usuń zatwierdzonych kandydatów (wymaga też zmiennej aktywującej)'
+        type: boolean
+        default: false
+  pull_request:
+    paths:
+      - 'scripts/actions-artifact-*.mjs'
+      - 'scripts/tests/actions-artifact-*.test.mjs'
+      - '.github/workflows/artifact-retention.yml'
+      - '.github/workflows/windows.yml'
+      - '.github/workflows/alignment-poc.yml'
+permissions:
+  contents: read
+concurrency:
+  group: artifact-retention-${{ github.event_name == 'pull_request' && github.event.pull_request.number || 'maintenance' }}
+  cancel-in-progress: false
+jobs:
+  audit:
+    if: github.repository == 'ankelmarek/AutoNapisy'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Test retention policy and API failure handling
+        run: node --test scripts/tests/actions-artifact-*.test.mjs
+      - name: Read-only live inventory and dry-run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/actions-artifact-cleanup.mjs
+      - name: Preserve complete inventory decisions
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Actions-retention-report
+          path: |
+            artifact-retention.json
+            artifact-retention.md
+          retention-days: 2
+          if-no-files-found: ignore
+  cleanup:
+    # Stage C is OFF unless the owner explicitly sets this repository variable.
+    # PRs never receive write permissions and never enter the deleting job.
+    if: >-
+      github.repository == 'ankelmarek/AutoNapisy' &&
+      github.ref == 'refs/heads/main' &&
+      vars.ROLVIXA_ARTIFACT_CLEANUP_ENABLED == 'true' &&
+      (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.execute))
+    needs: audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Rebuild live plan, revalidate and delete eligible Actions artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ROLVIXA_ARTIFACT_CLEANUP_ENABLED: ${{ vars.ROLVIXA_ARTIFACT_CLEANUP_ENABLED }}
+        run: node scripts/actions-artifact-cleanup.mjs --execute --output artifact-retention-execution
+      - name: Preserve execution log even after a partial failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Actions-retention-execution-report
+          path: artifact-retention-execution*
+          retention-days: 2
+          if-no-files-found: ignore

@@ -1,5 +1,11 @@
 # Ustalenia projektu RolVixa
 
+## GitHub Actions — issue #32, przygotowanie PR 29.10.2026
+
+Zakres A/B: audyt, dry-run i testy retencji, 2 dni dla nowych artefaktów testowych/preview/POC, jedna pełna walidacja Windows na PR zamiast push+PR na tym samym headzie; push main i ręczny build pozostają. Trzy najnowsze niewygasłe instalatory obu nazw AutoNapisy/RolVixa są chronione globalnie; inne dopiero >7 dni. Nieznane nazwy i aktywne runy zachować. Pełne reguły i rollback w docs/github-actions-retention.md, historyczna lista wszystkich 388 obiektów w docs/github-actions-retention-audit.md.
+
+**Etap C wyłączony.** Nie usuwać istniejących artefaktów, nie ustawiać ROLVIXA_ARTIFACT_CLEANUP_ENABLED=true i nie scalać tego PR bez osobnej akceptacji wymaganej przez issue #32. Zgoda na przygotowanie kodu/raportu nie jest zgodą na destrukcyjne sprzątanie. Nie zamykać #32 po samym PR. Nie mieszać z odbiorem jakości mowy #27.
+
 ## 0.35c — kandydat po testach Windows; odsłuch oczekuje
 
 **21.10.2026 użytkownik odłożył swój test i zatwierdził kontynuację. Zbudowano kandydata 0.35c, ale pełny odsłuch granic słów i odbiór jakości polskiej mowy pozostają otwarte. Issue #27 nie jest zamknięte; to nie stabilny release całego 0.35 ani kolejny forced aligner.**
